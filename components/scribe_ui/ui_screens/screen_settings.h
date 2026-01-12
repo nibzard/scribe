@@ -4,7 +4,7 @@
 #include <string>
 #include <functional>
 #include <vector>
-#include "scribe_storage/settings_store.h"
+#include "settings_store.h"
 
 // Settings screen - Theme, font size, keyboard, auto-sleep
 class ScreenSettings {

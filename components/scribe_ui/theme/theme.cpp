@@ -38,32 +38,9 @@ void applyTheme(bool dark) {
     current_dark = dark;
     const Colors& colors = dark ? dark_colors : light_colors;
 
-    // Apply to default display
+    // Apply to default display background only (no custom theme palette here)
     lv_display_t* disp = lv_display_get_default();
-    if (disp) {
-        // Set default theme for this display
-        lv_theme_t* theme = lv_theme_get_default();
-
-        // Create a simple theme with our colors
-        static lv_theme_t scribe_theme;
-        lv_theme_t* theme_ptr = &scribe_theme;
-
-        // Apply color scheme
-        lv_color_t color_palette[] = {
-            colors.bg,           // LV_PALETTE_MAIN (primary)
-            colors.accent,       // LV_PALETTE_SECONDARY
-            colors.selection,    // LV_PALETTE_TERTIARY
-            colors.text,         // LV_PALETTE_QUATERNARY
-            colors.text_secondary // LV_PALETTE_QUINT
-        };
-
-        // Apply theme to display
-        for (int i = 0; i < 5; i++) {
-            lv_palette_set(LV_PALETTE_MAIN + i, color_palette[i]);
-        }
-
-        ESP_LOGI(TAG, "Applied %s theme to display", dark ? "dark" : "light");
-    } else {
+    if (!disp) {
         ESP_LOGW(TAG, "No default display found for theme application");
     }
 
@@ -73,6 +50,7 @@ void applyTheme(bool dark) {
         lv_obj_set_style_bg_color(scr, colors.bg, 0);
         lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
         lv_obj_set_style_text_color(scr, colors.text, 0);
+        ESP_LOGI(TAG, "Applied %s theme base colors", dark ? "dark" : "light");
     }
 }
 
@@ -86,15 +64,8 @@ bool isDark() {
 
 // Get font based on size setting
 const lv_font_t* getFont(int size_setting) {
-    switch (size_setting) {
-        case 0:  // Small
-            return &lv_font_montserrat_14;
-        case 2:  // Large
-            return &lv_font_montserrat_20;
-        case 1:  // Medium (default)
-        default:
-            return &lv_font_montserrat_16;
-    }
+    LV_UNUSED(size_setting);
+    return &lv_font_montserrat_14;
 }
 
 } // namespace Theme

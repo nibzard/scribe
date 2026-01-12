@@ -5,9 +5,9 @@
 #include <freertos/queue.h>
 #include <string>
 #include <vector>
-#include "scribe_input/key_event.h"
-#include "scribe_storage/settings_store.h"
-#include "scribe_editor/editor_core.h"
+#include "key_event.h"
+#include "settings_store.h"
+#include "editor_core.h"
 
 // Forward declarations
 class EditorCore;

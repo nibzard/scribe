@@ -26,6 +26,7 @@ idf_component_register(SRCS
     INCLUDE_DIRS "."
     REQUIRES
         lvgl
+        scribe_input
         scribe_editor
         scribe_storage
         scribe_services

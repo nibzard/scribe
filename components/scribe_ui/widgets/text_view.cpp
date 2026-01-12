@@ -42,7 +42,7 @@ void text_view_draw_cb(lv_event_t* e) {
     lv_draw_label_dsc_init(&label_dsc);
     label_dsc.font = tv->font_;
     label_dsc.color = lv_color_black();
-    label_dsc.flag = LV_LABEL_FLAG_WRAP | LV_LABEL_FLAG_EXPAND;
+    label_dsc.flag = LV_TEXT_FLAG_EXPAND;
 
     // Determine selection range
     size_t sel_start = tv->selection_start_;

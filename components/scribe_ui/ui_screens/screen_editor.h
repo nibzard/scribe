@@ -1,7 +1,7 @@
 #pragma once
 
 #include <lvgl.h>
-#include "scribe_editor/editor_core.h"
+#include "editor_core.h"
 #include <string>
 
 // Main editor screen - full-screen text editor

@@ -3,6 +3,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <cstring>
+#include <algorithm>
 
 static const char* TAG = "SCRIBE_DISPLAY";
 
@@ -16,9 +17,8 @@ static struct {
     bool initialized;
 
     // Draw buffers
-    uint8_t* buf1;
-    uint8_t* buf2;
-    size_t buf_size;
+    lv_draw_buf_t* dbuf1;
+    lv_draw_buf_t* dbuf2;
 
     // Hardware interface
     void* hw_handle;  // Platform-specific handle
@@ -32,9 +32,8 @@ static struct {
     .rotation = 0,
     .double_buffer = false,
     .initialized = false,
-    .buf1 = nullptr,
-    .buf2 = nullptr,
-    .buf_size = 0,
+    .dbuf1 = nullptr,
+    .dbuf2 = nullptr,
     .hw_handle = nullptr,
     .flush_sem = nullptr
 };
@@ -91,23 +90,19 @@ esp_err_t DisplayDriver::init(const DisplayConfig& config) {
         std::swap(hor_res, ver_res);
     }
 
-    // Buffer size: either full screen or specified line count
+    // Buffer height: either full screen or specified line count
     int lines = (config.buffer_size > 0) ? config.buffer_size : ver_res;
-    state.buf_size = hor_res * lines * LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565);
-
-    // Allocate draw buffer(s)
-    state.buf1 = static_cast<uint8_t*>(heap_caps_malloc(state.buf_size, MALLOC_CAP_DMA));
-    if (!state.buf1) {
-        ESP_LOGE(TAG, "Failed to allocate draw buffer 1 (%zu bytes)", state.buf_size);
+    state.dbuf1 = lv_draw_buf_create(hor_res, lines, LV_COLOR_FORMAT_RGB565, 0);
+    if (!state.dbuf1) {
+        ESP_LOGE(TAG, "Failed to create LVGL draw buffer 1");
         vSemaphoreDelete(state.flush_sem);
         state.flush_sem = nullptr;
         return ESP_ERR_NO_MEM;
     }
-
     if (config.double_buffer) {
-        state.buf2 = static_cast<uint8_t*>(heap_caps_malloc(state.buf_size, MALLOC_CAP_DMA));
-        if (!state.buf2) {
-            ESP_LOGW(TAG, "Failed to allocate second buffer, using single buffer");
+        state.dbuf2 = lv_draw_buf_create(hor_res, lines, LV_COLOR_FORMAT_RGB565, 0);
+        if (!state.dbuf2) {
+            ESP_LOGW(TAG, "Failed to create second draw buffer, using single buffer");
             state.double_buffer = false;
         }
     }
@@ -126,28 +121,13 @@ esp_err_t DisplayDriver::init(const DisplayConfig& config) {
     lv_display_set_flush_cb(state.display, lvgl_flush_cb);
 
     // Set draw buffers
-    if (state.double_buffer && state.buf2) {
-        // Double buffering
-        static lv_display_draw_buf_t draw_buf;
-        lv_display_set_draw_buffers(state.display, state.buf1, state.buf2,
-                                    state.buf_size, state.buf_size,
-                                    LV_DISPLAY_RENDER_MODE_DIRECT);
-    } else {
-        // Single buffer
-        lv_display_set_draw_buffers(state.display, state.buf1, nullptr,
-                                    state.buf_size, 0,
-                                    LV_DISPLAY_RENDER_MODE_DIRECT);
-    }
+    lv_display_set_draw_buffers(state.display, state.dbuf1, state.double_buffer ? state.dbuf2 : nullptr);
 
     // Set default color format
     lv_display_set_color_format(state.display, LV_COLOR_FORMAT_RGB565);
 
-    // Set default swap mode (for SPI displays)
-    lv_display_set_sw_swap(state.display, true);
-
     ESP_LOGI(TAG, "Display driver initialized successfully");
     ESP_LOGI(TAG, "  Resolution: %dx%d", hor_res, ver_res);
-    ESP_LOGI(TAG, "  Buffer size: %zu bytes", state.buf_size);
     ESP_LOGI(TAG, "  Buffering: %s", state.double_buffer ? "double" : "single");
 
     state.initialized = true;
@@ -239,14 +219,13 @@ void DisplayDriver::deinit() {
         state.display = nullptr;
     }
 
-    if (state.buf1) {
-        heap_caps_free(state.buf1);
-        state.buf1 = nullptr;
+    if (state.dbuf1) {
+        lv_draw_buf_destroy(state.dbuf1);
+        state.dbuf1 = nullptr;
     }
-
-    if (state.buf2) {
-        heap_caps_free(state.buf2);
-        state.buf2 = nullptr;
+    if (state.dbuf2) {
+        lv_draw_buf_destroy(state.dbuf2);
+        state.dbuf2 = nullptr;
     }
 
     if (state.flush_sem) {

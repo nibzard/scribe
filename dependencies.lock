@@ -5,14 +5,14 @@ dependencies:
     version: 5.5.2
   lvgl/lvgl:
     component_hash: 
-      948bff879a345149b83065535bbc4a026ce9f47498a22881e432a264b9098015
+      17e68bfd21f0edf4c3ee838e2273da840bf3930e5dbc3bfa6c1190c3aed41f9f
     dependencies: []
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 8.3.11
+    version: 9.4.0
 direct_dependencies:
 - lvgl/lvgl
-manifest_hash: 90dd97fd9de824836ac738ec48b3f0d59e3e2d786b32132a3d65fa0a90c4c2a7
+manifest_hash: a46a7f8230cbfe5df8bc207ab95bf5c54085cbf691b323fb5fb6651fdd6c3ad0
 target: esp32p4
 version: 2.0.0

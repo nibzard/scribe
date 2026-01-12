@@ -1,10 +1,14 @@
 #include "wifi_manager.h"
 #include <esp_log.h>
-#include <esp_wifi.h>
 #include <esp_event.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <cstring>
+#include <soc/soc_caps.h>
+#if SOC_WIFI_SUPPORTED
+#include <esp_wifi.h>
+#include <esp_netif.h>
+#endif
 
 static const char* TAG = "SCRIBE_WIFI";
 
@@ -16,8 +20,10 @@ static const char* TAG = "SCRIBE_WIFI";
 #define MAX_SCAN_NETWORKS 20
 
 // Scan result storage
+#if SOC_WIFI_SUPPORTED
 static wifi_ap_record_t* s_scan_records = nullptr;
 static int s_scan_count = 0;
+#endif
 
 // Forward declarations for event handlers
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
@@ -42,6 +48,7 @@ esp_err_t WiFiManager::init() {
 }
 
 esp_err_t WiFiManager::initWiFiStack() {
+#if SOC_WIFI_SUPPORTED
     // Initialize TCP/IP stack
     esp_err_t ret = esp_netif_init();
     if (ret != ESP_OK) {
@@ -88,6 +95,9 @@ esp_err_t WiFiManager::initWiFiStack() {
     }
 
     return ESP_OK;
+#else
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
 }
 
 esp_err_t WiFiManager::setEnabled(bool enabled) {
@@ -95,8 +105,12 @@ esp_err_t WiFiManager::setEnabled(bool enabled) {
     enabled_.store(enabled);
 
     if (enabled && !was_enabled) {
+#if SOC_WIFI_SUPPORTED
         ESP_LOGI(TAG, "Enabling WiFi...");
         return startWiFi();
+#else
+        return ESP_ERR_NOT_SUPPORTED;
+#endif
     } else if (!enabled && was_enabled) {
         ESP_LOGI(TAG, "Disabling WiFi...");
         return stopWiFi();
@@ -106,6 +120,7 @@ esp_err_t WiFiManager::setEnabled(bool enabled) {
 }
 
 esp_err_t WiFiManager::startWiFi() {
+#if SOC_WIFI_SUPPORTED
     esp_err_t ret = esp_wifi_start();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start WiFi: %s", esp_err_to_name(ret));
@@ -115,9 +130,13 @@ esp_err_t WiFiManager::startWiFi() {
 
     ESP_LOGI(TAG, "WiFi started");
     return ESP_OK;
+#else
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
 }
 
 esp_err_t WiFiManager::stopWiFi() {
+#if SOC_WIFI_SUPPORTED
     // Disconnect first if connected
     if (connected_.load()) {
         disconnect();
@@ -130,6 +149,9 @@ esp_err_t WiFiManager::stopWiFi() {
 
     ESP_LOGI(TAG, "WiFi stopped");
     return ESP_OK;
+#else
+    return ESP_OK;
+#endif
 }
 
 std::string WiFiManager::getSSID() const {
@@ -137,6 +159,7 @@ std::string WiFiManager::getSSID() const {
 }
 
 esp_err_t WiFiManager::startScan(WiFiScanCallback callback) {
+#if SOC_WIFI_SUPPORTED
     if (!enabled_.load()) {
         ESP_LOGE(TAG, "WiFi is not enabled");
         return ESP_ERR_INVALID_STATE;
@@ -157,9 +180,14 @@ esp_err_t WiFiManager::startScan(WiFiScanCallback callback) {
     }
 
     return ESP_OK;
+#else
+    (void)callback;
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
 }
 
 esp_err_t WiFiManager::connect(const std::string& ssid, const std::string& password) {
+#if SOC_WIFI_SUPPORTED
     if (!enabled_.load()) {
         ESP_LOGE(TAG, "WiFi is not enabled");
         return ESP_ERR_INVALID_STATE;
@@ -187,9 +215,14 @@ esp_err_t WiFiManager::connect(const std::string& ssid, const std::string& passw
 
     current_ssid_ = ssid;
     return ESP_OK;
+#else
+    (void)ssid; (void)password;
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
 }
 
 esp_err_t WiFiManager::disconnect() {
+#if SOC_WIFI_SUPPORTED
     ESP_LOGI(TAG, "Disconnecting WiFi...");
     esp_err_t ret = esp_wifi_disconnect();
     if (ret != ESP_OK) {
@@ -204,9 +237,18 @@ esp_err_t WiFiManager::disconnect() {
     }
 
     return ESP_OK;
+#else
+    connected_.store(false);
+    current_ssid_.clear();
+    if (status_callback_) {
+        status_callback_(false, "");
+    }
+    return ESP_OK;
+#endif
 }
 
 std::string WiFiManager::getMacAddress() const {
+#if SOC_WIFI_SUPPORTED
     uint8_t mac[6];
     esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, mac);
     if (ret != ESP_OK) {
@@ -217,9 +259,14 @@ std::string WiFiManager::getMacAddress() const {
     snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     return std::string(mac_str);
+    return std::string(mac_str);
+#else
+    return std::string();
+#endif
 }
 
 std::string WiFiManager::getIPAddress() const {
+#if SOC_WIFI_SUPPORTED
     if (!connected_.load()) {
         return "";
     }
@@ -239,9 +286,14 @@ std::string WiFiManager::getIPAddress() const {
     char ip_str[16];
     snprintf(ip_str, sizeof(ip_str), IPSTR, IP2STR(&ip_info.ip));
     return std::string(ip_str);
+    return std::string(ip_str);
+#else
+    return std::string();
+#endif
 }
 
 void WiFiManager::handleWiFiEvent(int32_t event_id, void* event_data) {
+#if SOC_WIFI_SUPPORTED
     switch (event_id) {
         case WIFI_EVENT_STA_START:
             ESP_LOGD(TAG, "WiFi station started");
@@ -308,9 +360,15 @@ void WiFiManager::handleWiFiEvent(int32_t event_id, void* event_data) {
         default:
             break;
     }
+    }
+#else
+    (void)event_id;
+    (void)event_data;
+#endif
 }
 
 void WiFiManager::handleIPEvent(int32_t event_id, void* event_data) {
+#if SOC_WIFI_SUPPORTED
     if (event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
@@ -321,9 +379,14 @@ void WiFiManager::handleIPEvent(int32_t event_id, void* event_data) {
             status_callback_(true, current_ssid_);
         }
     }
+#else
+    (void)event_id;
+    (void)event_data;
+#endif
 }
 
 // C wrapper for event handler
+#if SOC_WIFI_SUPPORTED
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data) {
     WiFiManager* mgr = static_cast<WiFiManager*>(arg);
@@ -334,3 +397,4 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         mgr->handleIPEvent(event_id, event_data);
     }
 }
+#endif

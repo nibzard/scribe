@@ -64,9 +64,9 @@ void HUDOverlay::createWidgets() {
     // Separator line
     lv_obj_t* separator = lv_obj_create(container_);
     lv_obj_set_size(separator, 250, 1);
-    lv_obj_set_style_bg_color(separator_, lv_color_hex(0x444444), 0);
-    lv_obj_set_style_bg_opa(separator_, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(separator_, 0, 0);
+    lv_obj_set_style_bg_color(separator, lv_color_hex(0x444444), 0);
+    lv_obj_set_style_bg_opa(separator, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_all(separator, 0, 0);
     lv_obj_align(separator, LV_ALIGN_TOP_MID, 0, 30);
 
     // Word counts section
