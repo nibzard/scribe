@@ -23,6 +23,8 @@ class ScreenDiagnostics;
 class ScreenAdvanced;
 class ScreenWiFi;
 class ScreenBackup;
+class ScreenAI;
+class ScreenMagicBar;
 class DialogPowerOff;
 
 // Main UI application class
@@ -89,6 +91,13 @@ public:
     // Show backup settings
     void showBackup();
 
+    // Show AI settings
+    void showAI();
+
+    // Show Magic Bar (AI assistant)
+    void showMagicBar();
+    void hideMagicBar();
+
     // Show power off confirmation
     void showPowerOffConfirmation();
 
@@ -123,7 +132,8 @@ private:
               help_screen_(nullptr), recovery_screen_(nullptr),
               first_run_screen_(nullptr), find_bar_(nullptr),
               diagnostics_screen_(nullptr), advanced_screen_(nullptr),
-              wifi_screen_(nullptr), backup_screen_(nullptr), power_off_dialog_(nullptr) {}
+              wifi_screen_(nullptr), backup_screen_(nullptr), ai_screen_(nullptr),
+              magic_bar_(nullptr), power_off_dialog_(nullptr) {}
     ~UIApp() = default;
 
     bool running_;
@@ -157,6 +167,7 @@ private:
         Advanced,
         WiFi,
         Backup,
+        AI,
         PowerOff
     };
     ScreenType current_screen_ = ScreenType::Editor;
@@ -177,6 +188,8 @@ private:
     ScreenAdvanced* advanced_screen_;
     ScreenWiFi* wifi_screen_;
     ScreenBackup* backup_screen_;
+    ScreenAI* ai_screen_;
+    ScreenMagicBar* magic_bar_;
     DialogPowerOff* power_off_dialog_;
     lv_obj_t* toast_ = nullptr;
     lv_obj_t* toast_label_ = nullptr;

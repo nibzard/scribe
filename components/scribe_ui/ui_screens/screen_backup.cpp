@@ -1,7 +1,14 @@
 #include "screen_backup.h"
+#include "../scribe_services/github_backup.h"
+#include "../scribe_services/wifi_manager.h"
+#include "../scribe_secrets/secrets_nvs.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_BACKUP";
+
+// ============================================================================
+// ScreenBackup Implementation
+// ============================================================================
 
 ScreenBackup::ScreenBackup() : screen_(nullptr) {
 }
@@ -39,44 +46,59 @@ void ScreenBackup::createWidgets() {
 
     // Status label
     status_label_ = lv_label_create(screen_);
-    lv_label_set_text(status_label_, "Choose a backup");
+    lv_label_set_long_mode(status_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(status_label_, 350);
+    lv_label_set_text(status_label_, "Choose a backup provider:");
     lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, 130);
+    lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
 
-    // Provider options
+    // Provider list
     provider_list_ = lv_list_create(screen_);
-    lv_obj_set_size(provider_list_, 350, 200);
+    lv_obj_set_size(provider_list_, 350, 250);
     lv_obj_align(provider_list_, LV_ALIGN_TOP_MID, 0, 170);
 
     // GitHub repository option
     lv_obj_t* btn = lv_list_add_btn(provider_list_, LV_SYMBOL_GITHUB, "GitHub repository");
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(btn, [](lv_obj_t* obj, lv_event_t* event) {
+        ScreenBackup* screen = (ScreenBackup*)lv_obj_get_user_data(obj);
+        if (screen && screen->configure_cb_) {
+            screen->configure_cb_(BackupProvider::GITHUB_REPO);
+        }
+    }, LV_EVENT_CLICKED, nullptr);
+    lv_obj_set_user_data(btn, this);
 
     // GitHub Gist option
     btn = lv_list_add_btn(provider_list_, LV_SYMBOL_FILE, "GitHub Gist");
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(btn, [](lv_obj_t* obj, lv_event_t* event) {
+        ScreenBackup* screen = (ScreenBackup*)lv_obj_get_user_data(obj);
+        if (screen && screen->configure_cb_) {
+            screen->configure_cb_(BackupProvider::GITHUB_GIST);
+        }
+    }, LV_EVENT_CLICKED, nullptr);
+    lv_obj_set_user_data(btn, this);
 
     // Back button
-    btn = lv_btn_create(screen_);
-    lv_obj_set_size(btn, 120, 50);
-    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -20);
+    back_btn_ = lv_btn_create(screen_);
+    lv_obj_set_size(back_btn_, 120, 50);
+    lv_obj_align(back_btn_, LV_ALIGN_BOTTOM_MID, 0, -20);
 
-    lv_obj_t* label = lv_label_create(btn);
+    lv_obj_t* label = lv_label_create(back_btn_);
     lv_label_set_text(label, "Back");
     lv_obj_center(label);
 
-    lv_obj_add_event_cb(btn, [](lv_obj_t* obj, lv_event_t* event) {
+    lv_obj_add_event_cb(back_btn_, [](lv_obj_t* obj, lv_event_t* event) {
         ScreenBackup* screen = (ScreenBackup*)lv_obj_get_user_data(obj);
         if (screen && screen->back_cb_) {
             screen->back_cb_();
         }
     }, LV_EVENT_CLICKED, nullptr);
-    lv_obj_set_user_data(btn, this);
+    lv_obj_set_user_data(back_btn_, this);
 }
 
 void ScreenBackup::show() {
     if (screen_) {
         lv_scr_load(screen_);
-        updateStatus();
+        updateUI();
     }
 }
 
@@ -86,7 +108,300 @@ void ScreenBackup::hide() {
     }
 }
 
-void ScreenBackup::updateStatus() {
-    // TODO: Check if backup is configured and update status
-    ESP_LOGI(TAG, "Backup settings shown");
+void ScreenBackup::updateStatus(bool has_token, const std::string& repo_info) {
+    has_token_ = has_token;
+    repo_info_ = repo_info;
+    updateUI();
+}
+
+void ScreenBackup::updateUI() {
+    if (!status_label_) return;
+
+    if (has_token_ && !repo_info_.empty()) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "Backup configured: %s\n\nPress Back or choose a different provider.",
+                 repo_info_.c_str());
+        lv_label_set_text(status_label_, buf);
+    } else if (has_token_) {
+        lv_label_set_text(status_label_, "Token configured. Choose a provider:");
+    } else {
+        lv_label_set_text(status_label_, "Choose a backup provider:");
+    }
+}
+
+// ============================================================================
+// TokenInputDialog Implementation
+// ============================================================================
+
+TokenInputDialog& TokenInputDialog::getInstance() {
+    static TokenInputDialog instance;
+    return instance;
+}
+
+TokenInputDialog::~TokenInputDialog() {
+    if (dialog_) {
+        lv_obj_del(dialog_);
+    }
+}
+
+void TokenInputDialog::init() {
+    // Dialog created on demand
+}
+
+void TokenInputDialog::createDialog() {
+    if (dialog_) return;
+
+    // Create modal dialog
+    dialog_ = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(dialog_, LV_HOR_RES - 60, 280);
+    lv_obj_center(dialog_);
+    lv_obj_set_style_bg_opa(dialog_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(dialog_, lv_color_white(), 0);
+    lv_obj_set_style_border_width(dialog_, 2, 0);
+    lv_obj_set_style_border_color(dialog_, lv_color_black(), 0);
+
+    // Title
+    lv_obj_t* title = lv_label_create(dialog_);
+    lv_label_set_text(title, "GitHub Personal Access Token");
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
+
+    // Instructions
+    lv_obj_t* info = lv_label_create(dialog_);
+    lv_label_set_long_mode(info, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(info, LV_HOR_RES - 100);
+    lv_label_set_text(info, "Create a token at github.com/settings/tokens\nRequired scope: repo (full repo access)");
+    lv_obj_align(info, LV_ALIGN_TOP_MID, 0, 50);
+    lv_obj_set_style_text_align(info, LV_TEXT_ALIGN_CENTER, 0);
+
+    // Token input
+    textarea_ = lv_textarea_create(dialog_);
+    lv_obj_set_size(textarea_, LV_HOR_RES - 100, 60);
+    lv_obj_align(textarea_, LV_ALIGN_TOP_MID, 0, 110);
+    lv_textarea_set_placeholder_text(textarea_, "ghp_xxxxxxxxxxxxxxxxxxxx");
+    lv_textarea_set_password_mode(textarea_, true);
+    lv_textarea_set_one_line(textarea_, true);
+    lv_obj_add_flag(textarea_, LV_OBJ_FLAG_FOCUSABLE);
+
+    // Buttons container
+    lv_obj_t* btn_cont = lv_obj_create(dialog_);
+    lv_obj_set_size(btn_cont, 250, 50);
+    lv_obj_align(btn_cont, LV_ALIGN_BOTTOM_MID, 0, -15);
+    lv_obj_set_style_bg_opa(btn_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(btn_cont, 0, 0);
+
+    // Cancel button
+    cancel_btn_ = lv_btn_create(btn_cont);
+    lv_obj_set_size(cancel_btn_, 100, 40);
+    lv_obj_align(cancel_btn_, LV_ALIGN_LEFT_MID, 0, 0);
+
+    lv_obj_t* label = lv_label_create(cancel_btn_);
+    lv_label_set_text(label, "Cancel");
+    lv_obj_center(label);
+
+    lv_obj_add_event_cb(cancel_btn_, [](lv_obj_t* obj, lv_event_t* event) {
+        TokenInputDialog* dlg = (TokenInputDialog*)lv_obj_get_user_data(obj);
+        if (dlg) {
+            dlg->hide();
+            if (dlg->cancel_callback_) {
+                dlg->cancel_callback_();
+            }
+        }
+    }, LV_EVENT_CLICKED, nullptr);
+    lv_obj_set_user_data(cancel_btn_, this);
+
+    // Save button
+    save_btn_ = lv_btn_create(btn_cont);
+    lv_obj_set_size(save_btn_, 100, 40);
+    lv_obj_align(save_btn_, LV_ALIGN_RIGHT_MID, 0, 0);
+
+    label = lv_label_create(save_btn_);
+    lv_label_set_text(label, "Save");
+    lv_obj_center(label);
+
+    lv_obj_add_event_cb(save_btn_, [](lv_obj_t* obj, lv_event_t* event) {
+        TokenInputDialog* dlg = (TokenInputDialog*)lv_obj_get_user_data(obj);
+        if (dlg) {
+            dlg->validateToken();
+        }
+    }, LV_EVENT_CLICKED, nullptr);
+    lv_obj_set_user_data(save_btn_, this);
+}
+
+void TokenInputDialog::show(TokenCallback on_save, CancelCallback on_cancel) {
+    save_callback_ = on_save;
+    cancel_callback_ = on_cancel;
+
+    createDialog();
+
+    if (textarea_) {
+        lv_textarea_set_text(textarea_, "");
+        lv_obj_add_state(textarea_, LV_STATE_FOCUSED);
+    }
+
+    lv_obj_clear_flag(dialog_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void TokenInputDialog::hide() {
+    if (dialog_) {
+        lv_obj_add_flag(dialog_, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void TokenInputDialog::validateToken() {
+    if (!textarea_) return;
+
+    const char* token = lv_textarea_get_text(textarea_);
+
+    // Basic validation: GitHub tokens start with "ghp_" and are at least 40 chars
+    size_t len = strlen(token);
+    if (len < 20) {
+        // Show error
+        lv_textarea_set_placeholder_text(textarea_, "Token too short (min 20 chars)");
+        return;
+    }
+
+    // Save token
+    if (save_callback_) {
+        save_callback_(std::string(token));
+    }
+
+    hide();
+}
+
+// ============================================================================
+// RepoConfigDialog Implementation
+// ============================================================================
+
+RepoConfigDialog& RepoConfigDialog::getInstance() {
+    static RepoConfigDialog instance;
+    return instance;
+}
+
+RepoConfigDialog::~RepoConfigDialog() {
+    if (dialog_) {
+        lv_obj_del(dialog_);
+    }
+}
+
+void RepoConfigDialog::init() {
+    // Dialog created on demand
+}
+
+void RepoConfigDialog::createDialog() {
+    if (dialog_) return;
+
+    // Create modal dialog
+    dialog_ = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(dialog_, LV_HOR_RES - 60, 300);
+    lv_obj_center(dialog_);
+    lv_obj_set_style_bg_opa(dialog_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(dialog_, lv_color_white(), 0);
+    lv_obj_set_style_border_width(dialog_, 2, 0);
+    lv_obj_set_style_border_color(dialog_, lv_color_black(), 0);
+
+    // Title
+    lv_obj_t* title = lv_label_create(dialog_);
+    lv_label_set_text(title, "GitHub Repository");
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
+
+    // Owner input
+    lv_obj_t* label = lv_label_create(dialog_);
+    lv_label_set_text(label, "Owner:");
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 60);
+
+    owner_input_ = lv_textarea_create(dialog_);
+    lv_obj_set_size(owner_input_, 200, 40);
+    lv_obj_align(owner_input_, LV_ALIGN_TOP_LEFT, 30, 80);
+    lv_textarea_set_placeholder_text(owner_input_, "username");
+    lv_textarea_set_one_line(owner_input_, true);
+
+    // Repo input
+    label = lv_label_create(dialog_);
+    lv_label_set_text(label, "Repository:");
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 130);
+
+    repo_input_ = lv_textarea_create(dialog_);
+    lv_obj_set_size(repo_input_, 200, 40);
+    lv_obj_align(repo_input_, LV_ALIGN_TOP_LEFT, 30, 150);
+    lv_textarea_set_placeholder_text(repo_input_, "my-writing-backup");
+    lv_textarea_set_one_line(repo_input_, true);
+
+    // Branch input
+    label = lv_label_create(dialog_);
+    lv_label_set_text(label, "Branch:");
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 200);
+
+    branch_input_ = lv_textarea_create(dialog_);
+    lv_obj_set_size(branch_input_, 200, 40);
+    lv_obj_align(branch_input_, LV_ALIGN_TOP_LEFT, 30, 220);
+    lv_textarea_set_placeholder_text(branch_input_, "main");
+    lv_textarea_set_one_line(branch_input_, true);
+    lv_textarea_set_text(branch_input_, "main");
+
+    // Buttons container
+    lv_obj_t* btn_cont = lv_obj_create(dialog_);
+    lv_obj_set_size(btn_cont, 250, 50);
+    lv_obj_align(btn_cont, LV_ALIGN_BOTTOM_MID, 0, -15);
+    lv_obj_set_style_bg_opa(btn_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(btn_cont, 0, 0);
+
+    // Cancel button
+    lv_obj_t* cancel_btn = lv_btn_create(btn_cont);
+    lv_obj_set_size(cancel_btn, 100, 40);
+    lv_obj_align(cancel_btn, LV_ALIGN_LEFT_MID, 0, 0);
+
+    lv_obj_t* btn_label = lv_label_create(cancel_btn);
+    lv_label_set_text(btn_label, "Cancel");
+    lv_obj_center(btn_label);
+
+    lv_obj_add_event_cb(cancel_btn, [](lv_obj_t* obj, lv_event_t* event) {
+        RepoConfigDialog* dlg = (RepoConfigDialog*)lv_obj_get_user_data(obj);
+        if (dlg) {
+            dlg->hide();
+            if (dlg->cancel_callback_) {
+                dlg->cancel_callback_();
+            }
+        }
+    }, LV_EVENT_CLICKED, nullptr);
+    lv_obj_set_user_data(cancel_btn, this);
+
+    // Save button
+    lv_obj_t* save_btn = lv_btn_create(btn_cont);
+    lv_obj_set_size(save_btn, 100, 40);
+    lv_obj_align(save_btn, LV_ALIGN_RIGHT_MID, 0, 0);
+
+    btn_label = lv_label_create(save_btn);
+    lv_label_set_text(btn_label, "Save");
+    lv_obj_center(btn_label);
+
+    lv_obj_add_event_cb(save_btn, [](lv_obj_t* obj, lv_event_t* event) {
+        RepoConfigDialog* dlg = (RepoConfigDialog*)lv_obj_get_user_data(obj);
+        if (dlg && dlg->save_callback_) {
+            const char* owner = lv_textarea_get_text(dlg->owner_input_);
+            const char* repo = lv_textarea_get_text(dlg->repo_input_);
+            const char* branch = lv_textarea_get_text(dlg->branch_input_);
+            dlg->save_callback_(std::string(owner), std::string(repo), std::string(branch));
+        }
+        if (dlg) {
+            dlg->hide();
+        }
+    }, LV_EVENT_CLICKED, nullptr);
+    lv_obj_set_user_data(save_btn, this);
+}
+
+void RepoConfigDialog::show(ConfigCallback on_save, CancelCallback on_cancel) {
+    save_callback_ = on_save;
+    cancel_callback_ = on_cancel;
+
+    createDialog();
+
+    lv_obj_clear_flag(dialog_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void RepoConfigDialog::hide() {
+    if (dialog_) {
+        lv_obj_add_flag(dialog_, LV_OBJ_FLAG_HIDDEN);
+    }
 }

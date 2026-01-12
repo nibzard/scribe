@@ -27,8 +27,13 @@ static const char* autoSleepLabel(int value) {
 }
 
 static const char* keyboardLayoutLabel(int value) {
-    (void)value;
-    return "US";
+    switch (value) {
+        case 0: return "US";
+        case 1: return "UK";
+        case 2: return "DE";
+        case 3: return "FR";
+        default: return "US";
+    }
 }
 
 ScreenSettings::ScreenSettings() : screen_(nullptr), selected_index_(0), in_advanced_(false) {

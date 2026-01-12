@@ -1,11 +1,26 @@
 #pragma once
 
 #include <esp_err.h>
-#include <stdbool.h>
+#include <functional>
+#include <string>
+#include <vector>
 
-// WiFi manager - handles WiFi connectivity (MVP2 feature)
+// WiFi network info
+struct WiFiNetwork {
+    std::string ssid;
+    int rssi;           // Signal strength
+    bool secure;        // Whether password required
+};
+
+// WiFi status callback
+using WiFiStatusCallback = std::function<void(bool connected, const std::string& ssid)>;
+
+// WiFi scan callback
+using WiFiScanCallback = std::function<void(const std::vector<WiFiNetwork>& networks)>;
+
+// WiFi manager - handles WiFi connectivity (MVP3 feature)
 // Based on SPECS.md section 6.6 - Wi-Fi bring-up
-
+// Opportunistic WiFi: offline is normal, connection is bonus
 class WiFiManager {
 public:
     static WiFiManager& getInstance();
@@ -17,28 +32,52 @@ public:
     esp_err_t setEnabled(bool enabled);
 
     // Check if WiFi is enabled
-    bool isEnabled() const { return enabled_; }
+    bool isEnabled() const { return enabled_.load(); }
 
     // Check if connected
-    bool isConnected() const { return connected_; }
+    bool isConnected() const { return connected_.load(); }
 
     // Get current SSID
-    const char* getSSID() const { return ssid_; }
+    std::string getSSID() const;
 
-    // Start scan for networks
-    esp_err_t startScan();
+    // Start scan for networks (results via callback)
+    esp_err_t startScan(WiFiScanCallback callback);
 
     // Connect to network
-    esp_err_t connect(const char* ssid, const char* password);
+    esp_err_t connect(const std::string& ssid, const std::string& password);
 
     // Disconnect
     esp_err_t disconnect();
 
+    // Register status change callback
+    void setStatusCallback(WiFiStatusCallback callback) { status_callback_ = callback; }
+
+    // Get WiFi MAC address
+    std::string getMacAddress() const;
+
+    // Get IP address (empty if not connected)
+    std::string getIPAddress() const;
+
 private:
-    WiFiManager() : enabled_(false), connected_(false), ssid_(nullptr) {}
+    WiFiManager() = default;
     ~WiFiManager() = default;
 
-    bool enabled_;
-    bool connected_;
-    const char* ssid_;
+    std::atomic<bool> enabled_{false};
+    std::atomic<bool> connected_{false};
+    std::string current_ssid_;
+    WiFiScanCallback scan_callback_;
+    WiFiStatusCallback status_callback_;
+
+    // Internal event handlers
+    void handleWiFiEvent(int32_t event_id, void* event_data);
+    void handleIPEvent(int32_t event_id, void* event_data);
+
+    // Initialize WiFi stack
+    esp_err_t initWiFiStack();
+
+    // Configure and start WiFi
+    esp_err_t startWiFi();
+
+    // Stop WiFi
+    esp_err_t stopWiFi();
 };

@@ -1,5 +1,7 @@
 idf_component_register(SRCS
     "ui_app.cpp"
+    "display_driver.cpp"
+    "mipi_dsi_display.cpp"
     "theme/theme.cpp"
     "widgets/text_view.cpp"
     "widgets/toast.cpp"
@@ -18,6 +20,8 @@ idf_component_register(SRCS
     "ui_screens/screen_advanced.cpp"
     "ui_screens/screen_wifi.cpp"
     "ui_screens/screen_backup.cpp"
+    "ui_screens/screen_ai.cpp"
+    "ui_screens/screen_magic_bar.cpp"
     "ui_screens/dialog_power_off.cpp"
     INCLUDE_DIRS "."
     REQUIRES

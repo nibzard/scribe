@@ -30,4 +30,10 @@ void applyTheme(bool dark = false);
 // Get current colors
 const Colors& getColors();
 
+// Check if dark theme is active
+bool isDark();
+
+// Get font based on size setting (0=small, 1=medium, 2=large)
+const lv_font_t* getFont(int size_setting);
+
 } // namespace Theme

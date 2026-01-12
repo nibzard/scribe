@@ -3,6 +3,7 @@ idf_component_register(SRCS
     "power_manager.cpp"
     "rtc_time.cpp"
     "wifi_manager.cpp"
+    "github_backup.cpp"
     "ai_assist.cpp"
     INCLUDE_DIRS "."
     REQUIRES
@@ -13,4 +14,5 @@ idf_component_register(SRCS
         nvs_flash
         esp_http_client
         json
+        scribe_secrets
 )

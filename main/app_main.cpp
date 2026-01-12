@@ -324,7 +324,7 @@ extern "C" void app_main(void)
             ESP_LOGI(TAG, "Recovery files found - will prompt user");
             RecoveryPayload* payload = new RecoveryPayload{
                 last_id,
-                readRecoveredContent(last_id)
+                RecoveryManager::recover(last_id)
             };
             Event rev;
             rev.type = EventType::SHOW_RECOVERY;

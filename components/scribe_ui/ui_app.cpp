@@ -1,6 +1,9 @@
 #include "ui_app.h"
+#include "display_driver.h"
+#include "mipi_dsi_display.h"
 #include "../scribe_export/export_sd.h"
 #include "../scribe_export/send_to_computer.h"
+#include "../scribe_input/keymap.h"
 #include "ui_screens/screen_editor.h"
 #include "ui_screens/screen_menu.h"
 #include "ui_screens/screen_projects.h"
@@ -15,6 +18,8 @@
 #include "ui_screens/screen_advanced.h"
 #include "ui_screens/screen_wifi.h"
 #include "ui_screens/screen_backup.h"
+#include "ui_screens/screen_ai.h"
+#include "ui_screens/screen_magic_bar.h"
 #include "ui_screens/dialog_power_off.h"
 #include "scribe_editor/editor_core.h"
 #include "scribe_storage/project_library.h"
@@ -24,6 +29,7 @@
 #include "scribe_storage/settings_store.h"
 #include "scribe_services/battery.h"
 #include "scribe_services/ai_assist.h"
+#include "scribe_services/github_backup.h"
 #include "scribe_services/power_manager.h"
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
@@ -66,15 +72,66 @@ esp_err_t UIApp::init() {
     // Initialize LVGL
     lv_init();
 
-    // TODO: Configure display driver for MIPI-DSI
-    // TODO: Create display buffer
-    // TODO: Register display driver
+    // Try to initialize MIPI-DSI display first
+    // Configure for common TFT panels via SPI (MIPI-DSI requires specific hardware)
+    MIPIDSI::DisplayConfig dsi_config = {
+        .panel = MIPIDSI::PanelType::ST7789,    // Common panel type
+        .width = 320,                           // Tab5 display width
+        .height = 240,                          // Tab5 display height
+        .fps = 60,
+        .use_spi = true,                        // Use SPI interface
+        .spi_freq_mhz = 40,                     // 40MHz SPI
+        .dc_pin = GPIO_NUM_4,                   // Data/Command pin (adjust for hardware)
+        .reset_pin = GPIO_NUM_5,                // Reset pin (adjust for hardware)
+        .cs_pin = GPIO_NUM_15,                  // Chip select (adjust for hardware)
+        .backlight_pin = GPIO_NUM_16,           // Backlight control (adjust for hardware)
+        .rgb565_byte_swap = true                // Swap bytes for RGB565
+    };
+
+    esp_err_t ret = MIPIDSI::init(dsi_config);
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "MIPI-DSI display initialized successfully");
+    } else {
+        ESP_LOGW(TAG, "MIPI-DSI display init failed: %s", esp_err_to_name(ret));
+        ESP_LOGI(TAG, "Falling back to generic display driver");
+
+        // Fallback to generic display driver (for simulation/testing)
+        DisplayDriver::DisplayConfig disp_config = {
+            .width = 320,
+            .height = 240,
+            .rotation = 0,
+            .double_buffer = true,
+            .buffer_size = 0,
+            .partial_refresh = false
+        };
+
+        ret = DisplayDriver::init(disp_config);
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Generic display driver also failed: %s", esp_err_to_name(ret));
+            ESP_LOGW(TAG, "UI will continue but may not display correctly");
+        } else {
+            ESP_LOGI(TAG, "Generic display driver initialized");
+        }
+    }
 
     // Load settings and theme
     SettingsStore& settings_store = SettingsStore::getInstance();
     settings_store.init();
     settings_store.load(settings_);
     Theme::applyTheme(settings_.dark_theme);
+
+    // Apply keyboard layout from settings
+    setKeyboardLayout(intToLayout(settings_.keyboard_layout));
+
+    // Initialize services
+    GitHubBackup& backup = GitHubBackup::getInstance();
+    backup.init();
+    backup.setStatusCallback([this](BackupStatus status, const std::string& message) {
+        // Update HUD backup state based on status
+        if (hud_visible_) {
+            updateHUD();
+        }
+    });
 
     // Initialize screens
     editor_screen_ = new ScreenEditor();
@@ -119,6 +176,16 @@ esp_err_t UIApp::init() {
     backup_screen_ = new ScreenBackup();
     backup_screen_->init();
 
+    // Initialize backup dialogs
+    TokenInputDialog::getInstance().init();
+    RepoConfigDialog::getInstance().init();
+
+    ai_screen_ = new ScreenAI();
+    ai_screen_->init();
+
+    magic_bar_ = new ScreenMagicBar();
+    magic_bar_->init();
+
     power_off_dialog_ = new DialogPowerOff();
     power_off_dialog_->init();
 
@@ -162,7 +229,9 @@ esp_err_t UIApp::init() {
         } else if (setting == "font_size") {
             settings_.font_size = std::max(0, std::min(2, settings_.font_size + delta));
         } else if (setting == "keyboard_layout") {
-            settings_.keyboard_layout = 0;
+            // Cycle through layouts: 0=US, 1=UK, 2=DE, 3=FR
+            settings_.keyboard_layout = (settings_.keyboard_layout + delta) & 3;  // Wrap 0-3
+            if (settings_.keyboard_layout < 0) settings_.keyboard_layout += 4;
         } else if (setting == "auto_sleep") {
             settings_.auto_sleep = std::max(0, std::min(3, settings_.auto_sleep + delta));
         }
@@ -199,12 +268,37 @@ esp_err_t UIApp::init() {
         } else if (strcmp(destination, "diagnostics") == 0) {
             showDiagnostics();
         } else if (strcmp(destination, "ai") == 0) {
-            showToast("AI: off");
+            showAI();
         }
     });
 
     wifi_screen_->setBackCallback([this]() { showAdvanced(); });
     backup_screen_->setBackCallback([this]() { showAdvanced(); });
+
+    // Set up backup screen configure callback
+    backup_screen_->setConfigureCallback([this](BackupProvider provider) {
+        GitHubBackup& backup = GitHubBackup::getInstance();
+        if (!backup.isEnabled()) {
+            backup.setEnabled(true);
+        }
+        backup.configure(provider, "", "", "main");
+        // Show token input dialog if no token
+        if (backup.getToken().empty()) {
+            TokenInputDialog::getInstance().show(
+                [this](const std::string& token) {
+                    GitHubBackup::getInstance().setToken(token);
+                    backup_screen_->updateStatus(true);
+                },
+                [this]() {
+                    // Cancel - do nothing
+                }
+            );
+        } else {
+            backup_screen_->updateStatus(true);
+        }
+    });
+
+    ai_screen_->setBackCallback([this]() { showAdvanced(); });
     diagnostics_screen_->setCloseCallback([this]() { showAdvanced(); });
 
     power_off_dialog_->setConfirmCallback([this]() {
@@ -212,6 +306,46 @@ esp_err_t UIApp::init() {
     });
     power_off_dialog_->setCancelCallback([this]() {
         handlePowerOffCancel();
+    });
+
+    // Set up Magic Bar callbacks
+    magic_bar_->setInsertCallback([this](const std::string& text) {
+        if (editor_) {
+            size_t cursor = editor_->getCursor();
+            editor_->insert(text, cursor);
+            updateEditor();
+            hideMagicBar();
+        }
+    });
+    magic_bar_->setCancelCallback([this]() {
+        hideMagicBar();
+    });
+    magic_bar_->setStyleCallback([this](AIStyle style) {
+        if (magic_bar_) {
+            magic_bar_->setStyle(style);
+            // Restart AI request with new style
+            AIAssist& ai = AIAssist::getInstance();
+            if (!ai.isEnabled()) {
+                showToast("AI is off");
+                return;
+            }
+            if (editor_) {
+                std::string context = editor_->getSelectedText();
+                if (context.empty()) {
+                    // Get text around cursor
+                    size_t cursor = editor_->getCursor();
+                    context = editor_->getText().substr(
+                        std::max(0, static_cast<int>(cursor) - 500),
+                        1000
+                    );
+                }
+                magic_bar_->setContextText(context);
+                ai.requestSuggestion(style, context,
+                    [this](const char* delta) { magic_bar_->onStreamDelta(delta); },
+                    [this](bool success, const std::string& error) { magic_bar_->onComplete(success, error); }
+                );
+            }
+        }
     });
 
     applySettings();
@@ -359,9 +493,68 @@ void UIApp::showWiFi() {
 
 void UIApp::showBackup() {
     if (backup_screen_) {
+        // Initialize and update backup status
+        GitHubBackup& backup = GitHubBackup::getInstance();
+        backup.init();
+
+        bool has_token = !backup.getToken().empty();
+        std::string repo_info;
+        if (has_token) {
+            // Build repo info string
+            // TODO: Get actual repo info from backup configuration
+            repo_info = "Configured";
+        }
+
+        backup_screen_->updateStatus(has_token, repo_info);
         backup_screen_->show();
     }
     current_screen_ = ScreenType::Backup;
+}
+
+void UIApp::showAI() {
+    if (ai_screen_) {
+        ai_screen_->show();
+    }
+    current_screen_ = ScreenType::AI;
+}
+
+void UIApp::showMagicBar() {
+    if (!magic_bar_) {
+        return;
+    }
+
+    AIAssist& ai = AIAssist::getInstance();
+    if (!ai.isEnabled()) {
+        showToast("AI is off");
+        return;
+    }
+
+    if (editor_) {
+        std::string context = editor_->getSelectedText();
+        if (context.empty()) {
+            // Get text around cursor
+            size_t cursor = editor_->getCursor();
+            context = editor_->getText().substr(
+                std::max(0, static_cast<int>(cursor) - 500),
+                1000
+            );
+        }
+        magic_bar_->setContextText(context);
+        magic_bar_->show();
+
+        // Start AI request
+        ai.requestSuggestion(magic_bar_->getStyle(), context,
+            [this](const char* delta) { magic_bar_->onStreamDelta(delta); },
+            [this](bool success, const std::string& error) { magic_bar_->onComplete(success, error); }
+        );
+    }
+}
+
+void UIApp::hideMagicBar() {
+    if (magic_bar_) {
+        magic_bar_->hide();
+    }
+    current_screen_ = ScreenType::Editor;
 }
 
 void UIApp::showPowerOffConfirmation() {
@@ -681,6 +874,14 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
             toggleHUD();
             return true;
         }
+        if (event.ctrl && event.key == KeyEvent::Key::K) {
+            if (magic_bar_ && magic_bar_->isVisible()) {
+                hideMagicBar();
+            } else {
+                showMagicBar();
+            }
+            return true;
+        }
     }
 
     switch (current_screen_) {
@@ -895,6 +1096,7 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
             return true;
         case ScreenType::WiFi:
         case ScreenType::Backup:
+        case ScreenType::AI:
         case ScreenType::Diagnostics:
             if (event.key == KeyEvent::Key::ESC) {
                 showAdvanced();
@@ -944,7 +1146,25 @@ void UIApp::updateHUD() {
     }
 
     if (settings_.backup_enabled) {
-        editor_screen_->setHUDBackupState("Backup: queued");
+        GitHubBackup& backup = GitHubBackup::getInstance();
+        BackupStatus status = backup.getStatus();
+        switch (status) {
+            case BackupStatus::IDLE:
+                editor_screen_->setHUDBackupState("Backup: queued");
+                break;
+            case BackupStatus::SYNCING:
+                editor_screen_->setHUDBackupState("Backup: syncing\u2026");
+                break;
+            case BackupStatus::SUCCESS:
+                editor_screen_->setHUDBackupState("Backup: synced \u2713");
+                break;
+            case BackupStatus::FAILED:
+                editor_screen_->setHUDBackupState("Backup: failed");
+                break;
+            case BackupStatus::CONFLICT:
+                editor_screen_->setHUDBackupState("Backup: conflict");
+                break;
+        }
     } else {
         editor_screen_->setHUDBackupState("Backup: off");
     }
@@ -1030,6 +1250,7 @@ void UIApp::showToastInternal(const char* message, uint32_t duration_ms) {
 
 void UIApp::applySettings() {
     Theme::applyTheme(settings_.dark_theme);
+    setKeyboardLayout(intToLayout(settings_.keyboard_layout));
     if (settings_screen_) {
         settings_screen_->setSettings(settings_);
     }
