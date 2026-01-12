@@ -5,7 +5,7 @@
 static const char* TAG = "SCRIBE_TEXT_VIEW";
 
 // Draw callback for LVGL
-static void text_view_draw_cb(lv_event_t* e) {
+void text_view_draw_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target(e);
     lv_draw_ctx_t* draw_ctx = lv_event_get_draw_ctx(e);
 
@@ -32,7 +32,7 @@ static void text_view_draw_cb(lv_event_t* e) {
     lv_draw_rect_dsc_init(&rect_dsc);
     rect_dsc.bg_color = lv_color_white();
     rect_dsc.border_width = 0;
-    lv_draw_rect(draw_ctx, &clip_area, &obj_coords);
+    lv_draw_rect(draw_ctx, &rect_dsc, &obj_coords);
 
     // Draw text line by line
     const std::string& text = tv->getText();
@@ -89,7 +89,7 @@ static void text_view_draw_cb(lv_event_t* e) {
                 sel_dsc.bg_color = lv_palette_main(LV_PALETTE_LIGHT_BLUE);
                 sel_dsc.bg_opa = LV_OPA_50;
                 sel_dsc.border_width = 0;
-                lv_draw_rect(draw_ctx, &clip_area, &sel_area);
+                lv_draw_rect(draw_ctx, &sel_dsc, &sel_area);
             }
         }
 
@@ -134,7 +134,7 @@ static void text_view_draw_cb(lv_event_t* e) {
         cursor_dsc.bg_color = lv_color_black();
         cursor_dsc.bg_opa = LV_OPA_COVER;
         cursor_dsc.border_width = 0;
-        lv_draw_rect(draw_ctx, &clip_area, &cursor_area);
+        lv_draw_rect(draw_ctx, &cursor_dsc, &cursor_area);
     }
 }
 
@@ -231,8 +231,10 @@ void TextView::scrollToLine(size_t line) {
 void TextView::setFont(const lv_font_t* font) {
     if (font) {
         font_ = font;
-        char_width_ = font->glyph_width;  // Use actual font width
-        line_height_ = font->line_height;
+        // Approximate width using 'M' glyph if available
+        char_width_ = lv_font_get_glyph_width(font_, 'M', 0);
+        if (char_width_ <= 0) char_width_ = 10;
+        line_height_ = font_->line_height;
         visible_lines_ = viewport_height_ / line_height_;
         updateLineCache();
         invalidate();

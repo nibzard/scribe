@@ -38,14 +38,15 @@ esp_err_t PowerManager::init() {
         ESP_LOGW(TAG, "ADC init failed: %s - battery monitoring disabled", esp_err_to_name(ret));
     } else {
         adc_oneshot_chan_cfg_t config = {
-            .bitwidth = ADC_BITWIDTH_12,
             .atten = BATTERY_ADC_ATTEN,
+            .bitwidth = ADC_BITWIDTH_12,
         };
         adc_oneshot_config_channel(adc_handle, BATTERY_ADC_CHANNEL, &config);
     }
 
     // Configure charging status GPIO
-    if (CHARGING_GPIO != GPIO_NUM_NC) {
+    #if CHARGING_GPIO >= 0
+    {
         gpio_config_t io_conf = {
             .pin_bit_mask = (1ULL << CHARGING_GPIO),
             .mode = GPIO_MODE_INPUT,
@@ -55,6 +56,7 @@ esp_err_t PowerManager::init() {
         };
         gpio_config(&io_conf);
     }
+    #endif
 
     updateBatteryStatus();
 
@@ -93,8 +95,8 @@ void PowerManager::updateBatteryStatus() {
 }
 
 esp_err_t PowerManager::configureWakeSources() {
-    // Configure any GPIO as wake source
-    esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, 0);  // Wake on GPIO0 low
+    // Configure GPIO0 as wake source using EXT1 (EXT0 not available on esp32p4)
+    esp_sleep_enable_ext1_wakeup(1ULL << GPIO_NUM_0, ESP_EXT1_WAKEUP_ANY_LOW);
 
     // Enable touch pad wake (for capacitive buttons)
     // esp_sleep_enable_touchpad_wakeup();

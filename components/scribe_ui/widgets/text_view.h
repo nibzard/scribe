@@ -78,4 +78,7 @@ protected:
     void updateLineCache();
     int measureTextWidth(const char* text, size_t length) const;
     void invalidate();
+    
+    // Allow LVGL draw callback to access internals for rendering
+    friend void text_view_draw_cb(lv_event_t* e);
 };

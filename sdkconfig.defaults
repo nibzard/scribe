@@ -1,5 +1,5 @@
 # Scribe Firmware - Default Configuration
-# Target: ESP32-S3 (Tab5)
+# Target: ESP32-P4
 
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_PARTITION_TABLE_CUSTOM=y

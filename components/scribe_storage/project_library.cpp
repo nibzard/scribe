@@ -9,7 +9,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <esp_system.h>
+#include <esp_random.h>
+#include <inttypes.h>
 
 static const char* TAG = "SCRIBE_LIBRARY";
 
@@ -317,13 +318,14 @@ std::string ProjectLibrary::generateId() {
     for (int i = 0; i < 5; i++) {
         uint32_t rand = esp_random();
         char buf[32];
-        snprintf(buf, sizeof(buf), "p_%08x", rand);
+        snprintf(buf, sizeof(buf), "p_%08" PRIx32, rand);
         if (!findProject(buf)) {
             return buf;
         }
     }
     char fallback[32];
-    snprintf(fallback, sizeof(fallback), "p_%08x", static_cast<unsigned int>(time(nullptr)));
+    uint32_t t = static_cast<uint32_t>(time(nullptr));
+    snprintf(fallback, sizeof(fallback), "p_%08" PRIx32, t);
     return fallback;
 }
 

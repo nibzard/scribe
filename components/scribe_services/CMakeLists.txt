@@ -8,6 +8,7 @@ idf_component_register(SRCS
     INCLUDE_DIRS "."
     REQUIRES
         esp_adc
+        esp_driver_gpio
         esp_common
         esp_wifi
         esp_event

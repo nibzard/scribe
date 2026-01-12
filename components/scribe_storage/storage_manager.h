@@ -42,10 +42,10 @@ private:
     StorageManager()
         : mounted_(false), card_(nullptr),
           slot_config_{
-              .host_id = VSPI_HOST,
-              .gpio_cs = PIN_CS,
-              .gpio_cd = SDSPI_CD_NOT_USED,
-              .gpio_wp = SDSPI_WP_NOT_USED,
+              .host_id = SPI3_HOST,
+              .gpio_cs = (gpio_num_t)PIN_CS,
+              .gpio_cd = GPIO_NUM_NC,
+              .gpio_wp = GPIO_NUM_NC,
               .gpio_int = GPIO_NUM_NC,
           } {}
     ~StorageManager() = default;

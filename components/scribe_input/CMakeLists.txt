@@ -6,6 +6,6 @@ idf_component_register(SRCS
     "space_hold_detector.cpp"
     INCLUDE_DIRS "."
     REQUIRES
-        usb_host
+        usb
         esp_system
 )

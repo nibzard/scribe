@@ -1,4 +1,6 @@
+// Ensure atomic<bool> is available for thread-safe flags
 #pragma once
+#include <atomic>
 
 #include <esp_err.h>
 #include <functional>

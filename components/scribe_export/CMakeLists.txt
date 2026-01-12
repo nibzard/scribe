@@ -3,6 +3,6 @@ idf_component_register(SRCS
     "send_to_computer.cpp"
     INCLUDE_DIRS "."
     REQUIRES
-        usb_host
+        usb
         fatfs
 )

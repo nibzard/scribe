@@ -4,13 +4,21 @@ Firmware for Tab5 dedicated writing device.
 
 ## Building
 
-Requires ESP-IDF v5.0+:
+Requires ESP-IDF v5.0+ with target `esp32p4`:
 
 ```bash
+# One-time per workspace (sets target + regenerates build files)
+idf.py set-target esp32p4
+
+# Build / flash / monitor
 idf.py build
 idf.py flash
 idf.py monitor
 ```
+
+Notes:
+- Ensure the RISC-V toolchain is installed and on PATH: `riscv32-esp-elf-*` (install via `idf_tools.py install riscv32-esp-elf` or ESP-IDF installer).
+- LVGL is fetched via ESP-IDF Component Manager (declared in `main/idf_component.yml`).
 
 ## Project Structure
 

@@ -22,15 +22,14 @@ void initTimeSync() {
     sntp_init();
 
     // Set initial time to a reasonable default
-    struct tm time = {
-        .tm_year = 2026 - 1900,
-        .tm_mon = 0,
-        .tm_mday = 12,
-        .tm_hour = 0,
-        .tm_min = 0,
-        .tm_sec = 0,
-    };
-    time_t t = mktime(&time);
+    struct tm ti = {};
+    ti.tm_year = 2026 - 1900;
+    ti.tm_mon = 0;
+    ti.tm_mday = 12;
+    ti.tm_hour = 0;
+    ti.tm_min = 0;
+    ti.tm_sec = 0;
+    time_t t = mktime(&ti);
     struct timeval tv = {.tv_sec = t, .tv_usec = 0};
     settimeofday(&tv, nullptr);
 }

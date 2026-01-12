@@ -3,8 +3,8 @@
 #include <esp_vfs_fat.h>
 #include <driver/sdspi_host.h>
 #include <driver/spi_common.h>
+#include <sdmmc_cmd.h>
 #include <sys/stat.h>
-#include <sys/statvfs.h>
 #include <dirent.h>
 
 static const char* TAG = "SCRIBE_STORAGE";
@@ -26,12 +26,14 @@ esp_err_t StorageManager::init() {
     };
 
     sdmmc_card_t* card = nullptr;
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.slot = slot_config_.host_id;
     esp_err_t ret = esp_vfs_fat_sdspi_mount(
         "/sdcard",
-        &mount_config,
+        &host,
         &slot_config_,
-        &card
-    );
+        &mount_config,
+        &card);
 
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to mount SD card: %s", esp_err_to_name(ret));
@@ -89,9 +91,10 @@ esp_err_t StorageManager::unmount() {
 }
 
 size_t StorageManager::getFreeSpace() const {
-    struct statvfs stat;
-    if (statvfs("/sdcard", &stat) != 0) {
+    uint64_t total = 0;
+    uint64_t free = 0;
+    if (esp_vfs_fat_info("/sdcard", &total, &free) != ESP_OK) {
         return 0;
     }
-    return static_cast<size_t>(stat.f_bsize) * static_cast<size_t>(stat.f_bavail);
+    return free > SIZE_MAX ? SIZE_MAX : static_cast<size_t>(free);
 }

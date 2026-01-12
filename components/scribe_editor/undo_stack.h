@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <cstdint>
+#include <string>
 
 // Command types for undo/redo
 enum class CommandType : uint8_t {

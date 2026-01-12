@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 
 // Selection range - lightweight struct for editor
 struct Selection {
