@@ -6,19 +6,20 @@
 #include "app_event.h"
 #include "app_queue.h"
 
-#include "scribe_storage/storage_manager.h"
-#include "scribe_storage/project_library.h"
-#include "scribe_storage/autosave.h"
-#include "scribe_storage/recovery.h"
-#include "scribe_storage/session_state.h"
-#include "scribe_editor/editor_core.h"
-#include "scribe_ui/ui_app.h"
-#include "scribe_input/keyboard_host.h"
-#include "scribe_input/keybinding.h"
-#include "scribe_input/space_hold_detector.h"
-#include "scribe_services/power_manager.h"
-#include "scribe_services/battery.h"
-#include "scribe_services/ai_assist.h"
+#include "storage_manager.h"
+#include "project_library.h"
+#include "autosave.h"
+#include "recovery.h"
+#include "session_state.h"
+#include "editor_core.h"
+#include "ui_app.h"
+#include "strings.h"
+#include "keyboard_host.h"
+#include "keybinding.h"
+#include "space_hold_detector.h"
+#include "power_manager.h"
+#include "battery.h"
+#include "ai_assist.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -49,14 +50,11 @@ static EditorCore* g_editor = nullptr;
 static UIApp* g_ui = nullptr;
 
 // Storage queue for autosave requests
-static QueueHandle_t g_storage_queue = nullptr;
+QueueHandle_t g_storage_queue = nullptr;
 static bool g_space_tap_pending = false;
 
 struct StorageRequest {
-    std::string project_id;
-    std::string content;
-    size_t word_count;
-    size_t cursor_pos;
+    EditorSnapshot snapshot;
     bool manual;
 };
 
@@ -258,9 +256,9 @@ extern "C" void app_main(void)
     g_keybindings.setAIMagicCallback([&ui]() {
         AIAssist& ai = AIAssist::getInstance();
         if (!ai.isEnabled()) {
-            ui.showToast("AI: off");
+            ui.showToast(Strings::getInstance().get("hud.ai_off"));
         } else {
-            ui.showToast("AI request failed. Try again later.");
+            ui.showToast(Strings::getInstance().get("ai.error"));
         }
     });
 
@@ -269,8 +267,10 @@ extern "C" void app_main(void)
         PowerManager& power = PowerManager::getInstance();
         power.enterSleep();
     });
-    g_keybindings.setPowerOffCallback([g_ui]() {
-        g_ui->showPowerOffConfirmation();
+    g_keybindings.setPowerOffCallback([]() {
+        if (g_ui) {
+            g_ui->showPowerOffConfirmation();
+        }
     });
 
     // Initialize keyboard host
@@ -432,20 +432,17 @@ static void ui_task(void* arg) {
                     if (g_editor) {
                         std::string project_id = ui.getCurrentProjectId();
                         if (project_id.empty()) {
-                            ui.showToast("Couldn\u2019t save to storage. Your draft is still in memory.");
+                            ui.showToast(Strings::getInstance().get("storage.write_error"));
                             break;
                         }
                         EditorSnapshot snap = g_editor->createSnapshot(project_id);
                         StorageRequest* req = new StorageRequest{
-                            snap.project_id,
-                            snap.content,
-                            snap.word_count,
-                            snap.cursor_pos,
+                            snap,
                             true
                         };
                         if (xQueueSend(g_storage_queue, &req, 0) != pdTRUE) {
                             delete req;
-                            ui.showToast("Couldn\u2019t save to storage. Your draft is still in memory.");
+                            ui.showToast(Strings::getInstance().get("storage.write_error"));
                         } else {
                             ui.setSaving(true);
                         }
@@ -455,15 +452,15 @@ static void ui_task(void* arg) {
                 case EventType::STORAGE_SAVE_DONE:
                     ui.setSaving(false);
                     if (event.int_param == 1) {
-                        ui.showToast("Saved \u2713");
+                        ui.showToast(Strings::getInstance().get("hud.saved"));
                     }
                     break;
                 case EventType::STORAGE_ERROR:
                     ui.setSaving(false);
-                    ui.showToast("Couldn\u2019t save to storage. Your draft is still in memory.");
+                    ui.showToast(Strings::getInstance().get("storage.write_error"));
                     break;
                 case EventType::BATTERY_LOW:
-                    ui.showToast("Low battery. Please charge soon.");
+                    ui.showToast(Strings::getInstance().get("power.low_battery"));
                     break;
                 case EventType::SHOW_FIRST_RUN:
                     ui.showFirstRun();
@@ -498,10 +495,7 @@ static void ui_task(void* arg) {
                 if (!project_id.empty()) {
                     EditorSnapshot snap = g_editor->createSnapshot(project_id);
                     StorageRequest* req = new StorageRequest{
-                        snap.project_id,
-                        snap.content,
-                        snap.word_count,
-                        snap.cursor_pos,
+                        snap,
                         false
                     };
                     if (xQueueSend(g_storage_queue, &req, 0) != pdTRUE) {
@@ -516,7 +510,7 @@ static void ui_task(void* arg) {
         }
 
         ui.processAsyncEvents();
-        lv_task_handler();
+        lv_timer_handler();
     }
 
     vTaskDelete(nullptr);
@@ -525,8 +519,7 @@ static void ui_task(void* arg) {
 // Input task - reads USB keyboard and sends events
 static void input_task(void* arg) {
     ESP_LOGI(TAG, "Input task started");
-
-    KeyboardHost& keyboard = KeyboardHost::getInstance();
+    (void)arg;
 
     while (true) {
         // Keyboard callback sends events to queue
@@ -559,12 +552,12 @@ static void storage_task(void* arg) {
             }
 
             ESP_LOGI(TAG, "Saving project %s (%zu words)",
-                     req->project_id.c_str(), req->word_count);
+                     req->snapshot.project_id.c_str(), req->snapshot.word_count);
 
             DocSnapshot snap{
-                .project_id = req->project_id,
-                .content = req->content,
-                .word_count = req->word_count,
+                .project_id = req->snapshot.project_id,
+                .table = req->snapshot.table,
+                .word_count = req->snapshot.word_count,
                 .timestamp = static_cast<uint64_t>(time(nullptr))
             };
 
@@ -574,13 +567,13 @@ static void storage_task(void* arg) {
 
             if (ret == ESP_OK) {
                 std::string saved_time = getUtcTimestamp();
-                library.updateProjectSavedState(req->project_id, req->word_count, saved_time);
+                library.updateProjectSavedState(req->snapshot.project_id, req->snapshot.word_count, saved_time);
 
                 EditorState state;
-                state.cursor_pos = req->cursor_pos;
+                state.cursor_pos = req->snapshot.cursor_pos;
                 state.scroll_offset = 0;
                 state.last_edit_time = static_cast<uint64_t>(time(nullptr));
-                session.saveEditorState(req->project_id, state);
+                session.saveEditorState(req->snapshot.project_id, state);
 
                 Event ev;
                 ev.type = EventType::STORAGE_SAVE_DONE;

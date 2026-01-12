@@ -163,7 +163,7 @@ static const KeyMapping uk_layout[] = {
     {KeyEvent::Key::V, 'v', 'V'}, {KeyEvent::Key::W, 'w', 'W'}, {KeyEvent::Key::X, 'x', 'X'},
     {KeyEvent::Key::Y, 'y', 'Y'}, {KeyEvent::Key::Z, 'z', 'Z'},
     {KeyEvent::Key::_0, '0', ')'}, {KeyEvent::Key::_1, '1', '!'}, {KeyEvent::Key::_2, '2', '"'},
-    {KeyEvent::Key::_3, '3', '£'}, {KeyEvent::Key::_4, '4', '$'}, {KeyEvent::Key::_5, '5', '%'},
+    {KeyEvent::Key::_3, '3', '\xA3'}, {KeyEvent::Key::_4, '4', '$'}, {KeyEvent::Key::_5, '5', '%'},
     {KeyEvent::Key::_6, '6', '^'}, {KeyEvent::Key::_7, '7', '&'}, {KeyEvent::Key::_8, '8', '*'},
     {KeyEvent::Key::_9, '9', '('},
     {KeyEvent::Key::SPACE, ' ', ' '},
@@ -174,7 +174,7 @@ static const KeyMapping uk_layout[] = {
     {KeyEvent::Key::QUOTE, '\'', '@'},  // UK: @ is on Shift+2
     {KeyEvent::Key::COMMA, ',', '<'},
     {KeyEvent::Key::PERIOD, '.', '>'}, {KeyEvent::Key::SLASH, '/', '?'},
-    {KeyEvent::Key::GRAVE, '¬', '|'},  // UK: ¬ is unshifted, | is shifted
+    {KeyEvent::Key::GRAVE, '\xAC', '|'},  // UK: not sign unshifted, | shifted
 };
 
 // German Layout (QWERTZ)
@@ -190,7 +190,7 @@ static const KeyMapping de_layout[] = {
     {KeyEvent::Key::Y, 'z', 'Z'},  // German: Z and Y are swapped
     {KeyEvent::Key::Z, 'y', 'Y'},
     {KeyEvent::Key::_0, '0', '='}, {KeyEvent::Key::_1, '1', '!'}, {KeyEvent::Key::_2, '2', '"'},
-    {KeyEvent::Key::_3, '3', '§'}, {KeyEvent::Key::_4, '4', '$'}, {KeyEvent::Key::_5, '5', '%'},
+    {KeyEvent::Key::_3, '3', '\xA7'}, {KeyEvent::Key::_4, '4', '$'}, {KeyEvent::Key::_5, '5', '%'},
     {KeyEvent::Key::_6, '6', '&'}, {KeyEvent::Key::_7, '7', '/'}, {KeyEvent::Key::_8, '8', '('},
     {KeyEvent::Key::_9, '9', ')'},
     {KeyEvent::Key::SPACE, ' ', ' '},
@@ -203,7 +203,7 @@ static const KeyMapping de_layout[] = {
     {KeyEvent::Key::COMMA, ',', ';'},  // German: ; is on , key
     {KeyEvent::Key::PERIOD, '.', ':'},  // German: : is on . key
     {KeyEvent::Key::SLASH, '-', '_'},  // German: - is on / key
-    {KeyEvent::Key::GRAVE, '^', '°'},  // German: ^ is unshifted, ° is shifted
+    {KeyEvent::Key::GRAVE, '^', '\xB0'},  // German: ^ unshifted, degree shifted
 };
 
 // French Layout (AZERTY)
@@ -241,15 +241,15 @@ static const KeyMapping fr_layout[] = {
     {KeyEvent::Key::SPACE, ' ', ' '},
     {KeyEvent::Key::MINUS, '-', '+'},  // French: standard
     {KeyEvent::Key::EQUAL, '=', '+'},  // Note: French AZERTY differences handled below
-    {KeyEvent::Key::LBRACKET, '^', '¨'},  // French: ^ unshifted, ¨ shifted
-    {KeyEvent::Key::RBRACKET, '$', '£'},  // French: $ unshifted, £ shifted
-    {KeyEvent::Key::BACKSLASH, '*', 'µ'},  // French: * unshifted, µ shifted
+    {KeyEvent::Key::LBRACKET, '^', '\xA8'},  // French: ^ unshifted, diaeresis shifted
+    {KeyEvent::Key::RBRACKET, '$', '\xA3'},  // French: $ unshifted, pound shifted
+    {KeyEvent::Key::BACKSLASH, '*', '\xB5'},  // French: * unshifted, micro shifted
     {KeyEvent::Key::SEMICOLON, 'm', 'M'},  // French: M is on ; key position
-    {KeyEvent::Key::QUOTE, 'ù', '%'},  // French: ù unshifted, % shifted
+    {KeyEvent::Key::QUOTE, '\xF9', '%'},  // French: u-grave unshifted, % shifted
     {KeyEvent::Key::COMMA, ',', '?'},
     {KeyEvent::Key::PERIOD, '.', '.'},
     {KeyEvent::Key::SLASH, ':', '/'},
-    {KeyEvent::Key::GRAVE, '²', '~'},  // French: ² unshifted, ~ shifted
+    {KeyEvent::Key::GRAVE, '\xB2', '~'},  // French: superscript 2 unshifted, ~ shifted
 };
 
 // Helper: look up character in layout table

@@ -8,6 +8,7 @@
 class ScreenWiFi {
 public:
     using BackCallback = std::function<void()>;
+    using ToggleCallback = std::function<void(bool enabled)>;
 
     ScreenWiFi();
     ~ScreenWiFi();
@@ -17,6 +18,7 @@ public:
     void hide();
 
     void setBackCallback(BackCallback cb) { back_cb_ = cb; }
+    void setToggleCallback(ToggleCallback cb) { toggle_cb_ = cb; }
 
     void updateStatus(bool enabled, bool connected, const char* ssid = nullptr);
 
@@ -29,6 +31,7 @@ private:
     lv_obj_t* scan_btn_ = nullptr;
 
     BackCallback back_cb_;
+    ToggleCallback toggle_cb_;
 
     bool wifi_enabled_ = false;
     bool wifi_connected_ = false;

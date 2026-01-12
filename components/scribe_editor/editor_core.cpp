@@ -12,6 +12,7 @@ void EditorCore::load(const std::string& content) {
     cursor_ = Cursor{0, 0, 0};
     selection_ = Selection{0, 0};
     undo_stack_.clear();
+    revision_++;
     updateCursorLineCol();
     updateWordCount();
 }
@@ -30,7 +31,7 @@ std::string EditorCore::getSelectedText() const {
 EditorSnapshot EditorCore::createSnapshot(const std::string& project_id) const {
     return EditorSnapshot{
         .project_id = project_id,
-        .content = getText(),
+        .table = piece_table_.createSnapshot(),
         .word_count = word_count_,
         .cursor_pos = cursor_.pos
     };
@@ -163,6 +164,7 @@ void EditorCore::insert(const std::string& text) {
     undo_stack_.push(Command{CommandType::INSERT, pos, text, text.length()});
 
     cursor_.pos = pos + text.length();
+    revision_++;
     updateCursorLineCol();
     updateWordCount();
 }
@@ -176,6 +178,7 @@ void EditorCore::deleteSelection() {
 
     cursor_.pos = selection_.min();
     clearSelection();
+    revision_++;
     updateCursorLineCol();
     updateWordCount();
 }
@@ -200,6 +203,7 @@ void EditorCore::deleteChar(int direction) {
         undo_stack_.push(Command{CommandType::DELETE, cursor_.pos, deleted, 1});
         piece_table_.remove(cursor_.pos, cursor_.pos + 1);
     }
+    revision_++;
     updateWordCount();
 }
 
@@ -234,6 +238,7 @@ void EditorCore::deleteWord(int direction) {
     piece_table_.remove(start, end);
 
     cursor_.pos = start;
+    revision_++;
     updateCursorLineCol();
     updateWordCount();
 }
@@ -251,6 +256,7 @@ void EditorCore::undo() {
     }
 
     clearSelection();
+    revision_++;
     updateCursorLineCol();
     updateWordCount();
 }
@@ -268,6 +274,7 @@ void EditorCore::redo() {
     }
 
     clearSelection();
+    revision_++;
     updateCursorLineCol();
     updateWordCount();
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_err.h>
+#include <esp_http_client.h>
 #include <string>
 #include <functional>
 #include <atomic>
@@ -87,6 +88,11 @@ private:
 
     // Cancel flag
     std::atomic<bool> cancel_flag_{false};
+    bool stream_error_seen_ = false;
+    std::string stream_error_;
+
+    // HTTP event handler for streaming
+    static esp_err_t httpEventHandler(esp_http_client_event_t* evt);
 
     // Background task for AI generation
     static void generationTask(void* arg);

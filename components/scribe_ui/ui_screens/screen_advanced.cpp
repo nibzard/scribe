@@ -1,4 +1,5 @@
 #include "screen_advanced.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_ADVANCED";
@@ -8,7 +9,7 @@ ScreenAdvanced::ScreenAdvanced() : screen_(nullptr) {
 
 ScreenAdvanced::~ScreenAdvanced() {
     if (screen_) {
-        lv_obj_del(screen_);
+        lv_obj_delete(screen_);
     }
 }
 
@@ -25,7 +26,7 @@ void ScreenAdvanced::init() {
 void ScreenAdvanced::createWidgets() {
     // Title
     title_label_ = lv_label_create(screen_);
-    lv_label_set_text(title_label_, "Advanced");
+    lv_label_set_text(title_label_, Strings::getInstance().get("settings.advanced"));
     lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 30);
     lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_18, 0);
 
@@ -38,16 +39,17 @@ void ScreenAdvanced::createWidgets() {
     item_keys_.clear();
 
     auto addItem = [&](const char* label, const char* key, const char* symbol) {
-        lv_obj_t* btn = lv_list_add_btn(settings_list_, symbol, label);
+        lv_obj_t* btn = lv_list_add_button(settings_list_, symbol, label);
         buttons_.push_back(btn);
         item_keys_.push_back(key);
     };
 
-    addItem("Wi\u2011Fi", "wifi", LV_SYMBOL_WIFI);
-    addItem("Cloud backup", "backup", LV_SYMBOL_UPLOAD);
-    addItem("AI assistance", "ai", LV_SYMBOL_MAGIC);
-    addItem("Diagnostics", "diagnostics", LV_SYMBOL_SETTINGS);
-    addItem("Back", "back", LV_SYMBOL_LEFT);
+    Strings& strings = Strings::getInstance();
+    addItem(strings.get("settings.wifi"), "wifi", LV_SYMBOL_WIFI);
+    addItem(strings.get("settings.backup"), "backup", LV_SYMBOL_UPLOAD);
+    addItem(strings.get("settings.ai"), "ai", LV_SYMBOL_SHUFFLE);
+    addItem(strings.get("settings.diagnostics"), "diagnostics", LV_SYMBOL_SETTINGS);
+    addItem(strings.get("settings.back"), "back", LV_SYMBOL_LEFT);
 
     selected_index_ = 0;
     updateSelection();
@@ -55,7 +57,7 @@ void ScreenAdvanced::createWidgets() {
 
 void ScreenAdvanced::show() {
     if (screen_) {
-        lv_scr_load(screen_);
+        lv_screen_load(screen_);
         updateSelection();
     }
 }

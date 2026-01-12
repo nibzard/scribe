@@ -22,6 +22,7 @@ private:
     lv_obj_t* screen_ = nullptr;
     lv_obj_t* title_label_ = nullptr;
     lv_obj_t* description_label_ = nullptr;
+    lv_obj_t* hint_label_ = nullptr;
     lv_obj_t* status_label_ = nullptr;
     lv_obj_t* api_key_input_ = nullptr;
     lv_obj_t* save_btn_ = nullptr;

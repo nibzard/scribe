@@ -3,6 +3,7 @@
 #include <esp_err.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <lvgl.h>
 #include <string>
 #include <vector>
 #include "key_event.h"

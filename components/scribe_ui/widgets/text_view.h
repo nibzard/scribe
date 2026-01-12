@@ -3,6 +3,7 @@
 #include <lvgl.h>
 #include <string>
 #include <vector>
+#include "piece_table.h"
 
 // Custom TextView widget for efficient text rendering
 // Renders only visible viewport, handles cursor and selection
@@ -17,6 +18,9 @@ public:
 
     // Set text content
     void setText(const std::string& text);
+
+    // Set text content from a piece table snapshot
+    void setSnapshot(const PieceTableSnapshot& snapshot);
 
     // Get text content
     std::string getText() const { return text_; }
@@ -56,6 +60,9 @@ protected:
 
     lv_obj_t* obj_;
     std::string text_;
+    PieceTableSnapshot snapshot_;
+    bool use_snapshot_ = false;
+    size_t total_length_ = 0;
     size_t cursor_pos_ = 0;
     size_t selection_start_ = 0;
     size_t selection_end_ = 0;
@@ -76,6 +83,8 @@ protected:
 
     // Helper methods
     void updateLineCache();
+    void updateLineCacheFromSnapshot();
+    std::string getTextRange(size_t start, size_t end) const;
     int measureTextWidth(const char* text, size_t length) const;
     void invalidate();
     

@@ -18,6 +18,7 @@ public:
     void setCloseCallback(CloseCallback cb) { close_cb_ = cb; }
 
     void refreshData();
+    bool exportLogs();
 
 private:
     lv_obj_t* screen_ = nullptr;
@@ -28,5 +29,4 @@ private:
 
     void createWidgets();
     void updateSystemInfo();
-    void exportLogs();
 };

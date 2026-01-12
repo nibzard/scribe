@@ -9,7 +9,7 @@ static const char* TAG = "SCRIBE_POWER";
 
 // Hardware configuration (adjust for Tab5)
 #define BATTERY_ADC_CHANNEL     ADC_CHANNEL_0
-#define BATTERY_ADC_ATTEN       ADC_ATTEN_DB_11
+#define BATTERY_ADC_ATTEN       ADC_ATTEN_DB_12
 #define CHARGING_GPIO           GPIO_NUM_NC  // Configure based on hardware
 #define WAKE_GPIO_MASK          (1ULL << 0)  // GPIO0 as wake source
 
@@ -29,9 +29,14 @@ esp_err_t PowerManager::init() {
 
     // Configure ADC for battery monitoring
     adc_oneshot_unit_handle_t adc_handle;
-    adc_oneshot_unit_init_cfg_t init_config = {
-        .unit_id = ADC_UNIT_1,
-    };
+    adc_oneshot_unit_init_cfg_t init_config = {};
+    init_config.unit_id = ADC_UNIT_1;
+    init_config.ulp_mode = ADC_ULP_MODE_DISABLE;
+#if defined(ADC_RTC_CLK_SRC_DEFAULT)
+    init_config.clk_src = ADC_RTC_CLK_SRC_DEFAULT;
+#elif defined(ADC_DIGI_CLK_SRC_DEFAULT)
+    init_config.clk_src = ADC_DIGI_CLK_SRC_DEFAULT;
+#endif
 
     esp_err_t ret = adc_oneshot_new_unit(&init_config, &adc_handle);
     if (ret != ESP_OK) {
@@ -45,18 +50,19 @@ esp_err_t PowerManager::init() {
     }
 
     // Configure charging status GPIO
-    #if CHARGING_GPIO >= 0
-    {
-        gpio_config_t io_conf = {
-            .pin_bit_mask = (1ULL << CHARGING_GPIO),
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = GPIO_PULLUP_ENABLE,
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_DISABLE,
-        };
+    int charging_gpio = static_cast<int>(CHARGING_GPIO);
+    if (GPIO_IS_VALID_GPIO(charging_gpio)) {
+        gpio_config_t io_conf = {};
+        io_conf.pin_bit_mask = (1ULL << charging_gpio);
+        io_conf.mode = GPIO_MODE_INPUT;
+        io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        io_conf.intr_type = GPIO_INTR_DISABLE;
+#if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
+        io_conf.hys_ctrl_mode = GPIO_HYS_SOFT_DISABLE;
+#endif
         gpio_config(&io_conf);
     }
-    #endif
 
     updateBatteryStatus();
 
@@ -66,7 +72,6 @@ esp_err_t PowerManager::init() {
 void PowerManager::updateBatteryStatus() {
     // TODO: Read battery voltage from ADC
     // For now, use placeholder values that can be updated when hardware is available
-    int raw_adc = 0;
     float voltage = 0.0f;
 
     // Calculate battery percentage

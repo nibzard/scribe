@@ -1,4 +1,5 @@
 #include "screen_first_run.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_FIRST_RUN";
@@ -8,7 +9,7 @@ ScreenFirstRun::ScreenFirstRun() : screen_(nullptr) {
 
 ScreenFirstRun::~ScreenFirstRun() {
     if (screen_) {
-        lv_obj_del(screen_);
+        lv_obj_delete(screen_);
     }
 }
 
@@ -25,13 +26,13 @@ void ScreenFirstRun::init() {
 void ScreenFirstRun::createWidgets() {
     // Welcome title
     lv_obj_t* title = lv_label_create(screen_);
-    lv_label_set_text(title, "Scribe");
+    lv_label_set_text(title, Strings::getInstance().get("app.name"));
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 40);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
 
     // Tagline
     lv_obj_t* tagline = lv_label_create(screen_);
-    lv_label_set_text(tagline, "Open. Type. Your words are safe.");
+    lv_label_set_text(tagline, Strings::getInstance().get("boot.tagline"));
     lv_obj_align(tagline, LV_ALIGN_TOP_MID, 0, 80);
     lv_obj_set_style_text_font(tagline, &lv_font_montserrat_14, 0);
 
@@ -41,25 +42,21 @@ void ScreenFirstRun::createWidgets() {
     lv_obj_align(content, LV_ALIGN_TOP_MID, 0, 120);
 
     lv_obj_t* label = lv_label_create(content);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(label, LV_HOR_RES - 80);
-    lv_label_set_text(label,
-        "Start typing to write.\n"
-        "Press Esc for menu.\n"
-        "Hold Space for status."
-    );
+    lv_label_set_text(label, Strings::getInstance().get("first_run.tip"));
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(label);
 
     // Dismiss instruction
     label = lv_label_create(screen_);
-    lv_label_set_text(label, "Press Enter to continue");
+    lv_label_set_text(label, Strings::getInstance().get("first_run.dismiss"));
     lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -30);
 }
 
 void ScreenFirstRun::show() {
     if (screen_) {
-        lv_scr_load(screen_);
+        lv_screen_load(screen_);
     }
 }
 

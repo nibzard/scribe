@@ -2,6 +2,7 @@
 #include "storage_manager.h"
 #include "autosave.h"
 #include <esp_log.h>
+#include <esp_timer.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <cstring>

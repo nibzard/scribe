@@ -2,7 +2,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
-#include "scribe_input/key_event.h"
+#include "key_event.h"
 
 // Event types for inter-task communication
 enum class EventType : uint8_t {

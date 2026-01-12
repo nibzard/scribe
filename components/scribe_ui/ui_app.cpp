@@ -5,6 +5,7 @@
 #include "../scribe_export/send_to_computer.h"
 #include "../scribe_input/keymap.h"
 #include "../scribe_utils/string_utils.h"
+#include "../scribe_utils/strings.h"
 #include "ui_screens/screen_editor.h"
 #include "ui_screens/screen_menu.h"
 #include "ui_screens/screen_projects.h"
@@ -22,17 +23,20 @@
 #include "ui_screens/screen_ai.h"
 #include "ui_screens/screen_magic_bar.h"
 #include "ui_screens/dialog_power_off.h"
+#include "theme/theme.h"
 #include "editor_core.h"
 #include "project_library.h"
 #include "storage_manager.h"
 #include "recovery.h"
 #include "session_state.h"
 #include "settings_store.h"
-#include "scribe_services/battery.h"
-#include "scribe_services/ai_assist.h"
-#include "scribe_services/github_backup.h"
-#include "scribe_services/power_manager.h"
-#include "scribe_services/rtc_time.h"
+#include "../scribe_services/battery.h"
+#include "../scribe_services/ai_assist.h"
+#include "../scribe_services/github_backup.h"
+#include "../scribe_services/power_manager.h"
+#include "../scribe_services/rtc_time.h"
+#include "../scribe_services/wifi_manager.h"
+#include "sdkconfig.h"
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -72,6 +76,21 @@ esp_err_t UIApp::init() {
 
     // Try to initialize MIPI-DSI display first
     // Configure for common TFT panels via SPI (MIPI-DSI requires specific hardware)
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
+    MIPIDSI::DisplayConfig dsi_config = {
+        .panel = MIPIDSI::PanelType::ILI9341,   // Wokwi SPI TFT
+        .width = 320,                           // Landscape layout
+        .height = 240,
+        .fps = 60,
+        .use_spi = true,
+        .spi_freq_mhz = 40,
+        .dc_pin = GPIO_NUM_4,
+        .reset_pin = GPIO_NUM_5,
+        .cs_pin = GPIO_NUM_15,
+        .backlight_pin = GPIO_NUM_16,
+        .rgb565_byte_swap = true
+    };
+#else
     MIPIDSI::DisplayConfig dsi_config = {
         .panel = MIPIDSI::PanelType::ST7789,    // Common panel type
         .width = 320,                           // Tab5 display width
@@ -85,10 +104,17 @@ esp_err_t UIApp::init() {
         .backlight_pin = GPIO_NUM_16,           // Backlight control (adjust for hardware)
         .rgb565_byte_swap = true                // Swap bytes for RGB565
     };
+#endif
 
     esp_err_t ret = MIPIDSI::init(dsi_config);
     if (ret == ESP_OK) {
         ESP_LOGI(TAG, "MIPI-DSI display initialized successfully");
+        if (dsi_config.width != dsi_config.height) {
+            MIPIDSI::setOrientation(dsi_config.width > dsi_config.height
+                ? MIPIDSI::Orientation::LANDSCAPE
+                : MIPIDSI::Orientation::PORTRAIT);
+        }
+        MIPIDSI::setBacklight(100);
     } else {
         ESP_LOGW(TAG, "MIPI-DSI display init failed: %s", esp_err_to_name(ret));
         ESP_LOGI(TAG, "Falling back to generic display driver");
@@ -121,6 +147,10 @@ esp_err_t UIApp::init() {
     // Apply keyboard layout from settings
     setKeyboardLayout(intToLayout(settings_.keyboard_layout));
 
+    // Load UI strings (SD override, then bundled assets)
+    std::string strings_path = std::string(SCRIBE_BASE_PATH) + "/strings/en.json";
+    Strings::getInstance().init(strings_path.c_str(), "assets/strings/en.json");
+
     // Initialize services
     GitHubBackup& backup = GitHubBackup::getInstance();
     backup.init();
@@ -130,6 +160,7 @@ esp_err_t UIApp::init() {
             updateHUD();
         }
     });
+    WiFiManager::getInstance().init();
 
     // Initialize screens
     editor_screen_ = new ScreenEditor();
@@ -190,22 +221,35 @@ esp_err_t UIApp::init() {
     // Set up screen callbacks
     menu_screen_->setCloseCallback([this]() { showEditor(); });
 
+    Strings& strings = Strings::getInstance();
     std::vector<MenuItem> menu_items = {
-        {"Resume writing", [this]() { showEditor(); }},
-        {"Switch project", [this]() { showProjectSwitcher(); }},
-        {"New project", [this]() { showNewProject(); }},
-        {"Find", [this]() { showFind(); }},
-        {"Export", [this]() { showExport(); }},
-        {"Settings", [this]() { showSettings(); }},
-        {"Help", [this]() { showHelp(); }},
-        {"Sleep", [this]() { PowerManager::getInstance().enterSleep(); }},
-        {"Power off", [this]() { showPowerOffConfirmation(); }},
+        {strings.get("menu.resume"), [this]() { showEditor(); }},
+        {strings.get("menu.switch_project"), [this]() { showProjectSwitcher(); }},
+        {strings.get("menu.new_project"), [this]() { showNewProject(); }},
+        {strings.get("menu.find"), [this]() { showFind(); }},
+        {strings.get("menu.export"), [this]() { showExport(); }},
+        {strings.get("menu.settings"), [this]() { showSettings(); }},
+        {strings.get("menu.help"), [this]() { showHelp(); }},
+        {strings.get("menu.sleep"), [this]() { PowerManager::getInstance().enterSleep(); }},
+        {strings.get("menu.power_off"), [this]() { showPowerOffConfirmation(); }},
     };
     menu_screen_->setItems(menu_items.data(), menu_items.size());
 
     projects_screen_->setCloseCallback([this]() { showMenu(); });
     projects_screen_->setOpenCallback([this](const std::string& id) {
         openProject(id);
+    });
+    projects_screen_->setArchiveCallback([this](const std::string& id) {
+        ProjectLibrary& lib = ProjectLibrary::getInstance();
+        if (lib.archiveProject(id) == ESP_OK) {
+            const auto& projects = lib.getProjects();
+            std::vector<ProjectListItem> items;
+            items.reserve(projects.size());
+            for (const auto& p : projects) {
+                items.push_back({p.id, p.name, p.last_opened_utc, p.total_words});
+            }
+            projects_screen_->setProjects(items);
+        }
     });
 
     new_project_screen_->setCreateCallback([this](const std::string& name) {
@@ -269,6 +313,15 @@ esp_err_t UIApp::init() {
     });
 
     wifi_screen_->setBackCallback([this]() { showAdvanced(); });
+    wifi_screen_->setToggleCallback([this](bool enabled) {
+        settings_.wifi_enabled = enabled;
+        SettingsStore::getInstance().save(settings_);
+        applySettings();
+        WiFiManager& wifi = WiFiManager::getInstance();
+        std::string ssid = wifi.getSSID();
+        wifi_screen_->updateStatus(settings_.wifi_enabled, wifi.isConnected(),
+                                   ssid.empty() ? nullptr : ssid.c_str());
+    });
     backup_screen_->setBackCallback([this]() { showAdvanced(); });
 
     // Set up backup screen configure callback
@@ -321,7 +374,7 @@ esp_err_t UIApp::init() {
             // Restart AI request with new style
             AIAssist& ai = AIAssist::getInstance();
             if (!ai.isEnabled()) {
-                showToast("AI is off");
+                showToast(Strings::getInstance().get("hud.ai_off"));
                 return;
             }
             if (editor_) {
@@ -336,6 +389,7 @@ esp_err_t UIApp::init() {
                     context = editor_->getText().substr(start, 1000);
                 }
                 magic_bar_->setContextText(context);
+                magic_bar_->startGenerating();
                 ai.requestSuggestion(style, context,
                     [this](const char* delta) {
                         AIEvent* event = new AIEvent{
@@ -495,7 +549,10 @@ void UIApp::showAdvanced() {
 
 void UIApp::showWiFi() {
     if (wifi_screen_) {
-        wifi_screen_->updateStatus(settings_.wifi_enabled, false);
+        WiFiManager& wifi = WiFiManager::getInstance();
+        std::string ssid = wifi.getSSID();
+        wifi_screen_->updateStatus(settings_.wifi_enabled, wifi.isConnected(),
+                                   ssid.empty() ? nullptr : ssid.c_str());
         wifi_screen_->show();
     }
     current_screen_ = ScreenType::WiFi;
@@ -512,7 +569,7 @@ void UIApp::showBackup() {
         if (has_token) {
             // Build repo info string
             // TODO: Get actual repo info from backup configuration
-            repo_info = "Configured";
+            repo_info = Strings::getInstance().get("backup.github");
         }
 
         backup_screen_->updateStatus(has_token, repo_info);
@@ -535,7 +592,7 @@ void UIApp::showMagicBar() {
 
     AIAssist& ai = AIAssist::getInstance();
     if (!ai.isEnabled()) {
-        showToast("AI is off");
+        showToast(Strings::getInstance().get("hud.ai_off"));
         return;
     }
 
@@ -552,6 +609,7 @@ void UIApp::showMagicBar() {
         }
         magic_bar_->setContextText(context);
         magic_bar_->show();
+        magic_bar_->startGenerating();
 
         // Start AI request
         ai.requestSuggestion(magic_bar_->getStyle(), context,
@@ -666,7 +724,7 @@ void UIApp::ensureProjectOpen() {
 
     ProjectLibrary& lib = ProjectLibrary::getInstance();
     const auto& projects = lib.getProjects();
-    std::string base = "Untitled";
+    std::string base = Strings::getInstance().get("project.untitled");
     std::string name = base;
     int suffix = 1;
 
@@ -697,7 +755,7 @@ void UIApp::createProject(const std::string& name) {
 
     std::string trimmed = trim(name);
     if (trimmed.empty()) {
-        new_project_screen_->showError("Please enter a name.");
+        new_project_screen_->showError(Strings::getInstance().get("new_project.error_empty"));
         return;
     }
 
@@ -707,9 +765,9 @@ void UIApp::createProject(const std::string& name) {
     esp_err_t ret = lib.createProject(trimmed, new_id);
     if (ret != ESP_OK) {
         if (ret == ESP_ERR_INVALID_ARG) {
-            new_project_screen_->showError("That name already exists. Try a different name.");
+            new_project_screen_->showError(Strings::getInstance().get("new_project.error_exists"));
         } else {
-            showToast("Couldn\u2019t save to storage. Your draft is still in memory.");
+            showToast(Strings::getInstance().get("storage.write_error"));
         }
         return;
     }
@@ -784,7 +842,7 @@ void UIApp::handleExport(const std::string& type) {
     ESP_LOGI(TAG, "Export: %s", type.c_str());
 
     if (!editor_) {
-        export_screen_->showComplete("Export failed. Try again.");
+        export_screen_->showComplete(Strings::getInstance().get("export.failed"));
         return;
     }
 
@@ -794,37 +852,37 @@ void UIApp::handleExport(const std::string& type) {
     } else if (type == "sd_md") {
         // Export to SD as .md
         if (current_project_path_.empty()) {
-            export_screen_->showComplete("Export failed. Try again.");
+            export_screen_->showComplete(Strings::getInstance().get("export.failed"));
             return;
         }
         export_screen_->updateProgress();
         std::string content = editor_->getText();
         esp_err_t ret = exportToSD(current_project_path_, content, ".md");
         if (ret == ESP_OK) {
-            export_screen_->showComplete("Export complete \u2713");
+            export_screen_->showComplete(Strings::getInstance().get("export.done"));
         } else {
-            export_screen_->showComplete("Export failed. Try again.");
+            export_screen_->showComplete(Strings::getInstance().get("export.failed"));
         }
     } else if (type == "sd_txt") {
         // Export to SD as .txt
         if (current_project_path_.empty()) {
-            export_screen_->showComplete("Export failed. Try again.");
+            export_screen_->showComplete(Strings::getInstance().get("export.failed"));
             return;
         }
         export_screen_->updateProgress();
         std::string content = editor_->getText();
         esp_err_t ret = exportToSD(current_project_path_, content, ".txt");
         if (ret == ESP_OK) {
-            export_screen_->showComplete("Export complete \u2713");
+            export_screen_->showComplete(Strings::getInstance().get("export.done"));
         } else {
-            export_screen_->showComplete("Export failed. Try again.");
+            export_screen_->showComplete(Strings::getInstance().get("export.failed"));
         }
     }
 }
 
 void UIApp::startSendToComputer() {
     if (!editor_) {
-        export_screen_->showComplete("Export failed. Try again.");
+        export_screen_->showComplete(Strings::getInstance().get("export.failed"));
         return;
     }
 
@@ -844,7 +902,7 @@ void UIApp::startSendToComputer() {
     } else {
         export_in_progress_ = false;
         export_screen_->showSendInstructions();
-        export_screen_->showComplete("Export failed. Try again.");
+        export_screen_->showComplete(Strings::getInstance().get("export.failed"));
     }
 }
 
@@ -855,12 +913,11 @@ void UIApp::handleRecovery(bool restore) {
         editor_->load(recovered_content_);
         updateEditor();
         session_start_words_ = editor_->getWordCount();
-        showToast("Recovered \u2713");
+        showToast(Strings::getInstance().get("storage.recovery_done"));
     }
 
     if (!recovered_project_id_.empty()) {
-        std::string autosave_path = getAutosaveTempPath(recovered_project_id_);
-        unlink(autosave_path.c_str());
+        RecoveryManager::cleanup(recovered_project_id_);
     }
 
     recovered_content_.clear();
@@ -906,6 +963,21 @@ esp_err_t UIApp::saveCurrentProject() {
 bool UIApp::handleKeyEvent(const KeyEvent& event) {
     if (!event.pressed) {
         return false;
+    }
+
+    PowerManager::getInstance().resetActivityTimer();
+
+    if (magic_bar_ && magic_bar_->isVisible()) {
+        if (event.key == KeyEvent::Key::ESC) {
+            magic_bar_->discardSuggestion();
+            return true;
+        }
+        if (event.key == KeyEvent::Key::ENTER) {
+            if (magic_bar_->isReady()) {
+                magic_bar_->acceptSuggestion();
+            }
+            return true;
+        }
     }
 
     bool allow_global = true;
@@ -970,6 +1042,14 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
             }
             return true;
         case ScreenType::Projects:
+            if (projects_screen_->isArchiveDialogShowing()) {
+                if (event.key == KeyEvent::Key::ENTER) {
+                    projects_screen_->confirmArchive();
+                } else if (event.key == KeyEvent::Key::ESC) {
+                    projects_screen_->cancelArchive();
+                }
+                return true;
+            }
             if (event.key == KeyEvent::Key::ESC) {
                 showMenu();
                 return true;
@@ -988,6 +1068,10 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
             }
             if (event.key == KeyEvent::Key::ENTER) {
                 projects_screen_->selectCurrent();
+                return true;
+            }
+            if (event.key == KeyEvent::Key::DELETE) {
+                projects_screen_->archiveCurrent();
                 return true;
             }
             if (event.key == KeyEvent::Key::BACKSPACE) {
@@ -1171,7 +1255,18 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
             if (current_screen_ == ScreenType::WiFi && event.key == KeyEvent::Key::ENTER) {
                 settings_.wifi_enabled = !settings_.wifi_enabled;
                 SettingsStore::getInstance().save(settings_);
-                wifi_screen_->updateStatus(settings_.wifi_enabled, false);
+                applySettings();
+                WiFiManager& wifi = WiFiManager::getInstance();
+                std::string ssid = wifi.getSSID();
+                wifi_screen_->updateStatus(settings_.wifi_enabled, wifi.isConnected(),
+                                           ssid.empty() ? nullptr : ssid.c_str());
+                return true;
+            }
+            if (current_screen_ == ScreenType::Diagnostics && event.key == KeyEvent::Key::ENTER) {
+                bool ok = diagnostics_screen_->exportLogs();
+                showToast(Strings::getInstance().get(ok
+                    ? "diagnostics.export_done"
+                    : "diagnostics.export_failed"));
                 return true;
             }
             return true;
@@ -1198,17 +1293,20 @@ void UIApp::updateHUD() {
 
     size_t total = editor_->getWordCount();
     size_t today = total >= session_start_words_ ? (total - session_start_words_) : 0;
-    editor_screen_->setHUDProjectName(current_project_name_.empty() ? "Untitled" : current_project_name_);
+    editor_screen_->setHUDProjectName(current_project_name_.empty()
+        ? Strings::getInstance().get("project.untitled")
+        : current_project_name_);
     editor_screen_->setHUDWordCounts(today, total);
 
     Battery& battery = Battery::getInstance();
     battery.update();
     editor_screen_->setHUDBattery(battery.getPercentage(), battery.isCharging());
 
+    Strings& strings = Strings::getInstance();
     if (saving_) {
-        editor_screen_->setHUDSaveState("Saving\u2026");
+        editor_screen_->setHUDSaveState(strings.get("hud.saving"));
     } else {
-        editor_screen_->setHUDSaveState("Saved \u2713");
+        editor_screen_->setHUDSaveState(strings.get("hud.saved"));
     }
 
     if (settings_.backup_enabled) {
@@ -1216,27 +1314,27 @@ void UIApp::updateHUD() {
         BackupStatus status = backup.getStatus();
         switch (status) {
             case BackupStatus::IDLE:
-                editor_screen_->setHUDBackupState("Backup: queued");
+                editor_screen_->setHUDBackupState(strings.get("hud.backup_queued"));
                 break;
             case BackupStatus::SYNCING:
-                editor_screen_->setHUDBackupState("Backup: syncing\u2026");
+                editor_screen_->setHUDBackupState(strings.get("hud.backup_syncing"));
                 break;
             case BackupStatus::SUCCESS:
-                editor_screen_->setHUDBackupState("Backup: synced \u2713");
+                editor_screen_->setHUDBackupState(strings.get("hud.backup_synced"));
                 break;
             case BackupStatus::FAILED:
-                editor_screen_->setHUDBackupState("Backup: failed");
+                editor_screen_->setHUDBackupState(strings.get("hud.backup_failed"));
                 break;
             case BackupStatus::CONFLICT:
-                editor_screen_->setHUDBackupState("Backup: conflict");
+                editor_screen_->setHUDBackupState(strings.get("hud.backup_conflict"));
                 break;
         }
     } else {
-        editor_screen_->setHUDBackupState("Backup: off");
+        editor_screen_->setHUDBackupState(strings.get("hud.backup_off"));
     }
 
     AIAssist& ai = AIAssist::getInstance();
-    editor_screen_->setHUDAIState(ai.isEnabled() ? "AI: on" : "AI: off");
+    editor_screen_->setHUDAIState(ai.isEnabled() ? strings.get("hud.ai_on") : strings.get("hud.ai_off"));
 }
 
 void UIApp::updateFindMatches() {
@@ -1303,7 +1401,7 @@ void UIApp::showToastInternal(const char* message, uint32_t duration_ms) {
 
     if (!toast_timer_) {
         toast_timer_ = lv_timer_create([](lv_timer_t* timer) {
-            UIApp* app = static_cast<UIApp*>(timer->user_data);
+            UIApp* app = static_cast<UIApp*>(lv_timer_get_user_data(timer));
             if (app && app->toast_) {
                 lv_obj_add_flag(app->toast_, LV_OBJ_FLAG_HIDDEN);
             }
@@ -1317,6 +1415,32 @@ void UIApp::showToastInternal(const char* message, uint32_t duration_ms) {
 void UIApp::applySettings() {
     Theme::applyTheme(settings_.dark_theme);
     setKeyboardLayout(intToLayout(settings_.keyboard_layout));
+    WiFiManager::getInstance().setEnabled(settings_.wifi_enabled);
+
+    AutoSleepTimeout timeout = AutoSleepTimeout::OFF;
+    switch (settings_.auto_sleep) {
+        case 1:
+            timeout = AutoSleepTimeout::MIN_5;
+            break;
+        case 2:
+            timeout = AutoSleepTimeout::MIN_15;
+            break;
+        case 3:
+            timeout = AutoSleepTimeout::MIN_30;
+            break;
+        default:
+            timeout = AutoSleepTimeout::OFF;
+            break;
+    }
+
+    PowerManager& power = PowerManager::getInstance();
+    power.setAutoSleepTimeout(timeout);
+    if (timeout == AutoSleepTimeout::OFF) {
+        power.stopActivityMonitoring();
+    } else {
+        power.startActivityMonitoring();
+    }
+
     if (settings_screen_) {
         settings_screen_->setSettings(settings_);
     }

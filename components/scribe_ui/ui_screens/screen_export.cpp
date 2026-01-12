@@ -1,4 +1,5 @@
 #include "screen_export.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_EXPORT";
@@ -8,7 +9,7 @@ ScreenExport::ScreenExport() : screen_(nullptr), selected_index_(0) {
 
 ScreenExport::~ScreenExport() {
     if (screen_) {
-        lv_obj_del(screen_);
+        lv_obj_delete(screen_);
     }
 }
 
@@ -25,7 +26,7 @@ void ScreenExport::init() {
 void ScreenExport::createWidgets() {
     // Title
     title_label_ = lv_label_create(screen_);
-    lv_label_set_text(title_label_, "Export");
+    lv_label_set_text(title_label_, Strings::getInstance().get("export.title"));
     lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 40);
     lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_20, 0);
 
@@ -38,22 +39,25 @@ void ScreenExport::createWidgets() {
     types_.clear();
 
     // Send to Computer (highlighted - recommended)
-    buttons_.push_back(lv_list_add_btn(btn_list_, LV_SYMBOL_WIFI, "Send to Computer"));
+    buttons_.push_back(lv_list_add_button(btn_list_, LV_SYMBOL_WIFI,
+        Strings::getInstance().get("export.send_to_computer")));
     types_.push_back("send_to_computer");
 
     // Export to SD - .md (default)
-    buttons_.push_back(lv_list_add_btn(btn_list_, LV_SYMBOL_SD, "Export to SD (.md)"));
+    buttons_.push_back(lv_list_add_button(btn_list_, LV_SYMBOL_SD_CARD,
+        Strings::getInstance().get("export.to_sd_md")));
     types_.push_back("sd_md");
 
     // Export to SD - .txt
-    buttons_.push_back(lv_list_add_btn(btn_list_, LV_SYMBOL_FILE, "Export to SD (.txt)"));
+    buttons_.push_back(lv_list_add_button(btn_list_, LV_SYMBOL_FILE,
+        Strings::getInstance().get("export.to_sd_txt")));
     types_.push_back("sd_txt");
 
     // Privacy notice
     privacy_label_ = lv_label_create(screen_);
-    lv_label_set_long_mode(privacy_label_, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(privacy_label_, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(privacy_label_, 300);
-    lv_label_set_text(privacy_label_, "Nothing leaves your device unless you choose.");
+    lv_label_set_text(privacy_label_, Strings::getInstance().get("export.privacy"));
     lv_obj_align(privacy_label_, LV_ALIGN_TOP_MID, 0, LV_VER_RES - 80);
 
     // Progress label (hidden initially)
@@ -64,27 +68,27 @@ void ScreenExport::createWidgets() {
 
     // Send to Computer instructions (hidden by default)
     instructions_body_ = lv_label_create(screen_);
-    lv_label_set_long_mode(instructions_body_, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(instructions_body_, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(instructions_body_, 320);
-    lv_label_set_text(instructions_body_, "Open any app on your computer and place the cursor where you want the text. Then press Enter.");
+    lv_label_set_text(instructions_body_, Strings::getInstance().get("export.send_instructions_body"));
     lv_obj_align(instructions_body_, LV_ALIGN_TOP_MID, 0, 120);
     lv_obj_set_style_text_align(instructions_body_, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_add_flag(instructions_body_, LV_OBJ_FLAG_HIDDEN);
 
     instructions_confirm_ = lv_label_create(screen_);
-    lv_label_set_text(instructions_confirm_, "Press Enter to start");
+    lv_label_set_text(instructions_confirm_, Strings::getInstance().get("export.send_confirm"));
     lv_obj_align(instructions_confirm_, LV_ALIGN_TOP_MID, 0, 200);
     lv_obj_add_flag(instructions_confirm_, LV_OBJ_FLAG_HIDDEN);
 
     instructions_cancel_ = lv_label_create(screen_);
-    lv_label_set_text(instructions_cancel_, "Press Esc to cancel");
+    lv_label_set_text(instructions_cancel_, Strings::getInstance().get("export.send_cancel"));
     lv_obj_align(instructions_cancel_, LV_ALIGN_TOP_MID, 0, 220);
     lv_obj_add_flag(instructions_cancel_, LV_OBJ_FLAG_HIDDEN);
 }
 
 void ScreenExport::show() {
     if (screen_) {
-        lv_scr_load(screen_);
+        lv_screen_load(screen_);
         selected_index_ = 0;
         setMode(Mode::List);
     }
@@ -123,7 +127,7 @@ void ScreenExport::selectCurrent() {
 
 void ScreenExport::updateProgress() {
     if (progress_label_) {
-        lv_label_set_text(progress_label_, "Exporting\u2026");
+        lv_label_set_text(progress_label_, Strings::getInstance().get("export.progress"));
         lv_obj_clear_flag(progress_label_, LV_OBJ_FLAG_HIDDEN);
     }
 }
@@ -142,7 +146,7 @@ void ScreenExport::showSendInstructions() {
 void ScreenExport::showSendRunning() {
     setMode(Mode::SendRunning);
     if (progress_label_) {
-        lv_label_set_text(progress_label_, "Sending\u2026 Press Esc to stop.");
+        lv_label_set_text(progress_label_, Strings::getInstance().get("export.send_running"));
         lv_obj_clear_flag(progress_label_, LV_OBJ_FLAG_HIDDEN);
     }
 }
@@ -150,7 +154,7 @@ void ScreenExport::showSendRunning() {
 void ScreenExport::showSendDone() {
     setMode(Mode::SendRunning);
     if (progress_label_) {
-        lv_label_set_text(progress_label_, "Done \u2713");
+        lv_label_set_text(progress_label_, Strings::getInstance().get("export.send_done"));
         lv_obj_clear_flag(progress_label_, LV_OBJ_FLAG_HIDDEN);
     }
 }
@@ -169,7 +173,7 @@ void ScreenExport::updateSelection() {
 void ScreenExport::setMode(Mode mode) {
     mode_ = mode;
     if (mode_ == Mode::List) {
-        lv_label_set_text(title_label_, "Export");
+        lv_label_set_text(title_label_, Strings::getInstance().get("export.title"));
         lv_obj_clear_flag(btn_list_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(privacy_label_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(instructions_body_, LV_OBJ_FLAG_HIDDEN);
@@ -180,7 +184,7 @@ void ScreenExport::setMode(Mode mode) {
         return;
     }
 
-    lv_label_set_text(title_label_, "Send to Computer");
+    lv_label_set_text(title_label_, Strings::getInstance().get("export.send_instructions_title"));
     lv_obj_add_flag(btn_list_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(privacy_label_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(instructions_body_, LV_OBJ_FLAG_HIDDEN);

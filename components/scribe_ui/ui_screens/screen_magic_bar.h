@@ -46,6 +46,9 @@ public:
     // Check if currently showing
     bool isVisible() const { return visible_; }
 
+    // Check if suggestion is ready to insert
+    bool isReady() const { return state_ == AISuggestionState::READY; }
+
     // Get current suggestion text
     std::string getSuggestion() const { return suggestion_; }
 
@@ -56,6 +59,13 @@ public:
     void setInsertCallback(InsertCallback cb) { insert_cb_ = cb; }
     void setCancelCallback(CancelCallback cb) { cancel_cb_ = cb; }
     void setStyleCallback(StyleCallback cb) { style_cb_ = cb; }
+
+    // Update status when request starts
+    void startGenerating();
+
+    // Accept or discard current suggestion
+    void acceptSuggestion();
+    void discardSuggestion();
 
 private:
     struct StyleButtonContext {

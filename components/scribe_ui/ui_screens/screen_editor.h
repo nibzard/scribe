@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lvgl.h>
+#include "../widgets/text_view.h"
 #include "editor_core.h"
 #include <string>
 
@@ -40,7 +41,7 @@ public:
 
 private:
     lv_obj_t* screen_;
-    lv_obj_t* text_area_;
+    TextView* text_view_ = nullptr;
     lv_obj_t* hud_panel_;
     lv_obj_t* hud_project_label_ = nullptr;
     lv_obj_t* hud_project_value_ = nullptr;
@@ -56,7 +57,7 @@ private:
 
     EditorCore* editor_ = nullptr;
     bool hud_visible_ = false;
-    std::string cached_text_;
+    uint64_t last_revision_ = 0;
 
     void createWidgets();
     void updateHUD();

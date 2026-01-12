@@ -1,4 +1,5 @@
 #include "screen_find.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_FIND";
@@ -8,7 +9,7 @@ ScreenFind::ScreenFind() : overlay_(nullptr) {
 
 ScreenFind::~ScreenFind() {
     if (overlay_) {
-        lv_obj_del(overlay_);
+        lv_obj_delete(overlay_);
     }
 }
 
@@ -29,14 +30,14 @@ void ScreenFind::createWidgets() {
 
     // Find label
     label_ = lv_label_create(overlay_);
-    lv_label_set_text(label_, "Find");
+    lv_label_set_text(label_, Strings::getInstance().get("find.label"));
     lv_obj_align(label_, LV_ALIGN_LEFT_MID, 20, 0);
 
     // Search input
     search_input_ = lv_textarea_create(overlay_);
     lv_obj_set_size(search_input_, 300, 40);
     lv_obj_align(search_input_, LV_ALIGN_LEFT_MID, 70, 0);
-    lv_textarea_set_placeholder_text(search_input_, "Type to search\u2026");
+    lv_textarea_set_placeholder_text(search_input_, Strings::getInstance().get("find.placeholder"));
     lv_textarea_set_one_line(search_input_, true);
 
     // Match count label
@@ -46,9 +47,13 @@ void ScreenFind::createWidgets() {
 
     // Hint label
     hint_label_ = lv_label_create(overlay_);
-    lv_label_set_text(hint_label_, "Next (Enter)  Previous (Shift+Enter)  Close (Esc)");
+    Strings& strings = Strings::getInstance();
+    std::string hint = std::string(strings.get("find.next")) + "  " +
+                       strings.get("find.prev") + "  " +
+                       strings.get("find.close");
+    lv_label_set_text(hint_label_, hint.c_str());
     lv_obj_align(hint_label_, LV_ALIGN_RIGHT_MID, -20, 0);
-    lv_obj_set_style_text_font(hint_label_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(hint_label_, &lv_font_montserrat_14, 0);
 }
 
 void ScreenFind::show() {
@@ -89,18 +94,21 @@ void ScreenFind::appendQueryChar(char c) {
 
 void ScreenFind::backspaceQuery() {
     if (search_input_) {
-        lv_textarea_del_char(search_input_);
+        lv_textarea_delete_char(search_input_);
     }
 }
 
 void ScreenFind::showMatch(int current, int total) {
     if (match_label_) {
-        lv_label_set_text_fmt(match_label_, "%d/%d matches", current, total);
+        Strings& strings = Strings::getInstance();
+        std::string text = strings.format("find.match_count",
+            {{"current", std::to_string(current)}, {"total", std::to_string(total)}});
+        lv_label_set_text(match_label_, text.c_str());
     }
 }
 
 void ScreenFind::showNoResults() {
     if (match_label_) {
-        lv_label_set_text(match_label_, "No matches.");
+        lv_label_set_text(match_label_, Strings::getInstance().get("find.no_results"));
     }
 }

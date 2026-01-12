@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <ctime>
+#include <unistd.h>
 
 static const char* TAG = "SCRIBE_EXPORT_SD";
 

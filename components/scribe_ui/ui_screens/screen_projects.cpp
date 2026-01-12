@@ -1,4 +1,5 @@
 #include "screen_projects.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
 #include <algorithm>
 #include <cctype>
@@ -18,10 +19,10 @@ ScreenProjects::ScreenProjects() : screen_(nullptr), list_(nullptr), search_bar_
 
 ScreenProjects::~ScreenProjects() {
     if (archive_dialog_) {
-        lv_obj_del(archive_dialog_);
+        lv_obj_delete(archive_dialog_);
     }
     if (screen_) {
-        lv_obj_del(screen_);
+        lv_obj_delete(screen_);
     }
 }
 
@@ -37,14 +38,14 @@ void ScreenProjects::init() {
 void ScreenProjects::createWidgets() {
     // Title
     lv_obj_t* title = lv_label_create(screen_);
-    lv_label_set_text(title, "Switch project");
+    lv_label_set_text(title, Strings::getInstance().get("switch_project.title"));
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
 
     // Search bar
     search_bar_ = lv_textarea_create(screen_);
     lv_obj_set_size(search_bar_, 300, 40);
     lv_obj_align(search_bar_, LV_ALIGN_TOP_MID, 0, 60);
-    lv_textarea_set_placeholder_text(search_bar_, "Type to search\u2026");
+    lv_textarea_set_placeholder_text(search_bar_, Strings::getInstance().get("switch_project.search_hint"));
     lv_textarea_set_one_line(search_bar_, true);
 
     // Project list
@@ -55,7 +56,7 @@ void ScreenProjects::createWidgets() {
 
 void ScreenProjects::show() {
     if (screen_) {
-        lv_scr_load(screen_);
+        lv_screen_load(screen_);
         if (search_bar_) {
             lv_obj_add_state(search_bar_, LV_STATE_FOCUSED);
         }
@@ -102,7 +103,7 @@ void ScreenProjects::filter(const std::string& query) {
     filtered_indices_.clear();
 
     if (projects_.empty()) {
-        lv_list_add_btn(list_, LV_SYMBOL_INFO, "No projects yet. Press Ctrl+N to create one.");
+        lv_list_add_button(list_, LV_SYMBOL_LIST, Strings::getInstance().get("switch_project.empty"));
         selected_index_ = 0;
         return;
     }
@@ -116,7 +117,7 @@ void ScreenProjects::filter(const std::string& query) {
     }
 
     if (filtered_indices_.empty()) {
-        lv_list_add_btn(list_, LV_SYMBOL_INFO, "No matches.");
+        lv_list_add_button(list_, LV_SYMBOL_LIST, Strings::getInstance().get("switch_project.no_results"));
         selected_index_ = 0;
         return;
     }
@@ -125,7 +126,7 @@ void ScreenProjects::filter(const std::string& query) {
         const auto& proj = projects_[filtered_indices_[i]];
         char buf[256];
         snprintf(buf, sizeof(buf), "%s (%zu words)", proj.name.c_str(), proj.word_count);
-        buttons_.push_back(lv_list_add_btn(list_, LV_SYMBOL_FILE, buf));
+        buttons_.push_back(lv_list_add_button(list_, LV_SYMBOL_FILE, buf));
     }
 
     selected_index_ = 0;
@@ -213,11 +214,11 @@ void ScreenProjects::showArchiveDialog(const std::string& project_name) {
     }
 
     // Create modal dialog
-    archive_dialog_ = lv_obj_create(lv_layer_top(), nullptr);
+    archive_dialog_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(archive_dialog_, LV_HOR_RES - 40, LV_VER_RES - 80);
     lv_obj_align(archive_dialog_, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_bg_opa(archive_dialog_, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(archive_dialog_, LV_COLOR_BLACK, 0);
+    lv_obj_set_style_bg_color(archive_dialog_, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(archive_dialog_, LV_OPA_70, 0);
 
     // Create dialog content
@@ -225,33 +226,32 @@ void ScreenProjects::showArchiveDialog(const std::string& project_name) {
     lv_obj_set_size(content, LV_HOR_RES - 80, 120);
     lv_obj_align(content, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_bg_opa(content, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(content, LV_COLOR_WHITE, 0);
+    lv_obj_set_style_bg_color(content, lv_color_white(), 0);
     lv_obj_set_style_pad_all(content, 20, 0);
 
     // Title
     lv_obj_t* title = lv_label_create(content);
-    lv_label_set_text(title, "Archive Project?");
+    lv_label_set_text(title, Strings::getInstance().get("switch_project.archive_title"));
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
 
     // Message
     lv_obj_t* msg = lv_label_create(content);
-    char msg_buf[256];
-    snprintf(msg_buf, sizeof(msg_buf),
-             "Archive \"%s\"?\n\nThe project will be moved to Archive and can be restored later.",
-             project_name.c_str());
-    lv_label_set_text(msg, msg_buf);
-    lv_label_set_align(msg, LV_LABEL_ALIGN_CENTER);
+    Strings& strings = Strings::getInstance();
+    std::string msg_text = strings.format("switch_project.archive_body",
+        {{"name", project_name}});
+    lv_label_set_text(msg, msg_text.c_str());
+    lv_obj_set_style_text_align(msg, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(msg, LV_ALIGN_CENTER, 0, 0);
 
     // Confirm button hint
     lv_obj_t* hint = lv_label_create(content);
-    lv_label_set_text(hint, "Enter: Archive  |  Esc: Cancel");
+    lv_label_set_text(hint, Strings::getInstance().get("switch_project.archive_hint"));
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
 }
 
 void ScreenProjects::hideArchiveDialog() {
     if (archive_dialog_) {
-        lv_obj_del(archive_dialog_);
+        lv_obj_delete(archive_dialog_);
         archive_dialog_ = nullptr;
     }
 }

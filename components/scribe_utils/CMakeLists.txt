@@ -1,4 +1,4 @@
-idf_component_register(SRCS ""
+idf_component_register(SRCS "strings.cpp"
     INCLUDE_DIRS "."
-    REQUIRES
+    REQUIRES json
 )

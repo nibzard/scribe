@@ -4,7 +4,7 @@
 #include <esp_err.h>
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
-#include <size_t.h>
+#include <cstddef>
 
 // MIPI-DSI Display Driver for Scribe
 // Supports common MIPI-DSI panels used in TFT displays

@@ -19,11 +19,10 @@ esp_err_t StorageManager::init() {
 
     ESP_LOGI(TAG, "Initializing SD card...");
 
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-        .format_if_mount_failed = false,
-        .max_files = 5,
-        .allocation_unit_size = 16 * 1024
-    };
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = VFS_FAT_MOUNT_DEFAULT_CONFIG();
+    mount_config.format_if_mount_failed = false;
+    mount_config.max_files = 5;
+    mount_config.allocation_unit_size = 16 * 1024;
 
     sdmmc_card_t* card = nullptr;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();

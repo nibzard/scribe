@@ -3,11 +3,12 @@
 #include <esp_err.h>
 #include <string>
 #include <functional>
+#include "piece_table.h"
 
 // Document snapshot for safe background saves
 struct DocSnapshot {
     std::string project_id;
-    std::string content;
+    PieceTableSnapshot table;
     size_t word_count;
     uint64_t timestamp;
 };
@@ -45,5 +46,6 @@ private:
     esp_err_t createSnapshot(const std::string& project_path);
 
     // Atomic save: tmp -> rename
-    esp_err_t atomicSave(const std::string& project_path, const std::string& content);
+    esp_err_t atomicSave(const std::string& project_path, const PieceTableSnapshot& table);
+    esp_err_t writeSnapshot(FILE* f, const PieceTableSnapshot& table);
 };

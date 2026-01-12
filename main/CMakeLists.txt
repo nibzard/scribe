@@ -9,4 +9,5 @@ idf_component_register(SRCS "app_main.cpp"
         scribe_export
         scribe_services
         scribe_secrets
+        scribe_utils
 )

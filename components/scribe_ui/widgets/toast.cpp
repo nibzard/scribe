@@ -37,7 +37,7 @@ Toast::Toast(lv_obj_t* parent) {
     label_ = lv_label_create(container_);
     lv_obj_set_style_text_font(label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(label_, TOAST_TEXT_COLOR, 0);
-    lv_label_set_long_mode(label_, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(label_, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(label_, LV_PCT(80));  // Max width 80% of screen
     lv_label_set_text(label_, "");
 
@@ -50,7 +50,7 @@ Toast::~Toast() {
         hide_timer_ = nullptr;
     }
     if (container_) {
-        lv_obj_del(container_);
+        lv_obj_delete(container_);
         container_ = nullptr;
     }
 }
@@ -97,7 +97,7 @@ void Toast::startHideTimer(uint32_t duration_ms) {
 
     if (duration_ms > 0) {
         hide_timer_ = lv_timer_create([](lv_timer_t* t) {
-            Toast* toast = static_cast<Toast*>(t->user_data);
+            Toast* toast = static_cast<Toast*>(lv_timer_get_user_data(t));
             if (toast) {
                 toast->hide();
             }

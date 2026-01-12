@@ -1,5 +1,7 @@
 #include "hud_overlay.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
+#include <string>
 
 static const char* TAG = "SCRIBE_HUD";
 
@@ -35,7 +37,7 @@ HUDOverlay::HUDOverlay(lv_obj_t* parent) {
 
 HUDOverlay::~HUDOverlay() {
     if (overlay_) {
-        lv_obj_del(overlay_);
+        lv_obj_delete(overlay_);
         overlay_ = nullptr;
     }
 }
@@ -57,7 +59,7 @@ void HUDOverlay::createWidgets() {
     project_label_ = lv_label_create(container_);
     lv_obj_set_style_text_font(project_label_, &lv_font_montserrat_18, 0);
     lv_obj_set_style_text_color(project_label_, HUD_TEXT_COLOR, 0);
-    lv_label_set_long_mode(project_label_, LV_LABEL_LONG_DOT);
+    lv_label_set_long_mode(project_label_, LV_LABEL_LONG_MODE_DOTS);
     lv_obj_set_width(project_label_, 250);
     lv_obj_align(project_label_, LV_ALIGN_TOP_MID, 0, 0);
 
@@ -74,41 +76,50 @@ void HUDOverlay::createWidgets() {
     lv_obj_set_style_text_font(words_today_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(words_today_label_, HUD_TEXT_COLOR, 0);
     lv_obj_align(words_today_label_, LV_ALIGN_TOP_LEFT, 0, 40);
-    lv_label_set_text(words_today_label_, "Today: 0");
+    {
+        std::string text = std::string(Strings::getInstance().get("hud.words_today")) + ": 0";
+        lv_label_set_text(words_today_label_, text.c_str());
+    }
 
     words_total_label_ = lv_label_create(container_);
     lv_obj_set_style_text_font(words_total_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(words_total_label_, HUD_TEXT_COLOR, 0);
     lv_obj_align(words_total_label_, LV_ALIGN_TOP_LEFT, 140, 40);
-    lv_label_set_text(words_total_label_, "Total: 0");
+    {
+        std::string text = std::string(Strings::getInstance().get("hud.words_total")) + ": 0";
+        lv_label_set_text(words_total_label_, text.c_str());
+    }
 
     // Battery label
     battery_label_ = lv_label_create(container_);
     lv_obj_set_style_text_font(battery_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(battery_label_, HUD_TEXT_COLOR, 0);
     lv_obj_align(battery_label_, LV_ALIGN_TOP_LEFT, 0, 70);
-    lv_label_set_text(battery_label_, "Battery: --%");
+    {
+        std::string text = std::string(Strings::getInstance().get("hud.battery")) + ": --%";
+        lv_label_set_text(battery_label_, text.c_str());
+    }
 
     // Save state label
     save_label_ = lv_label_create(container_);
     lv_obj_set_style_text_font(save_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(save_label_, HUD_SUCCESS_COLOR, 0);
     lv_obj_align(save_label_, LV_ALIGN_TOP_LEFT, 0, 100);
-    lv_label_set_text(save_label_, "Saved \u2713");
+    lv_label_set_text(save_label_, Strings::getInstance().get("hud.saved"));
 
     // Backup state label
     backup_label_ = lv_label_create(container_);
     lv_obj_set_style_text_font(backup_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(backup_label_, HUD_INFO_COLOR, 0);
     lv_obj_align(backup_label_, LV_ALIGN_TOP_LEFT, 0, 125);
-    lv_label_set_text(backup_label_, "Backup: off");
+    lv_label_set_text(backup_label_, Strings::getInstance().get("hud.backup_off"));
 
     // AI state label
     ai_label_ = lv_label_create(container_);
     lv_obj_set_style_text_font(ai_label_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(ai_label_, lv_color_hex(0x9E9E9E), 0);
     lv_obj_align(ai_label_, LV_ALIGN_TOP_LEFT, 140, 125);
-    lv_label_set_text(ai_label_, "AI: off");
+    lv_label_set_text(ai_label_, Strings::getInstance().get("hud.ai_off"));
 
     ESP_LOGI(TAG, "HUD widgets created");
 }
@@ -121,17 +132,24 @@ void HUDOverlay::setProjectName(const std::string& name) {
 
 void HUDOverlay::setWordCounts(size_t today, size_t total) {
     if (words_today_label_) {
-        lv_label_set_text_fmt(words_today_label_, "Today: %zu", today);
+        std::string text = std::string(Strings::getInstance().get("hud.words_today")) + ": " +
+                           std::to_string(today);
+        lv_label_set_text(words_today_label_, text.c_str());
     }
     if (words_total_label_) {
-        lv_label_set_text_fmt(words_total_label_, "Total: %zu", total);
+        std::string text = std::string(Strings::getInstance().get("hud.words_total")) + ": " +
+                           std::to_string(total);
+        lv_label_set_text(words_total_label_, text.c_str());
     }
 }
 
 void HUDOverlay::setBattery(int percentage, bool charging) {
     if (battery_label_) {
         const char* icon = charging ? "\u26A1" : "";
-        lv_label_set_text_fmt(battery_label_, "%s Battery: %d%%", icon, percentage);
+        std::string text = std::string(icon) + " " +
+                           Strings::getInstance().get("hud.battery") + ": " +
+                           std::to_string(percentage) + "%";
+        lv_label_set_text(battery_label_, text.c_str());
 
         // Color code battery level
         lv_color_t color = HUD_TEXT_COLOR;

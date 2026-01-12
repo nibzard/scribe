@@ -1,4 +1,5 @@
 #include "screen_magic_bar.h"
+#include "../../scribe_utils/strings.h"
 #include "../scribe_services/ai_assist.h"
 #include "../scribe_services/wifi_manager.h"
 #include <esp_log.h>
@@ -10,7 +11,7 @@ ScreenMagicBar::ScreenMagicBar() : bar_(nullptr) {
 
 ScreenMagicBar::~ScreenMagicBar() {
     if (bar_) {
-        lv_obj_del(bar_);
+        lv_obj_delete(bar_);
     }
 }
 
@@ -45,11 +46,12 @@ void ScreenMagicBar::createWidgets() {
 
     for (size_t i = 0; i < style_button_ctx_.size(); i++) {
         AIStyle s = styles[i];
-        lv_obj_t* btn = lv_list_add_btn(style_selector_, nullptr, getStyleName(s));
+        lv_obj_t* btn = lv_list_add_button(style_selector_, nullptr, getStyleName(s));
         style_button_ctx_[i] = {this, s};
 
-        lv_obj_add_event_cb(btn, [](lv_obj_t* obj, lv_event_t* event) {
-            auto* ctx = static_cast<ScreenMagicBar::StyleButtonContext*>(lv_obj_get_user_data(obj));
+        lv_obj_add_event_cb(btn, [](lv_event_t* e) {
+            lv_obj_t* target = lv_event_get_target_obj(e);
+            auto* ctx = static_cast<ScreenMagicBar::StyleButtonContext*>(lv_obj_get_user_data(target));
             if (!ctx || !ctx->magic) {
                 return;
             }
@@ -65,17 +67,17 @@ void ScreenMagicBar::createWidgets() {
 
     // Status label
     status_label_ = lv_label_create(bar_);
-    lv_label_set_long_mode(status_label_, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(status_label_, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(status_label_, LV_HOR_RES - 80);
     lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, 70);
     lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
-    updateStatus("Press Enter to generate suggestion");
+    updateStatus(Strings::getInstance().get("ai.status_idle"));
 
     // Preview text area
     preview_text_ = lv_textarea_create(bar_);
     lv_obj_set_size(preview_text_, LV_HOR_RES - 80, 60);
     lv_obj_align(preview_text_, LV_ALIGN_TOP_MID, 0, 95);
-    lv_textarea_set_placeholder_text(preview_text_, "AI suggestion will appear here...");
+    lv_textarea_set_placeholder_text(preview_text_, Strings::getInstance().get("ai.magic_bar_placeholder"));
     lv_textarea_set_text(preview_text_, "");
     lv_obj_add_flag(preview_text_, LV_OBJ_FLAG_CLICKABLE);
 
@@ -87,43 +89,40 @@ void ScreenMagicBar::createWidgets() {
     lv_obj_set_style_border_width(btn_cont, 0, 0);
 
     // Insert button
-    insert_btn_ = lv_btn_create(btn_cont);
+    insert_btn_ = lv_button_create(btn_cont);
     lv_obj_set_size(insert_btn_, 90, 35);
     lv_obj_align(insert_btn_, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_add_flag(insert_btn_, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_t* label = lv_label_create(insert_btn_);
-    lv_label_set_text(label, "Insert");
+    lv_label_set_text(label, Strings::getInstance().get("ai.accept"));
     lv_obj_center(label);
 
-    lv_obj_add_event_cb(insert_btn_, [](lv_obj_t* obj, lv_event_t* event) {
-        ScreenMagicBar* magic = (ScreenMagicBar*)lv_obj_get_user_data(obj);
-        if (magic && magic->insert_cb_) {
-            magic->insert_cb_(magic->suggestion_);
+    lv_obj_add_event_cb(insert_btn_, [](lv_event_t* e) {
+        lv_obj_t* target = lv_event_get_target_obj(e);
+        ScreenMagicBar* magic = (ScreenMagicBar*)lv_obj_get_user_data(target);
+        if (magic) {
+            magic->acceptSuggestion();
             magic->hide();
         }
     }, LV_EVENT_CLICKED, nullptr);
     lv_obj_set_user_data(insert_btn_, this);
 
     // Discard button
-    discard_btn_ = lv_btn_create(btn_cont);
+    discard_btn_ = lv_button_create(btn_cont);
     lv_obj_set_size(discard_btn_, 90, 35);
     lv_obj_align(discard_btn_, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_add_flag(discard_btn_, LV_OBJ_FLAG_HIDDEN);
 
     label = lv_label_create(discard_btn_);
-    lv_label_set_text(label, "Discard");
+    lv_label_set_text(label, Strings::getInstance().get("ai.reject"));
     lv_obj_center(label);
 
-    lv_obj_add_event_cb(discard_btn_, [](lv_obj_t* obj, lv_event_t* event) {
-        ScreenMagicBar* magic = (ScreenMagicBar*)lv_obj_get_user_data(obj);
+    lv_obj_add_event_cb(discard_btn_, [](lv_event_t* e) {
+        lv_obj_t* target = lv_event_get_target_obj(e);
+        ScreenMagicBar* magic = (ScreenMagicBar*)lv_obj_get_user_data(target);
         if (magic) {
-            magic->suggestion_.clear();
-            lv_textarea_set_text(magic->preview_text_, "");
-            lv_obj_add_flag(magic->insert_btn_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(magic->discard_btn_, LV_OBJ_FLAG_HIDDEN);
-            magic->state_ = AISuggestionState::IDLE;
-            magic->updateStatus("Press Enter to generate suggestion");
+            magic->discardSuggestion();
         }
     }, LV_EVENT_CLICKED, nullptr);
     lv_obj_set_user_data(discard_btn_, this);
@@ -144,9 +143,9 @@ void ScreenMagicBar::show() {
         updateStyleSelector();
 
         if (!WiFiManager::getInstance().isConnected()) {
-            updateStatus("Offline - Connect to WiFi for AI");
+            updateStatus(Strings::getInstance().get("ai.offline"));
         } else {
-            updateStatus("Press Enter to generate suggestion");
+            updateStatus(Strings::getInstance().get("ai.status_idle"));
         }
     }
 }
@@ -156,14 +155,15 @@ void ScreenMagicBar::hide() {
         lv_obj_add_flag(bar_, LV_OBJ_FLAG_HIDDEN);
         visible_ = false;
         suggestion_.clear();
-
-        if (cancel_cb_) {
-            cancel_cb_();
-        }
+        state_ = AISuggestionState::IDLE;
     }
 }
 
 void ScreenMagicBar::onStreamDelta(const char* delta) {
+    if (state_ != AISuggestionState::GENERATING) {
+        state_ = AISuggestionState::GENERATING;
+        updateStatus(Strings::getInstance().get("ai.generating"));
+    }
     suggestion_ += delta;
     updatePreview();
 }
@@ -173,7 +173,7 @@ void ScreenMagicBar::onComplete(bool success, const std::string& error) {
         state_ = AISuggestionState::READY;
         lv_obj_clear_flag(insert_btn_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(discard_btn_, LV_OBJ_FLAG_HIDDEN);
-        updateStatus("Suggestion ready - Insert or Discard");
+        updateStatus(Strings::getInstance().get("ai.status_ready"));
     } else {
         state_ = AISuggestionState::ERROR;
         updateStatus(error.c_str());
@@ -213,4 +213,48 @@ const char* ScreenMagicBar::getStyleName(AIStyle style) {
         case AIStyle::CUSTOM: return "Custom";
         default: return "Unknown";
     }
+}
+
+void ScreenMagicBar::startGenerating() {
+    suggestion_.clear();
+    if (preview_text_) {
+        lv_textarea_set_text(preview_text_, "");
+    }
+    if (insert_btn_) {
+        lv_obj_add_flag(insert_btn_, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (discard_btn_) {
+        lv_obj_add_flag(discard_btn_, LV_OBJ_FLAG_HIDDEN);
+    }
+    state_ = AISuggestionState::GENERATING;
+    updateStatus(Strings::getInstance().get("ai.generating"));
+}
+
+void ScreenMagicBar::acceptSuggestion() {
+    if (state_ != AISuggestionState::READY) {
+        return;
+    }
+    if (insert_cb_) {
+        insert_cb_(suggestion_);
+    }
+}
+
+void ScreenMagicBar::discardSuggestion() {
+    if (cancel_cb_) {
+        cancel_cb_();
+        return;
+    }
+
+    suggestion_.clear();
+    if (preview_text_) {
+        lv_textarea_set_text(preview_text_, "");
+    }
+    if (insert_btn_) {
+        lv_obj_add_flag(insert_btn_, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (discard_btn_) {
+        lv_obj_add_flag(discard_btn_, LV_OBJ_FLAG_HIDDEN);
+    }
+    state_ = AISuggestionState::IDLE;
+    updateStatus(Strings::getInstance().get("ai.status_idle"));
 }

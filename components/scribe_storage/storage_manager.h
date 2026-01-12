@@ -40,14 +40,13 @@ public:
 
 private:
     StorageManager()
-        : mounted_(false), card_(nullptr),
-          slot_config_{
-              .host_id = SPI3_HOST,
-              .gpio_cs = (gpio_num_t)PIN_CS,
-              .gpio_cd = GPIO_NUM_NC,
-              .gpio_wp = GPIO_NUM_NC,
-              .gpio_int = GPIO_NUM_NC,
-          } {}
+        : mounted_(false), card_(nullptr), slot_config_(SDSPI_DEVICE_CONFIG_DEFAULT()) {
+        slot_config_.host_id = SPI3_HOST;
+        slot_config_.gpio_cs = static_cast<gpio_num_t>(PIN_CS);
+        slot_config_.gpio_cd = GPIO_NUM_NC;
+        slot_config_.gpio_wp = GPIO_NUM_NC;
+        slot_config_.gpio_int = GPIO_NUM_NC;
+    }
     ~StorageManager() = default;
 
     bool mounted_;

@@ -17,7 +17,7 @@ static const char* TAG = "SCRIBE_BATTERY";
 #define BATTERY_LOW_PERCENT    20             // Low battery threshold
 
 // ADC configuration
-#define ADC_ATTEN       ADC_ATTEN_DB_11
+#define ADC_ATTEN       ADC_ATTEN_DB_12
 #define ADC_WIDTH       ADC_BITWIDTH_12
 
 // Battery percentage calculation
@@ -47,10 +47,14 @@ esp_err_t Battery::init() {
     ESP_LOGI(TAG, "Initializing battery monitor...");
 
     // Initialize ADC for battery voltage reading
-    adc_oneshot_unit_init_cfg_t adc_init_cfg = {
-        .unit_id = BATTERY_ADC_UNIT,
-        .ulp_mode = ADC_ULP_MODE_DISABLE,
-    };
+    adc_oneshot_unit_init_cfg_t adc_init_cfg = {};
+    adc_init_cfg.unit_id = BATTERY_ADC_UNIT;
+    adc_init_cfg.ulp_mode = ADC_ULP_MODE_DISABLE;
+#if defined(ADC_RTC_CLK_SRC_DEFAULT)
+    adc_init_cfg.clk_src = ADC_RTC_CLK_SRC_DEFAULT;
+#elif defined(ADC_DIGI_CLK_SRC_DEFAULT)
+    adc_init_cfg.clk_src = ADC_DIGI_CLK_SRC_DEFAULT;
+#endif
 
     esp_err_t ret = adc_oneshot_new_unit(&adc_init_cfg, &adc_handle_);
     if (ret != ESP_OK) {
@@ -69,11 +73,11 @@ esp_err_t Battery::init() {
         }
 
         // Initialize ADC calibration (optional, improves accuracy)
-        adc_cali_curve_fitting_config_t cali_config = {
-            .unit_id = BATTERY_ADC_UNIT,
-            .atten = ADC_ATTEN,
-            .bitwidth = ADC_WIDTH,
-        };
+        adc_cali_curve_fitting_config_t cali_config = {};
+        cali_config.unit_id = BATTERY_ADC_UNIT;
+        cali_config.atten = ADC_ATTEN;
+        cali_config.bitwidth = ADC_WIDTH;
+        cali_config.chan = BATTERY_ADC_CHANNEL;
         ret = adc_cali_create_scheme_curve_fitting(&cali_config, &adc_cali_handle_);
         if (ret != ESP_OK) {
             ESP_LOGD(TAG, "ADC calibration not available: %s", esp_err_to_name(ret));
@@ -82,13 +86,15 @@ esp_err_t Battery::init() {
     }
 
     // Initialize GPIO for charging status detection
-    gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << CHARGING_GPIO),
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
+    gpio_config_t io_conf = {};
+    io_conf.pin_bit_mask = (1ULL << CHARGING_GPIO);
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+#if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
+    io_conf.hys_ctrl_mode = GPIO_HYS_SOFT_DISABLE;
+#endif
     gpio_config(&io_conf);
     charging_gpio_ = CHARGING_GPIO;
 
@@ -145,7 +151,7 @@ float Battery::readVoltage() {
         adc_cali_raw_to_voltage(adc_cali_handle_, adc_raw, &voltage_mv);
     } else {
         // Fallback: rough conversion without calibration
-        // ADC_ATTEN_DB_11: 0-3.1V range, 12-bit = 4095 steps
+        // ADC_ATTEN_DB_12: 0-3.1V range, 12-bit = 4095 steps
         voltage_mv = (adc_raw * 3100) / 4095;
     }
 

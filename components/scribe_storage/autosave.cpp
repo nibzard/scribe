@@ -43,13 +43,13 @@ esp_err_t AutosaveManager::performSave(const DocSnapshot& snapshot) {
     saving_ = true;
     std::string project_path = std::string(SCRIBE_PROJECTS_DIR) + "/" + snapshot.project_id;
 
-    esp_err_t ret = atomicSave(project_path, snapshot.content);
+    esp_err_t ret = atomicSave(project_path, snapshot.table);
     saving_ = false;
 
     return ret;
 }
 
-esp_err_t AutosaveManager::atomicSave(const std::string& project_path, const std::string& content) {
+esp_err_t AutosaveManager::atomicSave(const std::string& project_path, const PieceTableSnapshot& table) {
     struct stat st;
     if (stat(project_path.c_str(), &st) != 0) {
         mkdir(project_path.c_str(), 0755);
@@ -63,10 +63,15 @@ esp_err_t AutosaveManager::atomicSave(const std::string& project_path, const std
         return ESP_FAIL;
     }
 
-    fwrite(content.c_str(), 1, content.size(), f);
+    esp_err_t write_ret = writeSnapshot(f, table);
     fflush(f);
     fsync(fileno(f));
     fclose(f);
+
+    if (write_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to write snapshot to autosave.tmp");
+        return write_ret;
+    }
 
     // Atomic rename
     std::string final_path = project_path + "/manuscript.md";
@@ -75,7 +80,34 @@ esp_err_t AutosaveManager::atomicSave(const std::string& project_path, const std
         return ESP_FAIL;
     }
 
-    ESP_LOGD(TAG, "Saved manuscript.md (%zu bytes)", content.size());
+    ESP_LOGD(TAG, "Saved manuscript.md");
+    return ESP_OK;
+}
+
+esp_err_t AutosaveManager::writeSnapshot(FILE* f, const PieceTableSnapshot& table) {
+    if (!f || !table.original_buffer || !table.add_buffer) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const std::string& original = *table.original_buffer;
+    const std::string& add = *table.add_buffer;
+
+    for (const auto& piece : table.pieces) {
+        const std::string& buffer = (piece.type == Piece::Type::ORIGINAL) ? original : add;
+        if (piece.start + piece.length > buffer.size()) {
+            ESP_LOGE(TAG, "Snapshot piece out of bounds");
+            return ESP_FAIL;
+        }
+
+        if (piece.length > 0) {
+            size_t written = fwrite(buffer.data() + piece.start, 1, piece.length, f);
+            if (written != piece.length) {
+                ESP_LOGE(TAG, "Failed to write snapshot data");
+                return ESP_FAIL;
+            }
+        }
+    }
+
     return ESP_OK;
 }
 

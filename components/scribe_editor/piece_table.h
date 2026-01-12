@@ -20,6 +20,13 @@ struct Piece {
         : type(t), buffer_index(buf_idx), start(s), length(l) {}
 };
 
+struct PieceTableSnapshot {
+    std::shared_ptr<const std::string> original_buffer;
+    std::shared_ptr<const std::string> add_buffer;
+    std::vector<Piece> pieces;
+    size_t total_length = 0;
+};
+
 class PieceTable {
 public:
     PieceTable();
@@ -47,18 +54,21 @@ public:
     const std::vector<Piece>& getPieces() const { return pieces_; }
 
     // Get buffer pointers (for snapshot serialization)
-    const std::string& getOriginalBuffer() const { return original_buffer_; }
-    const std::string& getAddBuffer() const { return add_buffer_; }
+    const std::string& getOriginalBuffer() const { return *original_buffer_; }
+    const std::string& getAddBuffer() const { return *add_buffer_; }
+
+    // Snapshot for background serialization
+    PieceTableSnapshot createSnapshot() const;
 
     // Optimization: rebuild from current text (creates new single piece)
     void compact();
 
 private:
     // Original document buffer (immutable)
-    std::string original_buffer_;
+    std::shared_ptr<std::string> original_buffer_;
 
     // Add buffer for all insertions (append-only)
-    std::string add_buffer_;
+    std::shared_ptr<std::string> add_buffer_;
 
     // Piece list describing document structure
     std::vector<Piece> pieces_;
@@ -75,4 +85,7 @@ private:
 
     // Split piece at position
     void splitPiece(size_t piece_index, size_t offset);
+
+    // Ensure add buffer is not shared before mutation
+    void ensureUniqueAddBuffer();
 };

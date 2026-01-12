@@ -1,10 +1,19 @@
 {
   "app": {
-    "name": "Scribe",
-    "tagline": "Open. Type. Your words are safe."
+    "name": "Scribe"
+  },
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "on": "On",
+    "off": "Off"
   },
   "boot": {
-    "first_run_tip": "Start typing to write. Press Esc for menu. Hold Space for status.",
+    "tagline": "Open. Type. Your words are safe."
+  },
+  "first_run": {
+    "tip": "Start typing to write. Press Esc for menu. Hold Space for status.",
     "dismiss": "Press Enter to continue"
   },
   "hud": {
@@ -18,6 +27,8 @@
     "backup_queued": "Backup: queued",
     "backup_syncing": "Backup: syncing\u2026",
     "backup_synced": "Backup: synced \u2713",
+    "backup_failed": "Backup: failed",
+    "backup_conflict": "Backup: conflict",
     "ai_off": "AI: off",
     "ai_on": "AI: on"
   },
@@ -45,7 +56,11 @@
   "switch_project": {
     "title": "Switch project",
     "search_hint": "Type to search\u2026",
-    "empty": "No projects yet. Press Ctrl+N to create one."
+    "empty": "No projects yet. Press Ctrl+N to create one.",
+    "no_results": "No matches.",
+    "archive_title": "Archive project?",
+    "archive_body": "Archive \"{name}\"?\n\nThe project will be moved to Archive and can be restored later.",
+    "archive_hint": "Enter: Archive  |  Esc: Cancel"
   },
   "find": {
     "label": "Find",
@@ -69,7 +84,8 @@
     "send_confirm": "Press Enter to start",
     "send_cancel": "Press Esc to cancel",
     "send_running": "Sending\u2026 Press Esc to stop.",
-    "send_done": "Done \u2713"
+    "send_done": "Done \u2713",
+    "privacy": "Nothing leaves your device unless you choose."
   },
   "settings": {
     "title": "Settings",
@@ -103,6 +119,7 @@
     "gist": "GitHub Gist",
     "token_prompt": "Paste your GitHub token",
     "token_hint": "We store your token only on this device.",
+    "token_placeholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
     "token_saved": "Token saved \u2713",
     "token_invalid": "Token looks invalid. Please try again.",
     "sync_now": "Sync now",
@@ -112,7 +129,19 @@
     "disable": "Disable backup",
     "disable_confirm": "Disable cloud backup?",
     "disable_yes": "Disable",
-    "disable_no": "Cancel"
+    "disable_no": "Cancel",
+    "back": "Back",
+    "choose_provider": "Choose a backup provider:",
+    "configured": "Backup configured: {info}",
+    "configured_hint": "Press Back or choose a different provider.",
+    "repo_title": "GitHub repository",
+    "repo_owner": "Owner",
+    "repo_name": "Repository",
+    "repo_branch": "Branch",
+    "repo_save": "Save",
+    "repo_owner_placeholder": "username",
+    "repo_name_placeholder": "my-writing-backup",
+    "repo_branch_placeholder": "main"
   },
   "ai": {
     "title": "AI assistance",
@@ -121,15 +150,20 @@
     "disable": "Disable AI",
     "key_prompt": "Paste your API key",
     "key_hint": "Stored only on this device.",
+    "key_placeholder": "sk-...",
     "key_saved": "Key saved \u2713",
     "key_invalid": "Key looks invalid. Please try again.",
+    "status_enabled": "AI enabled",
+    "status_disabled": "AI is off",
     "magic_bar_placeholder": "Ask AI to rewrite, continue, or summarize\u2026",
     "generating": "Thinking\u2026",
     "preview_title": "Suggestion",
     "accept": "Insert (Enter)",
     "reject": "Discard (Esc)",
     "offline": "AI is unavailable offline.",
-    "error": "AI request failed. Try again later."
+    "error": "AI request failed. Try again later.",
+    "status_idle": "Press Enter to generate suggestion",
+    "status_ready": "Suggestion ready - Insert or Discard"
   },
   "storage": {
     "sd_missing_title": "No storage found",
@@ -148,5 +182,27 @@
     "off_confirm": "Power off now?",
     "off_yes": "Power off",
     "off_no": "Cancel"
+  },
+  "help": {
+    "title": "Help",
+    "how_to_write_title": "How to write",
+    "how_to_write_body": "Start typing. The screen is your page.",
+    "shortcuts_title": "Shortcuts",
+    "shortcuts_body": "Esc - Menu\nF1 / Hold Space - Status\nCtrl+S - Save\nCtrl+F - Find\nCtrl+E - Export\nCtrl+N - New project\nCtrl+O - Switch project\nCtrl+M - Toggle mode\nCtrl+K - AI Magic Bar\nCtrl+Q - Power off\nCtrl+Z/Y - Undo/Redo",
+    "saving_title": "How saving works",
+    "saving_body": "Your work is saved automatically. Press Ctrl+S to save manually and create snapshots.",
+    "export_title": "How to export",
+    "export_body": "Use Send to Computer to type your draft into any app on your computer. Or export to SD card.",
+    "close": "Press Esc to close"
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "instruction": "Press Enter to export logs | Esc to close",
+    "export": "Export logs",
+    "export_done": "Logs exported \u2713",
+    "export_failed": "Export failed. Try again."
+  },
+  "project": {
+    "untitled": "Untitled"
   }
 }

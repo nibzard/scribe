@@ -6,6 +6,9 @@
 #include <cstring>
 #include <algorithm>
 
+using MIPIDSI::DisplayConfig;
+using MIPIDSI::Orientation;
+
 static const char* TAG = "SCRIBE_MIPI_DSI";
 
 // Display state
@@ -72,12 +75,9 @@ static esp_err_t spiWrite(const uint8_t* data, size_t len, bool is_data) {
     // Set DC pin
     gpio_set_level(state.config.dc_pin, is_data ? 1 : 0);
 
-    spi_transaction_t t = {
-        .flags = 0,
-        .length = len * 8,  // Length in bits
-        .tx_buffer = data,
-        .rx_buffer = nullptr
-    };
+    spi_transaction_t t = {};
+    t.length = len * 8;  // Length in bits
+    t.tx_buffer = data;
 
     return spi_device_polling_transmit(state.spi_handle, &t);
 }
@@ -265,14 +265,13 @@ static esp_err_t initSPI() {
     }
 
     // Configure SPI bus
-    spi_bus_config_t bus_cfg = {
-        .mosi_io_num = GPIO_NUM_23,      // Default MOSI (adjust for hardware)
-        .miso_io_num = GPIO_NUM_NC,       // Not used for display only
-        .sclk_io_num = GPIO_NUM_18,       // Default SCLK (adjust for hardware)
-        .quadwp_io_num = GPIO_NUM_NC,
-        .quadhd_io_num = GPIO_NUM_NC,
-        .max_transfer_sz = state.buffer_size,
-    };
+    spi_bus_config_t bus_cfg = {};
+    bus_cfg.mosi_io_num = GPIO_NUM_23;      // Default MOSI (adjust for hardware)
+    bus_cfg.miso_io_num = GPIO_NUM_NC;       // Not used for display only
+    bus_cfg.sclk_io_num = GPIO_NUM_18;       // Default SCLK (adjust for hardware)
+    bus_cfg.quadwp_io_num = GPIO_NUM_NC;
+    bus_cfg.quadhd_io_num = GPIO_NUM_NC;
+    bus_cfg.max_transfer_sz = static_cast<int>(state.buffer_size);
 
     esp_err_t ret = spi_bus_initialize(SPI2_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK) {
@@ -281,13 +280,12 @@ static esp_err_t initSPI() {
     }
 
     // Add device
-    spi_device_interface_config_t dev_cfg = {
-        .clock_speed_hz = state.config.spi_freq_mhz * 1000 * 1000,
-        .mode = 0,  // SPI mode 0
-        .spics_io_num = state.config.cs_pin,
-        .queue_size = 1,
-        .flags = SPI_DEVICE_NO_DUMMY,
-    };
+    spi_device_interface_config_t dev_cfg = {};
+    dev_cfg.clock_speed_hz = state.config.spi_freq_mhz * 1000 * 1000;
+    dev_cfg.mode = 0;  // SPI mode 0
+    dev_cfg.spics_io_num = state.config.cs_pin;
+    dev_cfg.queue_size = 1;
+    dev_cfg.flags = SPI_DEVICE_NO_DUMMY;
 
     ret = spi_bus_add_device(SPI2_HOST, &dev_cfg, &state.spi_handle);
     if (ret != ESP_OK) {
@@ -366,13 +364,12 @@ esp_err_t MIPIDSI::init(const DisplayConfig& config) {
     // Set flush callback
     lv_display_set_flush_cb(state.lvgl_display, lvglFlushCallback);
 
-    // Set draw buffer
-    lv_display_set_draw_buffers(state.lvgl_display, state.draw_buffer, nullptr,
-                                state.buffer_size, 0,
-                                LV_DISPLAY_RENDER_MODE_PARTIAL);
-
-    // Set color format
+    // Set color format before configuring buffers
     lv_display_set_color_format(state.lvgl_display, LV_COLOR_FORMAT_RGB565);
+
+    // Set draw buffer using raw memory
+    lv_display_set_buffers(state.lvgl_display, state.draw_buffer, nullptr,
+                           state.buffer_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     // Clear display
     clear(0x0000);

@@ -2,13 +2,15 @@
 #include <algorithm>
 
 PieceTable::PieceTable() : total_length_(0) {
+    original_buffer_ = std::make_shared<std::string>();
+    add_buffer_ = std::make_shared<std::string>();
     // Initial state: empty document with single empty piece
     pieces_.push_back(Piece(Piece::Type::ORIGINAL, 0, 0, 0));
 }
 
 void PieceTable::load(const std::string& content) {
-    original_buffer_ = content;
-    add_buffer_.clear();
+    original_buffer_ = std::make_shared<std::string>(content);
+    add_buffer_ = std::make_shared<std::string>();
     pieces_.clear();
     if (content.empty()) {
         pieces_.push_back(Piece(Piece::Type::ORIGINAL, 0, 0, 0));
@@ -27,8 +29,9 @@ void PieceTable::insert(size_t pos, const std::string& text) {
     splitPiece(ppos.piece_index, ppos.offset_in_piece);
 
     // Add text to add buffer
-    size_t add_start = add_buffer_.length();
-    add_buffer_ += text;
+    ensureUniqueAddBuffer();
+    size_t add_start = add_buffer_->length();
+    add_buffer_->append(text);
 
     // Insert new piece
     Piece new_piece(Piece::Type::ADD, 0, add_start, text.length());
@@ -80,11 +83,9 @@ std::string PieceTable::getTextRange(size_t start, size_t end) const {
     PiecePos start_pos = findPiece(start);
     PiecePos end_pos = findPiece(end);
 
-    size_t current_pos = start;
-
     for (size_t i = start_pos.piece_index; i <= end_pos.piece_index; ++i) {
         const Piece& p = pieces_[i];
-        const std::string& buffer = (p.type == Piece::Type::ORIGINAL) ? original_buffer_ : add_buffer_;
+        const std::string& buffer = (p.type == Piece::Type::ORIGINAL) ? *original_buffer_ : *add_buffer_;
 
         size_t piece_start = (i == start_pos.piece_index) ? p.start + start_pos.offset_in_piece : p.start;
         size_t piece_end = (i == end_pos.piece_index) ? p.start + end_pos.offset_in_piece : p.start + p.length;
@@ -125,8 +126,23 @@ void PieceTable::compact() {
     // Serialize current state to new original buffer
     std::string full_text = getText();
 
-    original_buffer_ = full_text;
-    add_buffer_.clear();
+    original_buffer_ = std::make_shared<std::string>(std::move(full_text));
+    add_buffer_ = std::make_shared<std::string>();
     pieces_.clear();
-    pieces_.push_back(Piece(Piece::Type::ORIGINAL, 0, 0, full_text.length()));
+    pieces_.push_back(Piece(Piece::Type::ORIGINAL, 0, 0, original_buffer_->length()));
+}
+
+PieceTableSnapshot PieceTable::createSnapshot() const {
+    PieceTableSnapshot snapshot;
+    snapshot.original_buffer = original_buffer_;
+    snapshot.add_buffer = add_buffer_;
+    snapshot.pieces = pieces_;
+    snapshot.total_length = total_length_;
+    return snapshot;
+}
+
+void PieceTable::ensureUniqueAddBuffer() {
+    if (!add_buffer_.unique()) {
+        add_buffer_ = std::make_shared<std::string>(*add_buffer_);
+    }
 }

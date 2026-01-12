@@ -19,7 +19,7 @@ struct Selection;
 // Snapshot for background saves
 struct EditorSnapshot {
     std::string project_id;
-    std::string content;
+    PieceTableSnapshot table;
     size_t word_count;
     size_t cursor_pos;
 };
@@ -93,6 +93,12 @@ public:
     // Get text at cursor (for AI, etc.)
     std::string getTextAroundCursor(size_t chars_before = 500, size_t chars_after = 500) const;
 
+    // Revision counter (increments on text changes)
+    uint64_t getRevision() const { return revision_; }
+
+    // Snapshot for rendering without full-text copy
+    PieceTableSnapshot createRenderSnapshot() const { return piece_table_.createSnapshot(); }
+
 private:
     PieceTable piece_table_;
     UndoStack undo_stack_;
@@ -102,6 +108,7 @@ private:
 
     size_t line_count_ = 0;
     size_t word_count_ = 0;
+    uint64_t revision_ = 0;
 
     // Update cursor line/col from position
     void updateCursorLineCol();

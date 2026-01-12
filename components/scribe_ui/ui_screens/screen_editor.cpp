@@ -1,14 +1,19 @@
 #include "screen_editor.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_EDITOR";
 
-ScreenEditor::ScreenEditor() : screen_(nullptr), text_area_(nullptr), hud_panel_(nullptr) {
+ScreenEditor::ScreenEditor() : screen_(nullptr), text_view_(nullptr), hud_panel_(nullptr) {
 }
 
 ScreenEditor::~ScreenEditor() {
+    if (text_view_) {
+        delete text_view_;
+        text_view_ = nullptr;
+    }
     if (screen_) {
-        lv_obj_del(screen_);
+        lv_obj_delete(screen_);
     }
 }
 
@@ -24,13 +29,12 @@ void ScreenEditor::init() {
 }
 
 void ScreenEditor::createWidgets() {
-    // Main text area
-    text_area_ = lv_textarea_create(screen_);
-    lv_obj_set_size(text_area_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_align(text_area_, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_textarea_set_cursor_hidden(text_area_, false);
-    lv_obj_set_style_bg_opa(text_area_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_opa(text_area_, LV_OPA_TRANSP, 0);
+    // Main text view
+    text_view_ = new TextView(screen_);
+    if (text_view_) {
+        lv_obj_set_size(text_view_->obj(), LV_HOR_RES, LV_VER_RES);
+        lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
+    }
 
     // HUD panel (hidden by default)
     hud_panel_ = lv_obj_create(screen_);
@@ -41,7 +45,7 @@ void ScreenEditor::createWidgets() {
     // HUD labels (left) and values (right)
     int y = 10;
     hud_project_label_ = lv_label_create(hud_panel_);
-    lv_label_set_text(hud_project_label_, "Project");
+    lv_label_set_text(hud_project_label_, Strings::getInstance().get("hud.project"));
     lv_obj_align(hud_project_label_, LV_ALIGN_TOP_LEFT, 10, y);
 
     hud_project_value_ = lv_label_create(hud_panel_);
@@ -50,7 +54,7 @@ void ScreenEditor::createWidgets() {
 
     y += 20;
     hud_today_label_ = lv_label_create(hud_panel_);
-    lv_label_set_text(hud_today_label_, "Today");
+    lv_label_set_text(hud_today_label_, Strings::getInstance().get("hud.words_today"));
     lv_obj_align(hud_today_label_, LV_ALIGN_TOP_LEFT, 10, y);
 
     hud_today_value_ = lv_label_create(hud_panel_);
@@ -59,7 +63,7 @@ void ScreenEditor::createWidgets() {
 
     y += 20;
     hud_total_label_ = lv_label_create(hud_panel_);
-    lv_label_set_text(hud_total_label_, "Total");
+    lv_label_set_text(hud_total_label_, Strings::getInstance().get("hud.words_total"));
     lv_obj_align(hud_total_label_, LV_ALIGN_TOP_LEFT, 10, y);
 
     hud_total_value_ = lv_label_create(hud_panel_);
@@ -68,7 +72,7 @@ void ScreenEditor::createWidgets() {
 
     y += 20;
     hud_battery_label_ = lv_label_create(hud_panel_);
-    lv_label_set_text(hud_battery_label_, "Battery");
+    lv_label_set_text(hud_battery_label_, Strings::getInstance().get("hud.battery"));
     lv_obj_align(hud_battery_label_, LV_ALIGN_TOP_LEFT, 10, y);
 
     hud_battery_value_ = lv_label_create(hud_panel_);
@@ -77,23 +81,23 @@ void ScreenEditor::createWidgets() {
 
     y += 22;
     hud_save_label_ = lv_label_create(hud_panel_);
-    lv_label_set_text(hud_save_label_, "Saved \u2713");
+    lv_label_set_text(hud_save_label_, Strings::getInstance().get("hud.saved"));
     lv_obj_align(hud_save_label_, LV_ALIGN_TOP_LEFT, 10, y);
 
     y += 20;
     hud_backup_label_ = lv_label_create(hud_panel_);
-    lv_label_set_text(hud_backup_label_, "Backup: off");
+    lv_label_set_text(hud_backup_label_, Strings::getInstance().get("hud.backup_off"));
     lv_obj_align(hud_backup_label_, LV_ALIGN_TOP_LEFT, 10, y);
 
     y += 20;
     hud_ai_label_ = lv_label_create(hud_panel_);
-    lv_label_set_text(hud_ai_label_, "AI: off");
+    lv_label_set_text(hud_ai_label_, Strings::getInstance().get("hud.ai_off"));
     lv_obj_align(hud_ai_label_, LV_ALIGN_TOP_LEFT, 10, y);
 }
 
 void ScreenEditor::show() {
     if (screen_) {
-        lv_scr_load(screen_);
+        lv_screen_load(screen_);
     }
 }
 
@@ -102,32 +106,36 @@ void ScreenEditor::hide() {
 }
 
 void ScreenEditor::loadContent(const std::string& content) {
-    if (text_area_) {
-        lv_textarea_set_text(text_area_, content.c_str());
+    if (text_view_) {
+        text_view_->setText(content);
     }
 }
 
 std::string ScreenEditor::getContent() const {
-    if (text_area_) {
-        const char* text = lv_textarea_get_text(text_area_);
-        return std::string(text ? text : "");
+    if (text_view_) {
+        return text_view_->getText();
     }
     return "";
 }
 
 void ScreenEditor::update() {
-    if (!editor_ || !text_area_) {
+    if (!editor_ || !text_view_) {
         return;
     }
 
-    std::string content = editor_->getText();
-    if (content != cached_text_) {
-        cached_text_ = content;
-        lv_textarea_set_text(text_area_, cached_text_.c_str());
+    uint64_t revision = editor_->getRevision();
+    if (revision != last_revision_) {
+        last_revision_ = revision;
+        text_view_->setSnapshot(editor_->createRenderSnapshot());
     }
 
-    lv_textarea_set_cursor_pos(text_area_, editor_->getCursor().pos);
-    lv_obj_invalidate(text_area_);
+    text_view_->setCursor(editor_->getCursor().pos);
+    if (editor_->hasSelection()) {
+        const Selection& sel = editor_->getSelection();
+        text_view_->setSelection(sel.min(), sel.max());
+    } else {
+        text_view_->clearSelection();
+    }
     if (hud_visible_) {
         updateHUD();
     }

@@ -1,7 +1,4 @@
 #include "keybinding.h"
-#include <esp_log.h>
-
-static const char* TAG = "SCRIBE_KEYBINDING";
 
 bool KeybindingDispatcher::processEvent(const KeyEvent& event) {
     if (!event.pressed) return false;  // Only handle key press events

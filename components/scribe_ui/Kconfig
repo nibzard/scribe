@@ -1,0 +1,9 @@
+menu "Scribe UI"
+
+config SCRIBE_WOKWI_SIM
+    bool "Enable Wokwi simulator display config"
+    default n
+    help
+        Use SPI ILI9341 settings and Wokwi pin mapping for the simulator.
+
+endmenu

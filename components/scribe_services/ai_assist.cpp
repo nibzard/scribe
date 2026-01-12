@@ -9,19 +9,23 @@
 static const char* TAG = "SCRIBE_AI";
 
 // OpenAI API endpoint
-#define OPENAI_API_URL "https://api.openai.com/v1/chat/completions"
+#define OPENAI_API_URL "https://api.openai.com/v1/responses"
 
 // HTTP buffer size
 #define HTTP_BUFFER_SIZE 2048
 
-// HTTP event handler for streaming
-static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
+AIAssist& AIAssist::getInstance() {
+    static AIAssist instance;
+    return instance;
+}
+
+esp_err_t AIAssist::httpEventHandler(esp_http_client_event_t* evt) {
     AIAssist* ai = static_cast<AIAssist*>(evt->user_data);
 
     switch (evt->event_id) {
         case HTTP_EVENT_ON_DATA:
             if (evt->data_len > 0) {
-                std::string chunk((char*)evt->data, evt->data_len);
+                std::string chunk(static_cast<char*>(evt->data), evt->data_len);
                 ai->parseSSE(chunk);
             }
             break;
@@ -29,11 +33,6 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
             break;
     }
     return ESP_OK;
-}
-
-AIAssist& AIAssist::getInstance() {
-    static AIAssist instance;
-    return instance;
 }
 
 esp_err_t AIAssist::init() {
@@ -160,6 +159,9 @@ void AIAssist::generationTask(void* arg) {
     RequestData* req = static_cast<RequestData*>(arg);
     AIAssist* ai = &AIAssist::getInstance();
 
+    ai->stream_error_seen_ = false;
+    ai->stream_error_.clear();
+
     // Build JSON request
     std::string json_body = ai->buildRequest(req->text, req->style, req->custom_instruction);
 
@@ -170,7 +172,7 @@ void AIAssist::generationTask(void* arg) {
     config.timeout_ms = 60000;  // 60 second timeout
     config.buffer_size = HTTP_BUFFER_SIZE;
     config.user_data = ai;
-    config.event_handler = http_event_handler;
+    config.event_handler = AIAssist::httpEventHandler;
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
@@ -200,10 +202,19 @@ void AIAssist::generationTask(void* arg) {
         ESP_LOGI(TAG, "Generation cancelled");
     } else if (ret == ESP_OK) {
         if (status == 200) {
-            if (ai->complete_cb_) {
-                ai->complete_cb_(true, "");
+            if (ai->stream_error_seen_) {
+                if (ai->complete_cb_) {
+                    ai->complete_cb_(false, ai->stream_error_.empty()
+                        ? "AI request failed"
+                        : ai->stream_error_);
+                }
+                ESP_LOGW(TAG, "AI stream error: %s", ai->stream_error_.c_str());
+            } else {
+                if (ai->complete_cb_) {
+                    ai->complete_cb_(true, "");
+                }
+                ESP_LOGI(TAG, "Generation complete");
             }
-            ESP_LOGI(TAG, "Generation complete");
         } else {
             char err_buf[64];
             snprintf(err_buf, sizeof(err_buf), "API error: HTTP %d", status);
@@ -234,22 +245,12 @@ std::string AIAssist::buildRequest(const std::string& text, AIStyle style,
     // Model
     cJSON_AddStringToObject(root, "model", "gpt-4o-mini");
 
-    // System message
+    // System instructions
     std::string system_prompt = buildSystemPrompt(style, custom_instruction);
-    cJSON* messages = cJSON_CreateArray();
+    cJSON_AddStringToObject(root, "instructions", system_prompt.c_str());
 
-    cJSON* system_msg = cJSON_CreateObject();
-    cJSON_AddStringToObject(system_msg, "role", "system");
-    cJSON_AddStringToObject(system_msg, "content", system_prompt.c_str());
-    cJSON_AddItemToArray(messages, system_msg);
-
-    // User message with selected text
-    cJSON* user_msg = cJSON_CreateObject();
-    cJSON_AddStringToObject(user_msg, "role", "user");
-    cJSON_AddStringToObject(user_msg, "content", text.c_str());
-    cJSON_AddItemToArray(messages, user_msg);
-
-    cJSON_AddItemToObject(root, "messages", messages);
+    // User input
+    cJSON_AddStringToObject(root, "input", text.c_str());
 
     // Streaming enabled
     cJSON_AddBoolToObject(root, "stream", true);
@@ -257,8 +258,8 @@ std::string AIAssist::buildRequest(const std::string& text, AIStyle style,
     // Temperature (0.7 for creativity)
     cJSON_AddNumberToObject(root, "temperature", 0.7);
 
-    // Max tokens
-    cJSON_AddNumberToObject(root, "max_tokens", 500);
+    // Max output tokens
+    cJSON_AddNumberToObject(root, "max_output_tokens", 500);
 
     char* json_str = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -329,20 +330,24 @@ void AIAssist::parseSSE(const std::string& data) {
         // Parse JSON
         cJSON* root = cJSON_Parse(json_str.c_str());
         if (root) {
-            // Extract delta content
-            cJSON* choices = cJSON_GetObjectItem(root, "choices");
-            if (choices && cJSON_IsArray(choices)) {
-                cJSON* choice = cJSON_GetArrayItem(choices, 0);
-                if (choice) {
-                    cJSON* delta = cJSON_GetObjectItem(choice, "delta");
-                    if (delta) {
-                        cJSON* content = cJSON_GetObjectItem(delta, "content");
-                        if (content && cJSON_IsString(content)) {
-                            // Call stream callback with delta
-                            if (stream_cb_) {
-                                stream_cb_(content->valuestring);
-                            }
+            cJSON* type = cJSON_GetObjectItem(root, "type");
+            if (type && cJSON_IsString(type)) {
+                if (strcmp(type->valuestring, "response.output_text.delta") == 0) {
+                    cJSON* delta = cJSON_GetObjectItem(root, "delta");
+                    if (delta && cJSON_IsString(delta)) {
+                        if (stream_cb_) {
+                            stream_cb_(delta->valuestring);
                         }
+                    }
+                } else if (strcmp(type->valuestring, "response.error") == 0) {
+                    cJSON* error = cJSON_GetObjectItem(root, "error");
+                    cJSON* message = error ? cJSON_GetObjectItem(error, "message") : nullptr;
+                    if (message && cJSON_IsString(message)) {
+                        stream_error_seen_ = true;
+                        stream_error_ = message->valuestring;
+                    } else {
+                        stream_error_seen_ = true;
+                        stream_error_ = "AI request failed";
                     }
                 }
             }

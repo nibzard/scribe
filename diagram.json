@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "author": "Scribe",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-p4-function-ev",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-ili9341",
+      "id": "tft",
+      "top": 0,
+      "left": 420,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [
+      "esp:3V3",
+      "tft:VCC",
+      "red",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "esp:GND",
+      "tft:GND",
+      "black",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "esp:GPIO18",
+      "tft:SCK",
+      "green",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "esp:GPIO23",
+      "tft:MOSI",
+      "green",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "esp:GPIO15",
+      "tft:CS",
+      "orange",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "esp:GPIO4",
+      "tft:DC",
+      "orange",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "esp:GPIO5",
+      "tft:RESET",
+      "orange",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "esp:3V3",
+      "tft:LED",
+      "red",
+      [
+        "v0"
+      ]
+    ]
+  ]
+}

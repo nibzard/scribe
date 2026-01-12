@@ -1,11 +1,22 @@
 #include "screen_diagnostics.h"
 #include "../../scribe_services/battery.h"
+#include "../../scribe_services/rtc_time.h"
+#include "../../scribe_services/wifi_manager.h"
 #include "../../scribe_storage/storage_manager.h"
+#include "../../scribe_storage/settings_store.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
+#include <esp_chip_info.h>
+#include <esp_flash.h>
+#include <esp_private/esp_clk.h>
 #include <esp_system.h>
 #include <esp_heap_caps.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <cstdio>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static const char* TAG = "SCRIBE_SCREEN_DIAGNOSTICS";
 
@@ -14,7 +25,7 @@ ScreenDiagnostics::ScreenDiagnostics() : screen_(nullptr) {
 
 ScreenDiagnostics::~ScreenDiagnostics() {
     if (screen_) {
-        lv_obj_del(screen_);
+        lv_obj_delete(screen_);
     }
 }
 
@@ -31,7 +42,7 @@ void ScreenDiagnostics::init() {
 void ScreenDiagnostics::createWidgets() {
     // Title
     lv_obj_t* title = lv_label_create(screen_);
-    lv_label_set_text(title, "Diagnostics");
+    lv_label_set_text(title, Strings::getInstance().get("diagnostics.title"));
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
 
@@ -46,30 +57,43 @@ void ScreenDiagnostics::createWidgets() {
     // Chip info
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
-    snprintf(buf, sizeof(buf), "Chip: %s %d cores",
-             chip_info.model == CHIP_ESP32S3 ? "ESP32-S3" : "Unknown",
-             chip_info.cores);
-    lv_list_add_btn(info_list_, nullptr, buf);
+    const char* chip_name = "Unknown";
+    switch (chip_info.model) {
+        case CHIP_ESP32P4:
+            chip_name = "ESP32-P4";
+            break;
+        case CHIP_ESP32S3:
+            chip_name = "ESP32-S3";
+            break;
+        default:
+            break;
+    }
+    snprintf(buf, sizeof(buf), "Chip: %s %d cores", chip_name, chip_info.cores);
+    lv_list_add_button(info_list_, nullptr, buf);
 
     // CPU frequency
-    snprintf(buf, sizeof(buf), "CPU: %d MHz", apb_cpu_get_hz_mhz() * 80);
-    lv_list_add_btn(info_list_, LV_SYMBOL_CPU, buf);
+    snprintf(buf, sizeof(buf), "CPU: %d MHz", esp_clk_cpu_freq() / 1000000);
+    lv_list_add_button(info_list_, LV_SYMBOL_BARS, buf);
 
     // Flash size
-    snprintf(buf, sizeof(buf), "Flash: %zu MB",
-             spi_flash_get_chip_size() / (1024 * 1024));
-    lv_list_add_btn(info_list_, LV_SYMBOL_SD, buf);
+    uint32_t flash_size = 0;
+    if (esp_flash_get_size(nullptr, &flash_size) != ESP_OK) {
+        flash_size = 0;
+    }
+    snprintf(buf, sizeof(buf), "Flash: %lu MB",
+             static_cast<unsigned long>(flash_size / (1024U * 1024U)));
+    lv_list_add_button(info_list_, LV_SYMBOL_SD_CARD, buf);
 
     // RAM
     snprintf(buf, sizeof(buf), "Free RAM: %zu KB",
              heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024);
-    lv_list_add_btn(info_list_, LV_SYMBOL_BATTERY_FULL, buf);
+    lv_list_add_button(info_list_, LV_SYMBOL_BATTERY_FULL, buf);
 
     // Storage
     StorageManager& storage = StorageManager::getInstance();
     snprintf(buf, sizeof(buf), "SD Card: %s",
              storage.isMounted() ? "Mounted" : "Not mounted");
-    lv_list_add_btn(info_list_, LV_SYMBOL_SD,
+    lv_list_add_button(info_list_, LV_SYMBOL_SD_CARD,
              storage.isMounted() ? "SD Card: Mounted" : "SD Card: Not mounted");
 
     // Battery
@@ -77,29 +101,29 @@ void ScreenDiagnostics::createWidgets() {
     snprintf(buf, sizeof(buf), "Battery: %d%% %s",
              battery.getPercentage(),
              battery.isCharging() ? "(Charging)" : "");
-    lv_list_add_btn(info_list_, LV_SYMBOL_CHARGE, buf);
+    lv_list_add_button(info_list_, LV_SYMBOL_CHARGE, buf);
 
     // Uptime
     snprintf(buf, sizeof(buf), "Uptime: %llu s",
              esp_timer_get_time() / 1000000);
-    lv_list_add_btn(info_list_, LV_SYMBOL_TIME, buf);
+    lv_list_add_button(info_list_, LV_SYMBOL_REFRESH, buf);
 
     // SDK version
     snprintf(buf, sizeof(buf), "ESP-IDF: %s", esp_get_idf_version());
-    lv_list_add_btn(info_list_, nullptr, buf);
+    lv_list_add_button(info_list_, nullptr, buf);
 
     // Back button
-    lv_obj_t* btn = lv_list_add_btn(info_list_, LV_SYMBOL_LEFT, "Back");
+    lv_list_add_button(info_list_, LV_SYMBOL_LEFT, Strings::getInstance().get("common.back"));
 
     // Instructions
     lv_obj_t* label = lv_label_create(screen_);
-    lv_label_set_text(label, "Press Enter to export logs | Esc to close");
+    lv_label_set_text(label, Strings::getInstance().get("diagnostics.instruction"));
     lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -10);
 }
 
 void ScreenDiagnostics::show() {
     if (screen_) {
-        lv_scr_load(screen_);
+        lv_screen_load(screen_);
         refreshData();
     }
 }
@@ -123,30 +147,121 @@ void ScreenDiagnostics::updateSystemInfo() {
     // Free RAM (updated live)
     size_t free_ram = heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024;
     snprintf(buf, sizeof(buf), "Free RAM: %zu KB", free_ram);
-    lv_list_add_btn(info_list_, LV_SYMBOL_BATTERY_FULL, buf);
+    lv_list_add_button(info_list_, LV_SYMBOL_BATTERY_FULL, buf);
 
     // Battery (updated live)
     Battery& battery = Battery::getInstance();
     snprintf(buf, sizeof(buf), "Battery: %d%% %s",
              battery.getPercentage(),
              battery.isCharging() ? "(Charging)" : "");
-    lv_list_add_btn(info_list_, LV_SYMBOL_CHARGE, buf);
+    lv_list_add_button(info_list_, LV_SYMBOL_CHARGE, buf);
 
     // Uptime (updated live)
     snprintf(buf, sizeof(buf), "Uptime: %llu s",
              esp_timer_get_time() / 1000000);
-    lv_list_add_btn(info_list_, LV_SYMBOL_TIME, buf);
+    lv_list_add_button(info_list_, LV_SYMBOL_REFRESH, buf);
 
     // Back button
-    lv_list_add_btn(info_list_, LV_SYMBOL_LEFT, "Back");
+    lv_list_add_button(info_list_, LV_SYMBOL_LEFT, Strings::getInstance().get("common.back"));
 }
 
-void ScreenDiagnostics::exportLogs() {
+bool ScreenDiagnostics::exportLogs() {
     ESP_LOGI(TAG, "Exporting system logs...");
 
-    // TODO: Collect logs and export to SD card
-    // - Read from UART debug log buffer
-    // - Write to /sdcard/Scribe/Logs/diagnostics.txt
+    StorageManager& storage = StorageManager::getInstance();
+    if (!storage.isMounted()) {
+        ESP_LOGW(TAG, "Storage not mounted");
+        return false;
+    }
 
-    ESP_LOGI(TAG, "Logs exported");
+    struct stat st;
+    if (stat(SCRIBE_LOGS_DIR, &st) != 0) {
+        mkdir(SCRIBE_LOGS_DIR, 0755);
+    }
+
+    std::string timestamp = getCurrentTimeISO();
+    std::string filename = timestamp;
+    for (char& c : filename) {
+        if (c == ':') {
+            c = '-';
+        }
+    }
+
+    std::string path = std::string(SCRIBE_LOGS_DIR) + "/diagnostics-" + filename + ".txt";
+    FILE* f = fopen(path.c_str(), "w");
+    if (!f) {
+        ESP_LOGE(TAG, "Failed to open diagnostics file");
+        return false;
+    }
+
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+    const char* chip_name = "Unknown";
+    switch (chip_info.model) {
+        case CHIP_ESP32P4:
+            chip_name = "ESP32-P4";
+            break;
+        case CHIP_ESP32S3:
+            chip_name = "ESP32-S3";
+            break;
+        default:
+            break;
+    }
+
+    uint32_t flash_size = 0;
+    if (esp_flash_get_size(nullptr, &flash_size) != ESP_OK) {
+        flash_size = 0;
+    }
+
+    Battery& battery = Battery::getInstance();
+    WiFiManager& wifi = WiFiManager::getInstance();
+
+    AppSettings settings;
+    SettingsStore::getInstance().load(settings);
+
+    fprintf(f, "Scribe diagnostics\n");
+    fprintf(f, "Timestamp: %s\n\n", timestamp.c_str());
+
+    fprintf(f, "System\n");
+    fprintf(f, "Chip: %s (%d cores)\n", chip_name, chip_info.cores);
+    fprintf(f, "CPU: %d MHz\n", esp_clk_cpu_freq() / 1000000);
+    fprintf(f, "Flash: %lu MB\n", static_cast<unsigned long>(flash_size / (1024U * 1024U)));
+    fprintf(f, "Free RAM: %zu KB\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024);
+    fprintf(f, "Uptime: %llu s\n", esp_timer_get_time() / 1000000);
+    fprintf(f, "ESP-IDF: %s\n\n", esp_get_idf_version());
+
+    fprintf(f, "Storage\n");
+    fprintf(f, "SD Card: %s\n", storage.isMounted() ? "Mounted" : "Not mounted");
+    fprintf(f, "Free space: %zu MB\n", storage.getFreeSpace() / (1024U * 1024U));
+    fprintf(f, "\n");
+
+    fprintf(f, "Battery\n");
+    fprintf(f, "Charge: %d%% %s\n\n", battery.getPercentage(),
+            battery.isCharging() ? "(Charging)" : "");
+
+    fprintf(f, "WiFi\n");
+    fprintf(f, "Enabled: %s\n", wifi.isEnabled() ? "yes" : "no");
+    fprintf(f, "Connected: %s\n", wifi.isConnected() ? "yes" : "no");
+    if (wifi.isConnected()) {
+        std::string ssid = wifi.getSSID();
+        if (!ssid.empty()) {
+            fprintf(f, "SSID: %s\n", ssid.c_str());
+        }
+    }
+    fprintf(f, "\n");
+
+    fprintf(f, "Settings\n");
+    fprintf(f, "Theme: %s\n", settings.dark_theme ? "dark" : "light");
+    fprintf(f, "Font size: %d\n", settings.font_size);
+    fprintf(f, "Keyboard layout: %d\n", settings.keyboard_layout);
+    fprintf(f, "Auto-sleep: %d\n", settings.auto_sleep);
+    fprintf(f, "Backup enabled: %s\n", settings.backup_enabled ? "yes" : "no");
+    fprintf(f, "WiFi enabled: %s\n", settings.wifi_enabled ? "yes" : "no");
+
+    fflush(f);
+    fsync(fileno(f));
+    fclose(f);
+
+    ESP_LOGI(TAG, "Logs exported to %s", path.c_str());
+    return true;
 }

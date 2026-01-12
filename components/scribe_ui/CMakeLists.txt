@@ -30,4 +30,6 @@ idf_component_register(SRCS
         scribe_editor
         scribe_storage
         scribe_services
+        scribe_utils
+        spi_flash
 )

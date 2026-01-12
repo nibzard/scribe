@@ -10,5 +10,7 @@ idf_component_register(SRCS
         fatfs
         json
         esp_system
+        esp_timer
         nvs_flash
+        scribe_editor
 )

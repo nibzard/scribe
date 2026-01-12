@@ -16,10 +16,10 @@ void time_sync_notification(struct timeval *tv) {
 void initTimeSync() {
     ESP_LOGI(TAG, "Initializing time sync...");
 
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_set_time_sync_notification_cb(time_sync_notification);
-    sntp_init();
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_set_time_sync_notification_cb(time_sync_notification);
+    esp_sntp_init();
 
     // Set initial time to a reasonable default
     struct tm ti = {};

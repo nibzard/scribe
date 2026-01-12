@@ -1,4 +1,5 @@
 #include "screen_new_project.h"
+#include "../../scribe_utils/strings.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_NEW_PROJECT";
@@ -8,7 +9,7 @@ ScreenNewProject::ScreenNewProject() : screen_(nullptr) {
 
 ScreenNewProject::~ScreenNewProject() {
     if (screen_) {
-        lv_obj_del(screen_);
+        lv_obj_delete(screen_);
     }
 }
 
@@ -26,20 +27,20 @@ void ScreenNewProject::init() {
 void ScreenNewProject::createWidgets() {
     // Title
     title_label_ = lv_label_create(screen_);
-    lv_label_set_text(title_label_, "New project");
+    lv_label_set_text(title_label_, Strings::getInstance().get("new_project.title"));
     lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 60);
     lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_20, 0);
 
     // Prompt
     prompt_label_ = lv_label_create(screen_);
-    lv_label_set_text(prompt_label_, "Name your project");
+    lv_label_set_text(prompt_label_, Strings::getInstance().get("new_project.prompt"));
     lv_obj_align(prompt_label_, LV_ALIGN_TOP_MID, 0, 100);
 
     // Name input
     name_input_ = lv_textarea_create(screen_);
     lv_obj_set_size(name_input_, 300, 50);
     lv_obj_align(name_input_, LV_ALIGN_TOP_MID, 0, 130);
-    lv_textarea_set_placeholder_text(name_input_, "My Novel");
+    lv_textarea_set_placeholder_text(name_input_, Strings::getInstance().get("new_project.placeholder"));
     lv_textarea_set_one_line(name_input_, true);
     lv_textarea_set_max_length(name_input_, 64);
     lv_obj_add_state(name_input_, LV_STATE_FOCUSED);
@@ -52,28 +53,28 @@ void ScreenNewProject::createWidgets() {
     lv_obj_add_flag(error_label_, LV_OBJ_FLAG_HIDDEN);
 
     // Create button
-    create_btn_ = lv_btn_create(screen_);
+    create_btn_ = lv_button_create(screen_);
     lv_obj_set_size(create_btn_, 140, 50);
     lv_obj_align(create_btn_, LV_ALIGN_CENTER, -80, 50);
 
     lv_obj_t* label = lv_label_create(create_btn_);
-    lv_label_set_text(label, "Create");
+    lv_label_set_text(label, Strings::getInstance().get("new_project.create"));
     lv_obj_center(label);
 
     // Cancel button
-    cancel_btn_ = lv_btn_create(screen_);
+    cancel_btn_ = lv_button_create(screen_);
     lv_obj_set_size(cancel_btn_, 140, 50);
     lv_obj_align(cancel_btn_, LV_ALIGN_CENTER, 80, 50);
 
     label = lv_label_create(cancel_btn_);
-    lv_label_set_text(label, "Cancel");
+    lv_label_set_text(label, Strings::getInstance().get("new_project.cancel"));
     lv_obj_center(label);
 
 }
 
 void ScreenNewProject::show() {
     if (screen_) {
-        lv_scr_load(screen_);
+        lv_screen_load(screen_);
         // Clear any previous input
         if (name_input_) {
             lv_textarea_set_text(name_input_, "");
@@ -106,7 +107,7 @@ void ScreenNewProject::appendNameChar(char c) {
 
 void ScreenNewProject::backspaceName() {
     if (name_input_) {
-        lv_textarea_del_char(name_input_);
+        lv_textarea_delete_char(name_input_);
     }
 }
 

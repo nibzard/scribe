@@ -38,9 +38,6 @@ static struct {
     .flush_sem = nullptr
 };
 
-// Forward declarations
-static void flushReady(lv_display_t* display);
-
 // LVGL flush callback
 extern "C" void lvgl_flush_cb(lv_display_t* display, const lv_area_t* area, uint8_t* px_map) {
     ESP_LOGD(TAG, "Flush request: area (%d,%d) to (%d,%d)",
@@ -111,9 +108,16 @@ esp_err_t DisplayDriver::init(const DisplayConfig& config) {
     state.display = lv_display_create(hor_res, ver_res);
     if (!state.display) {
         ESP_LOGE(TAG, "Failed to create LVGL display");
-        heap_caps_free(state.buf1);
-        if (state.buf2) heap_caps_free(state.buf2);
+        if (state.dbuf1) {
+            lv_draw_buf_destroy(state.dbuf1);
+            state.dbuf1 = nullptr;
+        }
+        if (state.dbuf2) {
+            lv_draw_buf_destroy(state.dbuf2);
+            state.dbuf2 = nullptr;
+        }
         vSemaphoreDelete(state.flush_sem);
+        state.flush_sem = nullptr;
         return ESP_ERR_NO_MEM;
     }
 

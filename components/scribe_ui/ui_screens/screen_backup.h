@@ -3,12 +3,7 @@
 #include <lvgl.h>
 #include <string>
 #include <functional>
-
-// Backup provider type
-enum class BackupProvider {
-    GITHUB_REPO,
-    GITHUB_GIST
-};
+#include "github_backup.h"
 
 // Backup settings screen - Cloud backup setup (GitHub/Gist)
 class ScreenBackup {

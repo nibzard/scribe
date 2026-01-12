@@ -6,7 +6,21 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
+#include <usb/usb_host.h>
+#if defined(__has_include)
+#if __has_include(<usb/hid_host.h>)
 #include <usb/hid_host.h>
+#define SCRIBE_HAS_USB_HID 1
+#else
+#define SCRIBE_HAS_USB_HID 0
+typedef void* hid_host_device_handle_t;
+typedef int hid_host_event_t;
+#endif
+#else
+#define SCRIBE_HAS_USB_HID 0
+typedef void* hid_host_device_handle_t;
+typedef int hid_host_event_t;
+#endif
 #include <atomic>
 
 // Callback type for key events
@@ -47,7 +61,7 @@ private:
     void parseHIDReport(const uint8_t* report, size_t len);
 
     // USB HID host callback
-    static void usbEventCallback(const usb_host_event_msg_t* event_msg, void* arg);
+    static void usbEventCallback(const usb_host_client_event_msg_t* event_msg, void* arg);
 
     // HID keyboard callback
     static void hidHostCallback(hid_host_device_handle_t hid_device_handle,
