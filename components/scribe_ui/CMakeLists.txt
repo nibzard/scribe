@@ -1,0 +1,28 @@
+idf_component_register(SRCS
+    "ui_app.cpp"
+    "theme/theme.cpp"
+    "widgets/text_view.cpp"
+    "widgets/toast.cpp"
+    "widgets/hud_overlay.cpp"
+    "ui_screens/screen_editor.cpp"
+    "ui_screens/screen_projects.cpp"
+    "ui_screens/screen_menu.cpp"
+    "ui_screens/screen_export.cpp"
+    "ui_screens/screen_settings.cpp"
+    "ui_screens/screen_help.cpp"
+    "ui_screens/screen_recovery.cpp"
+    "ui_screens/screen_new_project.cpp"
+    "ui_screens/screen_find.cpp"
+    "ui_screens/screen_first_run.cpp"
+    "ui_screens/screen_diagnostics.cpp"
+    "ui_screens/screen_advanced.cpp"
+    "ui_screens/screen_wifi.cpp"
+    "ui_screens/screen_backup.cpp"
+    "ui_screens/dialog_power_off.cpp"
+    INCLUDE_DIRS "."
+    REQUIRES
+        lvgl
+        scribe_editor
+        scribe_storage
+        scribe_services
+)

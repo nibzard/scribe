@@ -1,0 +1,29 @@
+# Build output
+build/
+
+# ESP-IDF configs
+sdkconfig
+sdkconfig.old
+sdkconfig.*.old
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Tooling
+.vscode/
+.idea/
+
+# Artifacts
+*.bin
+*.elf
+*.map
+*.a
+*.o
+*.d
+*.dSYM
+
+# OS
+.DS_Store

@@ -1,0 +1,152 @@
+{
+  "app": {
+    "name": "Scribe",
+    "tagline": "Open. Type. Your words are safe."
+  },
+  "boot": {
+    "first_run_tip": "Start typing to write. Press Esc for menu. Hold Space for status.",
+    "dismiss": "Press Enter to continue"
+  },
+  "hud": {
+    "saved": "Saved \u2713",
+    "saving": "Saving\u2026",
+    "project": "Project",
+    "words_today": "Today",
+    "words_total": "Total",
+    "battery": "Battery",
+    "backup_off": "Backup: off",
+    "backup_queued": "Backup: queued",
+    "backup_syncing": "Backup: syncing\u2026",
+    "backup_synced": "Backup: synced \u2713",
+    "ai_off": "AI: off",
+    "ai_on": "AI: on"
+  },
+  "menu": {
+    "title": "Menu",
+    "resume": "Resume writing",
+    "switch_project": "Switch project",
+    "new_project": "New project",
+    "find": "Find",
+    "export": "Export",
+    "settings": "Settings",
+    "help": "Help",
+    "sleep": "Sleep",
+    "power_off": "Power off"
+  },
+  "new_project": {
+    "title": "New project",
+    "prompt": "Name your project",
+    "placeholder": "My Novel",
+    "create": "Create",
+    "cancel": "Cancel",
+    "error_empty": "Please enter a name.",
+    "error_exists": "That name already exists. Try a different name."
+  },
+  "switch_project": {
+    "title": "Switch project",
+    "search_hint": "Type to search\u2026",
+    "empty": "No projects yet. Press Ctrl+N to create one."
+  },
+  "find": {
+    "label": "Find",
+    "placeholder": "Type to search\u2026",
+    "no_results": "No matches.",
+    "match_count": "{current}/{total} matches",
+    "next": "Next (Enter)",
+    "prev": "Previous (Shift+Enter)",
+    "close": "Close (Esc)"
+  },
+  "export": {
+    "title": "Export",
+    "send_to_computer": "Send to Computer",
+    "to_sd_txt": "Export to SD (.txt)",
+    "to_sd_md": "Export to SD (.md)",
+    "progress": "Exporting\u2026",
+    "done": "Export complete \u2713",
+    "failed": "Export failed. Try again.",
+    "send_instructions_title": "Send to Computer",
+    "send_instructions_body": "Open any app on your computer and place the cursor where you want the text. Then press Enter.",
+    "send_confirm": "Press Enter to start",
+    "send_cancel": "Press Esc to cancel",
+    "send_running": "Sending\u2026 Press Esc to stop.",
+    "send_done": "Done \u2713"
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "font_size": "Font size",
+    "font_small": "Small",
+    "font_medium": "Medium",
+    "font_large": "Large",
+    "keyboard_layout": "Keyboard layout",
+    "auto_sleep": "Auto-sleep",
+    "auto_sleep_off": "Off",
+    "auto_sleep_5": "5 minutes",
+    "auto_sleep_15": "15 minutes",
+    "auto_sleep_30": "30 minutes",
+    "advanced": "Advanced",
+    "wifi": "Wi\u2011Fi",
+    "wifi_on": "On",
+    "wifi_off": "Off",
+    "backup": "Cloud backup",
+    "ai": "AI assistance",
+    "diagnostics": "Diagnostics",
+    "back": "Back"
+  },
+  "backup": {
+    "title": "Cloud backup",
+    "off_desc": "Your writing is always saved locally. Cloud backup is optional.",
+    "choose": "Choose a backup",
+    "github": "GitHub repository",
+    "gist": "GitHub Gist",
+    "token_prompt": "Paste your GitHub token",
+    "token_hint": "We store your token only on this device.",
+    "token_saved": "Token saved \u2713",
+    "token_invalid": "Token looks invalid. Please try again.",
+    "sync_now": "Sync now",
+    "last_synced": "Last synced: {time}",
+    "sync_success": "Synced \u2713",
+    "sync_failed": "Sync failed. We\u2019ll try again when online.",
+    "disable": "Disable backup",
+    "disable_confirm": "Disable cloud backup?",
+    "disable_yes": "Disable",
+    "disable_no": "Cancel"
+  },
+  "ai": {
+    "title": "AI assistance",
+    "off_desc": "AI is optional. When you use it, selected text is sent to an AI service to generate suggestions.",
+    "enable": "Enable AI",
+    "disable": "Disable AI",
+    "key_prompt": "Paste your API key",
+    "key_hint": "Stored only on this device.",
+    "key_saved": "Key saved \u2713",
+    "key_invalid": "Key looks invalid. Please try again.",
+    "magic_bar_placeholder": "Ask AI to rewrite, continue, or summarize\u2026",
+    "generating": "Thinking\u2026",
+    "preview_title": "Suggestion",
+    "accept": "Insert (Enter)",
+    "reject": "Discard (Esc)",
+    "offline": "AI is unavailable offline.",
+    "error": "AI request failed. Try again later."
+  },
+  "storage": {
+    "sd_missing_title": "No storage found",
+    "sd_missing_body": "Insert a microSD card to save your writing.",
+    "sd_missing_action": "Press Enter to retry",
+    "recovery_title": "Recovered text found",
+    "recovery_body": "We recovered unsaved text from your last session.",
+    "recovery_restore": "Restore",
+    "recovery_keep": "Keep current",
+    "recovery_done": "Recovered \u2713",
+    "write_error": "Couldn\u2019t save to storage. Your draft is still in memory."
+  },
+  "power": {
+    "low_battery": "Low battery. Please charge soon.",
+    "sleeping": "Sleeping\u2026 Press any key to wake.",
+    "off_confirm": "Power off now?",
+    "off_yes": "Power off",
+    "off_no": "Cancel"
+  }
+}
