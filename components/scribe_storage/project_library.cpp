@@ -1,5 +1,6 @@
 #include "project_library.h"
 #include "storage_manager.h"
+#include "../scribe_utils/string_utils.h"
 #include <esp_log.h>
 #include <cJSON.h>
 #include <sys/stat.h>
@@ -236,12 +237,7 @@ esp_err_t ProjectLibrary::updateProjectSavedState(const std::string& id, size_t 
 }
 
 esp_err_t ProjectLibrary::createProject(const std::string& name, std::string& out_id) {
-    std::string trimmed = name;
-    trimmed.erase(trimmed.begin(), std::find_if(trimmed.begin(), trimmed.end(),
-                                               [](unsigned char c) { return !std::isspace(c); }));
-    trimmed.erase(std::find_if(trimmed.rbegin(), trimmed.rend(),
-                               [](unsigned char c) { return !std::isspace(c); }).base(),
-                  trimmed.end());
+    std::string trimmed = trim(name);
     if (trimmed.empty()) {
         return ESP_ERR_INVALID_ARG;
     }

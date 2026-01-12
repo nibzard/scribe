@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lvgl.h>
+#include <array>
 #include <string>
 #include <functional>
 #include "../scribe_services/ai_assist.h"
@@ -57,6 +58,11 @@ public:
     void setStyleCallback(StyleCallback cb) { style_cb_ = cb; }
 
 private:
+    struct StyleButtonContext {
+        ScreenMagicBar* magic = nullptr;
+        AIStyle style = AIStyle::CONTINUE;
+    };
+
     lv_obj_t* bar_ = nullptr;
     lv_obj_t* style_selector_ = nullptr;
     lv_obj_t* preview_text_ = nullptr;
@@ -73,6 +79,8 @@ private:
     InsertCallback insert_cb_;
     CancelCallback cancel_cb_;
     StyleCallback style_cb_;
+
+    std::array<StyleButtonContext, 4> style_button_ctx_{};
 
     void createWidgets();
     void updateStyleSelector();

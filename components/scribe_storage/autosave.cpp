@@ -33,7 +33,7 @@ esp_err_t AutosaveManager::saveNow(const DocSnapshot& snapshot) {
     // Create snapshot on manual save
     if (ret == ESP_OK) {
         std::string project_path = std::string(SCRIBE_PROJECTS_DIR) + "/" + snapshot.project_id;
-        createSnapshot(project_path, snapshot.content);
+        createSnapshot(project_path);
     }
 
     return ret;
@@ -79,8 +79,7 @@ esp_err_t AutosaveManager::atomicSave(const std::string& project_path, const std
     return ESP_OK;
 }
 
-esp_err_t AutosaveManager::createSnapshot(const std::string& project_path, const std::string& content) {
-    (void)content;
+esp_err_t AutosaveManager::createSnapshot(const std::string& project_path) {
     std::string snapshot_dir = project_path + "/snapshots";
     struct stat st;
     if (stat(snapshot_dir.c_str(), &st) != 0) {

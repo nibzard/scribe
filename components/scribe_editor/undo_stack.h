@@ -7,9 +7,7 @@
 // Command types for undo/redo
 enum class CommandType : uint8_t {
     INSERT,
-    DELETE,
-    COMPOUND_BEGIN,  // Start compound operation
-    COMPOUND_END     // End compound operation
+    DELETE
 };
 
 // Edit command for undo/redo

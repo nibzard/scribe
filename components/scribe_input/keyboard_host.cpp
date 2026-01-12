@@ -286,8 +286,3 @@ void KeyboardHost::keyboardHostTask(void* arg) {
 
     vTaskDelete(nullptr);
 }
-
-void KeyboardHost::processEvents() {
-    // This is called from the task loop
-    // Events are processed through callbacks
-}

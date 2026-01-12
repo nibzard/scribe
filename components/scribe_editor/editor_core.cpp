@@ -20,6 +20,13 @@ std::string EditorCore::getText() const {
     return piece_table_.getText();
 }
 
+std::string EditorCore::getSelectedText() const {
+    if (!hasSelection()) {
+        return "";
+    }
+    return piece_table_.getTextRange(selection_.min(), selection_.max());
+}
+
 EditorSnapshot EditorCore::createSnapshot(const std::string& project_id) const {
     return EditorSnapshot{
         .project_id = project_id,

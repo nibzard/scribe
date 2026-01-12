@@ -1,6 +1,8 @@
 #pragma once
 
 #include <esp_err.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <string>
 #include <vector>
 #include "scribe_input/key_event.h"
@@ -117,6 +119,9 @@ public:
     bool handleKeyEvent(const KeyEvent& event);
     bool isEditorActive() const;
 
+    // Process queued async events (AI streaming, etc.)
+    void processAsyncEvents();
+
     const std::string& getCurrentProjectId() const { return current_project_id_; }
     const std::string& getCurrentProjectPath() const { return current_project_path_; }
     const std::string& getCurrentProjectName() const { return current_project_name_; }
@@ -195,6 +200,18 @@ private:
     lv_obj_t* toast_label_ = nullptr;
     lv_timer_t* toast_timer_ = nullptr;
 
+    struct AIEvent {
+        enum class Type {
+            Delta,
+            Complete
+        };
+        Type type;
+        std::string text;
+        bool success = false;
+    };
+
+    QueueHandle_t ai_event_queue_ = nullptr;
+
     // Helper methods
     void createProject(const std::string& name);
     void ensureProjectOpen();
@@ -202,6 +219,8 @@ private:
     void handleExport(const std::string& type);
     void startSendToComputer();
     void handleRecovery(bool restore);
+    void enqueueAIEvent(AIEvent* event);
+    void clearAIEventQueue();
     void handlePowerOffConfirm();
     void handlePowerOffCancel();
     void updateHUD();

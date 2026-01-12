@@ -25,7 +25,7 @@ public:
     void selectCurrent();
     std::string getSelectedType() const;
 
-    void updateProgress(size_t current, size_t total);
+    void updateProgress();
     void showComplete(const char* message);
     void showSendInstructions();
     void showSendRunning();

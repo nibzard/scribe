@@ -61,7 +61,4 @@ private:
 
     // Task entry point
     static void keyboardHostTask(void* arg);
-
-    // Process keyboard events
-    void processEvents();
 };

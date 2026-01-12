@@ -4,6 +4,7 @@
 #include "../scribe_export/export_sd.h"
 #include "../scribe_export/send_to_computer.h"
 #include "../scribe_input/keymap.h"
+#include "../scribe_utils/string_utils.h"
 #include "ui_screens/screen_editor.h"
 #include "ui_screens/screen_menu.h"
 #include "ui_screens/screen_projects.h"
@@ -31,8 +32,10 @@
 #include "scribe_services/ai_assist.h"
 #include "scribe_services/github_backup.h"
 #include "scribe_services/power_manager.h"
+#include "scribe_services/rtc_time.h"
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <freertos/task.h>
 #include <lvgl.h>
 #include <algorithm>
@@ -43,21 +46,11 @@
 
 static const char* TAG = "SCRIBE_UI";
 
-static std::string getUtcTimestamp() {
-    time_t now = time(nullptr);
-    struct tm tm_info;
-    gmtime_r(&now, &tm_info);
-    char buf[32];
-    strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm_info);
-    return std::string(buf);
-}
-
 // LVGL tick task
 static void lvgl_tick_task(void* arg) {
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(5));
         lv_tick_inc(5);
-        lv_task_handler();
     }
 }
 
@@ -71,6 +64,11 @@ esp_err_t UIApp::init() {
 
     // Initialize LVGL
     lv_init();
+
+    ai_event_queue_ = xQueueCreate(16, sizeof(AIEvent*));
+    if (!ai_event_queue_) {
+        ESP_LOGW(TAG, "Failed to create AI event queue; AI streaming will be limited");
+    }
 
     // Try to initialize MIPI-DSI display first
     // Configure for common TFT panels via SPI (MIPI-DSI requires specific hardware)
@@ -229,9 +227,7 @@ esp_err_t UIApp::init() {
         } else if (setting == "font_size") {
             settings_.font_size = std::max(0, std::min(2, settings_.font_size + delta));
         } else if (setting == "keyboard_layout") {
-            // Cycle through layouts: 0=US, 1=UK, 2=DE, 3=FR
-            settings_.keyboard_layout = (settings_.keyboard_layout + delta) & 3;  // Wrap 0-3
-            if (settings_.keyboard_layout < 0) settings_.keyboard_layout += 4;
+            settings_.keyboard_layout = (settings_.keyboard_layout + delta + 4) % 4;
         } else if (setting == "auto_sleep") {
             settings_.auto_sleep = std::max(0, std::min(3, settings_.auto_sleep + delta));
         }
@@ -311,8 +307,7 @@ esp_err_t UIApp::init() {
     // Set up Magic Bar callbacks
     magic_bar_->setInsertCallback([this](const std::string& text) {
         if (editor_) {
-            size_t cursor = editor_->getCursor();
-            editor_->insert(text, cursor);
+            editor_->insert(text);
             updateEditor();
             hideMagicBar();
         }
@@ -330,19 +325,34 @@ esp_err_t UIApp::init() {
                 return;
             }
             if (editor_) {
+                ai.cancel();
+                clearAIEventQueue();
+
                 std::string context = editor_->getSelectedText();
                 if (context.empty()) {
                     // Get text around cursor
-                    size_t cursor = editor_->getCursor();
-                    context = editor_->getText().substr(
-                        std::max(0, static_cast<int>(cursor) - 500),
-                        1000
-                    );
+                    size_t cursor = editor_->getCursor().pos;
+                    size_t start = (cursor > 500) ? (cursor - 500) : 0;
+                    context = editor_->getText().substr(start, 1000);
                 }
                 magic_bar_->setContextText(context);
                 ai.requestSuggestion(style, context,
-                    [this](const char* delta) { magic_bar_->onStreamDelta(delta); },
-                    [this](bool success, const std::string& error) { magic_bar_->onComplete(success, error); }
+                    [this](const char* delta) {
+                        AIEvent* event = new AIEvent{
+                            AIEvent::Type::Delta,
+                            delta ? delta : "",
+                            false
+                        };
+                        enqueueAIEvent(event);
+                    },
+                    [this](bool success, const std::string& error) {
+                        AIEvent* event = new AIEvent{
+                            AIEvent::Type::Complete,
+                            error,
+                            success
+                        };
+                        enqueueAIEvent(event);
+                    }
                 );
             }
         }
@@ -530,22 +540,37 @@ void UIApp::showMagicBar() {
     }
 
     if (editor_) {
+        ai.cancel();
+        clearAIEventQueue();
+
         std::string context = editor_->getSelectedText();
         if (context.empty()) {
             // Get text around cursor
-            size_t cursor = editor_->getCursor();
-            context = editor_->getText().substr(
-                std::max(0, static_cast<int>(cursor) - 500),
-                1000
-            );
+            size_t cursor = editor_->getCursor().pos;
+            size_t start = (cursor > 500) ? (cursor - 500) : 0;
+            context = editor_->getText().substr(start, 1000);
         }
         magic_bar_->setContextText(context);
         magic_bar_->show();
 
         // Start AI request
         ai.requestSuggestion(magic_bar_->getStyle(), context,
-            [this](const char* delta) { magic_bar_->onStreamDelta(delta); },
-            [this](bool success, const std::string& error) { magic_bar_->onComplete(success, error); }
+            [this](const char* delta) {
+                AIEvent* event = new AIEvent{
+                    AIEvent::Type::Delta,
+                    delta ? delta : "",
+                    false
+                };
+                enqueueAIEvent(event);
+            },
+            [this](bool success, const std::string& error) {
+                AIEvent* event = new AIEvent{
+                    AIEvent::Type::Complete,
+                    error,
+                    success
+                };
+                enqueueAIEvent(event);
+            }
         );
     }
 }
@@ -554,7 +579,53 @@ void UIApp::hideMagicBar() {
     if (magic_bar_) {
         magic_bar_->hide();
     }
+    AIAssist::getInstance().cancel();
+    clearAIEventQueue();
     current_screen_ = ScreenType::Editor;
+}
+
+void UIApp::processAsyncEvents() {
+    if (!ai_event_queue_) {
+        return;
+    }
+
+    AIEvent* event = nullptr;
+    while (xQueueReceive(ai_event_queue_, &event, 0) == pdTRUE) {
+        if (!event) {
+            continue;
+        }
+
+        if (magic_bar_ && magic_bar_->isVisible()) {
+            if (event->type == AIEvent::Type::Delta) {
+                magic_bar_->onStreamDelta(event->text.c_str());
+            } else if (event->type == AIEvent::Type::Complete) {
+                magic_bar_->onComplete(event->success, event->text);
+            }
+        }
+
+        delete event;
+    }
+}
+
+void UIApp::enqueueAIEvent(AIEvent* event) {
+    if (!event) {
+        return;
+    }
+
+    if (!ai_event_queue_ || xQueueSend(ai_event_queue_, &event, 0) != pdTRUE) {
+        delete event;
+    }
+}
+
+void UIApp::clearAIEventQueue() {
+    if (!ai_event_queue_) {
+        return;
+    }
+
+    AIEvent* event = nullptr;
+    while (xQueueReceive(ai_event_queue_, &event, 0) == pdTRUE) {
+        delete event;
+    }
 }
 
 void UIApp::showPowerOffConfirmation() {
@@ -624,12 +695,7 @@ void UIApp::ensureProjectOpen() {
 void UIApp::createProject(const std::string& name) {
     ESP_LOGI(TAG, "Creating new project: %s", name.c_str());
 
-    std::string trimmed = name;
-    trimmed.erase(trimmed.begin(), std::find_if(trimmed.begin(), trimmed.end(),
-                                               [](unsigned char c) { return !std::isspace(c); }));
-    trimmed.erase(std::find_if(trimmed.rbegin(), trimmed.rend(),
-                               [](unsigned char c) { return !std::isspace(c); }).base(),
-                  trimmed.end());
+    std::string trimmed = trim(name);
     if (trimmed.empty()) {
         new_project_screen_->showError("Please enter a name.");
         return;
@@ -696,7 +762,7 @@ void UIApp::openProjectInternal(const std::string& id) {
             }
 
             // Update library with last opened
-            lib.touchProjectOpened(id, getUtcTimestamp());
+            lib.touchProjectOpened(id, getCurrentTimeISO());
             session_start_words_ = editor_ ? editor_->getWordCount() : 0;
 
             // Restore editor state
@@ -731,7 +797,7 @@ void UIApp::handleExport(const std::string& type) {
             export_screen_->showComplete("Export failed. Try again.");
             return;
         }
-        export_screen_->updateProgress(0, 1);
+        export_screen_->updateProgress();
         std::string content = editor_->getText();
         esp_err_t ret = exportToSD(current_project_path_, content, ".md");
         if (ret == ESP_OK) {
@@ -745,7 +811,7 @@ void UIApp::handleExport(const std::string& type) {
             export_screen_->showComplete("Export failed. Try again.");
             return;
         }
-        export_screen_->updateProgress(0, 1);
+        export_screen_->updateProgress();
         std::string content = editor_->getText();
         esp_err_t ret = exportToSD(current_project_path_, content, ".txt");
         if (ret == ESP_OK) {
@@ -832,7 +898,7 @@ esp_err_t UIApp::saveCurrentProject() {
 
     // Update project library word count
     ProjectLibrary& lib = ProjectLibrary::getInstance();
-    lib.updateProjectSavedState(current_project_id_, editor_->getWordCount(), getUtcTimestamp());
+    lib.updateProjectSavedState(current_project_id_, editor_->getWordCount(), getCurrentTimeISO());
 
     return ESP_OK;
 }

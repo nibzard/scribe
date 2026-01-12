@@ -144,6 +144,11 @@ esp_err_t AIAssist::generateSuggestion(const std::string& text, AIStyle style,
     return ESP_OK;
 }
 
+esp_err_t AIAssist::requestSuggestion(AIStyle style, const std::string& text,
+                                      StreamCallback stream_cb, CompleteCallback complete_cb) {
+    return generateSuggestion(text, style, "", stream_cb, complete_cb);
+}
+
 void AIAssist::cancel() {
     if (generating_.load()) {
         ESP_LOGI(TAG, "Cancelling AI generation...");

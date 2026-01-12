@@ -9,12 +9,6 @@
 
 static const char* TAG = "SCRIBE_STORAGE";
 
-// SPI pin configuration for Tab5 (adjust per actual hardware)
-#define PIN_MISO 37
-#define PIN_MOSI 35
-#define PIN_CLK  36
-#define PIN_CS   34
-
 StorageManager& StorageManager::getInstance() {
     static StorageManager instance;
     return instance;

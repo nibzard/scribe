@@ -42,7 +42,7 @@ private:
     esp_err_t performSave(const DocSnapshot& snapshot);
 
     // Create snapshot file (manuscript.md.~N)
-    esp_err_t createSnapshot(const std::string& project_path, const std::string& content);
+    esp_err_t createSnapshot(const std::string& project_path);
 
     // Atomic save: tmp -> rename
     esp_err_t atomicSave(const std::string& project_path, const std::string& content);

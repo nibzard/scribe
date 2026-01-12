@@ -121,10 +121,8 @@ void ScreenExport::selectCurrent() {
     }
 }
 
-void ScreenExport::updateProgress(size_t current, size_t total) {
+void ScreenExport::updateProgress() {
     if (progress_label_) {
-        (void)current;
-        (void)total;
         lv_label_set_text(progress_label_, "Exporting\u2026");
         lv_obj_clear_flag(progress_label_, LV_OBJ_FLAG_HIDDEN);
     }

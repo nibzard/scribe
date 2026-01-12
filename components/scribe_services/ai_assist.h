@@ -53,6 +53,10 @@ public:
                                   const std::string& custom_instruction,
                                   StreamCallback stream_cb, CompleteCallback complete_cb);
 
+    // Convenience wrapper for default suggestions without custom instruction
+    esp_err_t requestSuggestion(AIStyle style, const std::string& text,
+                                StreamCallback stream_cb, CompleteCallback complete_cb);
+
     // Cancel ongoing request
     void cancel();
 

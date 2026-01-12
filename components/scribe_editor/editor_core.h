@@ -2,6 +2,7 @@
 
 #include "piece_table.h"
 #include "undo_stack.h"
+#include "selection.h"
 #include <string>
 #include <functional>
 
@@ -12,16 +13,8 @@ struct Cursor {
     size_t col = 0;
 };
 
-// Selection range
-struct Selection {
-    size_t start = 0;
-    size_t end = 0;
-
-    bool isActive() const { return start != end; }
-    size_t length() const { return (end > start) ? (end - start) : (start - end); }
-    size_t min() const { return (start < end) ? start : end; }
-    size_t max() const { return (start > end) ? start : end; }
-};
+// Forward declaration - use Selection from selection.h
+struct Selection;
 
 // Snapshot for background saves
 struct EditorSnapshot {
@@ -45,6 +38,7 @@ public:
     // Document operations
     void load(const std::string& content);
     std::string getText() const;
+    std::string getSelectedText() const;
     EditorSnapshot createSnapshot(const std::string& project_id) const;
 
     // Cursor operations

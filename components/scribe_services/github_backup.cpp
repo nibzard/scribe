@@ -4,6 +4,9 @@
 #include <esp_log.h>
 #include <esp_http_client.h>
 #include <cJSON.h>
+#include <mbedtls/base64.h>
+#include <algorithm>
+#include <cstring>
 
 static const char* TAG = "SCRIBE_BACKUP";
 
@@ -17,6 +20,62 @@ static const char* TAG = "SCRIBE_BACKUP";
 
 // HTTP buffer size
 #define HTTP_BUFFER_SIZE 4096
+
+struct HttpResponseBuffer {
+    char* data = nullptr;
+    size_t size = 0;
+    size_t length = 0;
+};
+
+static esp_err_t http_event_handler(esp_http_client_event_t* evt) {
+    if (evt->event_id != HTTP_EVENT_ON_DATA || !evt->user_data) {
+        return ESP_OK;
+    }
+
+    auto* buffer = static_cast<HttpResponseBuffer*>(evt->user_data);
+    if (!buffer->data || buffer->size == 0) {
+        return ESP_OK;
+    }
+
+    size_t remaining = buffer->size - 1 - buffer->length;
+    if (remaining == 0) {
+        return ESP_OK;
+    }
+
+    size_t to_copy = std::min(remaining, static_cast<size_t>(evt->data_len));
+    if (to_copy > 0) {
+        memcpy(buffer->data + buffer->length, evt->data, to_copy);
+        buffer->length += to_copy;
+        buffer->data[buffer->length] = '\0';
+    }
+
+    return ESP_OK;
+}
+
+static std::string base64Encode(const std::string& input) {
+    if (input.empty()) {
+        return "";
+    }
+
+    size_t out_len = ((input.size() + 2) / 3) * 4;
+    std::string output(out_len, '\0');
+    size_t written = 0;
+
+    int ret = mbedtls_base64_encode(
+        reinterpret_cast<unsigned char*>(&output[0]),
+        output.size(),
+        &written,
+        reinterpret_cast<const unsigned char*>(input.data()),
+        input.size()
+    );
+
+    if (ret != 0) {
+        return "";
+    }
+
+    output.resize(written);
+    return output;
+}
 
 GitHubBackup& GitHubBackup::getInstance() {
     static GitHubBackup instance;
@@ -196,9 +255,14 @@ esp_err_t GitHubBackup::uploadToGitHub(const std::string& path, const std::strin
              GITHUB_API_BASE, repo_owner_.c_str(), repo_name_.c_str(), path.c_str());
 
     // Build request body
+    std::string encoded = base64Encode(content);
+    if (encoded.empty() && !content.empty()) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
     cJSON* json = cJSON_CreateObject();
     cJSON_AddStringToObject(json, "message", message.c_str());
-    cJSON_AddStringToObject(json, "content", content.c_str());
+    cJSON_AddStringToObject(json, "content", encoded.c_str());
 
     // Add SHA if updating existing file
     if (ret == ESP_OK && !current_sha.empty()) {
@@ -216,6 +280,8 @@ esp_err_t GitHubBackup::uploadToGitHub(const std::string& path, const std::strin
         free(json_str);
         return ESP_ERR_NO_MEM;
     }
+    response[0] = '\0';
+    HttpResponseBuffer response_buf{response, HTTP_BUFFER_SIZE, 0};
 
     // Configure HTTP client
     esp_http_client_config_t config = {};
@@ -223,7 +289,8 @@ esp_err_t GitHubBackup::uploadToGitHub(const std::string& path, const std::strin
     config.method = HTTP_METHOD_PUT;
     config.timeout_ms = 30000;
     config.buffer_size = HTTP_BUFFER_SIZE;
-    config.user_data = response;
+    config.user_data = &response_buf;
+    config.event_handler = http_event_handler;
     config.buffer_size_tx = 4096;
 
     // Add authorization header
@@ -232,6 +299,7 @@ esp_err_t GitHubBackup::uploadToGitHub(const std::string& path, const std::strin
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_http_client_set_header(client, "Authorization", auth_header);
+    esp_http_client_set_header(client, "User-Agent", "scribe-firmware");
     esp_http_client_set_header(client, "Content-Type", "application/json");
     esp_http_client_set_post_field(client, json_str, strlen(json_str));
 
@@ -286,6 +354,8 @@ esp_err_t GitHubBackup::uploadToGist(const std::string& description, const std::
         free(json_str);
         return ESP_ERR_NO_MEM;
     }
+    response[0] = '\0';
+    HttpResponseBuffer response_buf{response, HTTP_BUFFER_SIZE, 0};
 
     // Configure HTTP client
     esp_http_client_config_t config = {};
@@ -293,7 +363,8 @@ esp_err_t GitHubBackup::uploadToGist(const std::string& description, const std::
     config.method = HTTP_METHOD_POST;
     config.timeout_ms = 30000;
     config.buffer_size = HTTP_BUFFER_SIZE;
-    config.user_data = response;
+    config.user_data = &response_buf;
+    config.event_handler = http_event_handler;
 
     // Add authorization header
     char auth_header[128];
@@ -301,6 +372,7 @@ esp_err_t GitHubBackup::uploadToGist(const std::string& description, const std::
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_http_client_set_header(client, "Authorization", auth_header);
+    esp_http_client_set_header(client, "User-Agent", "scribe-firmware");
     esp_http_client_set_header(client, "Content-Type", "application/json");
     esp_http_client_set_post_field(client, json_str, strlen(json_str));
 
@@ -338,6 +410,8 @@ esp_err_t GitHubBackup::getCommitSHA(const std::string& path, std::string& out_s
     if (!response) {
         return ESP_ERR_NO_MEM;
     }
+    response[0] = '\0';
+    HttpResponseBuffer response_buf{response, HTTP_BUFFER_SIZE, 0};
 
     // Configure HTTP client
     esp_http_client_config_t config = {};
@@ -345,7 +419,8 @@ esp_err_t GitHubBackup::getCommitSHA(const std::string& path, std::string& out_s
     config.method = HTTP_METHOD_GET;
     config.timeout_ms = 15000;
     config.buffer_size = HTTP_BUFFER_SIZE;
-    config.user_data = response;
+    config.user_data = &response_buf;
+    config.event_handler = http_event_handler;
 
     // Add authorization header
     char auth_header[128];
@@ -353,6 +428,7 @@ esp_err_t GitHubBackup::getCommitSHA(const std::string& path, std::string& out_s
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_http_client_set_header(client, "Authorization", auth_header);
+    esp_http_client_set_header(client, "User-Agent", "scribe-firmware");
 
     // Perform request
     esp_err_t ret = esp_http_client_perform(client);

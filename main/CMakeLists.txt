@@ -1,6 +1,7 @@
 idf_component_register(SRCS "app_main.cpp"
     INCLUDE_DIRS "."
     REQUIRES
+        lvgl
         scribe_ui
         scribe_input
         scribe_editor

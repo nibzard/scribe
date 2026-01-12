@@ -16,15 +16,11 @@ esp_err_t SettingsStore::init() {
     return ESP_OK;
 }
 
-static void applyDefaults(AppSettings& settings) {
-    settings = AppSettings();
-}
-
 esp_err_t SettingsStore::load(AppSettings& settings) {
     FILE* f = fopen(SCRIBE_SETTINGS_JSON, "r");
     if (!f) {
         ESP_LOGW(TAG, "settings.json not found, creating defaults");
-        applyDefaults(settings);
+        settings = AppSettings();
         save(settings);
         return ESP_ERR_NOT_FOUND;
     }
@@ -41,11 +37,11 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
     cJSON* root = cJSON_Parse(content.c_str());
     if (!root) {
         ESP_LOGE(TAG, "Failed to parse settings.json, using defaults");
-        applyDefaults(settings);
+        settings = AppSettings();
         return ESP_FAIL;
     }
 
-    applyDefaults(settings);
+    settings = AppSettings();
 
     cJSON* dark = cJSON_GetObjectItem(root, "dark_theme");
     if (cJSON_IsBool(dark)) {

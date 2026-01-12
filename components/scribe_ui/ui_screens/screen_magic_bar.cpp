@@ -43,24 +43,24 @@ void ScreenMagicBar::createWidgets() {
         AIStyle::EXPAND
     };
 
-    for (AIStyle s : styles) {
+    for (size_t i = 0; i < style_button_ctx_.size(); i++) {
+        AIStyle s = styles[i];
         lv_obj_t* btn = lv_list_add_btn(style_selector_, nullptr, getStyleName(s));
+        style_button_ctx_[i] = {this, s};
+
         lv_obj_add_event_cb(btn, [](lv_obj_t* obj, lv_event_t* event) {
-            ScreenMagicBar* magic = (ScreenMagicBar*)lv_obj_get_user_data(obj);
-            if (magic && magic->style_cb_) {
-                AIStyle* style_ptr = (AIStyle*)lv_obj_get_user_data(obj);
-                if (style_ptr) {
-                    magic->style_ = *style_ptr;
-                    magic->updateStyleSelector();
-                    magic->style_cb_(*style_ptr);
-                }
+            auto* ctx = static_cast<ScreenMagicBar::StyleButtonContext*>(lv_obj_get_user_data(obj));
+            if (!ctx || !ctx->magic) {
+                return;
+            }
+            ctx->magic->style_ = ctx->style;
+            ctx->magic->updateStyleSelector();
+            if (ctx->magic->style_cb_) {
+                ctx->magic->style_cb_(ctx->style);
             }
         }, LV_EVENT_CLICKED, nullptr);
 
-        // Store style in user_data for callback
-        AIStyle* style_ptr = new AIStyle(s);
-        lv_obj_set_user_data(btn, style_ptr);
-        lv_obj_set_user_data(btn, this);
+        lv_obj_set_user_data(btn, &style_button_ctx_[i]);
     }
 
     // Status label
@@ -83,8 +83,8 @@ void ScreenMagicBar::createWidgets() {
     lv_obj_t* btn_cont = lv_obj_create(bar_);
     lv_obj_set_size(btn_cont, 200, 40);
     lv_obj_align(btn_cont, LV_ALIGN_BOTTOM_MID, 0, -10);
-    lv_obj_set_style_bg_opa(btn_cont_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(btn_cont_, 0, 0);
+    lv_obj_set_style_bg_opa(btn_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(btn_cont, 0, 0);
 
     // Insert button
     insert_btn_ = lv_btn_create(btn_cont);

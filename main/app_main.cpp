@@ -24,6 +24,7 @@
 #include <freertos/task.h>
 #include <esp_log.h>
 #include <esp_system.h>
+#include <lvgl.h>
 #include <ctime>
 #include <string>
 #include <nvs_flash.h>
@@ -358,11 +359,12 @@ static void ui_task(void* arg) {
     // Autosave timer tracking
     TickType_t last_keypress_time = xTaskGetTickCount();
     const TickType_t autosave_delay = pdMS_TO_TICKS(5000);  // 5 seconds idle
+    const TickType_t ui_tick = pdMS_TO_TICKS(5);
     bool has_unsaved_changes = false;
 
     while (true) {
         Event event;
-        if (xQueueReceive(g_event_queue, &event, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (xQueueReceive(g_event_queue, &event, ui_tick) == pdTRUE) {
             switch (event.type) {
                 case EventType::KEY_EVENT: {
                     const KeyEvent& key_event = event.key_event;
@@ -512,6 +514,9 @@ static void ui_task(void* arg) {
                 ESP_LOGI(TAG, "Autosave triggered");
             }
         }
+
+        ui.processAsyncEvents();
+        lv_task_handler();
     }
 
     vTaskDelete(nullptr);
