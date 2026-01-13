@@ -13,6 +13,7 @@ namespace MIPIDSI {
 
 // Display panel types
 enum class PanelType {
+    ST7123,    // Tab5 MIPI-DSI panel
     ST7789,     // Common 240x320/240x240 TFT
     ILI9341,    // Common 240x320 TFT
     ILI9488,    // 320x480 TFT
@@ -55,6 +56,7 @@ esp_err_t init(const DisplayConfig& config);
 
 // Set display orientation
 esp_err_t setOrientation(Orientation orientation);
+Orientation getOrientation();
 
 // Write to display (flush callback implementation)
 void writePixels(const uint16_t* pixels, size_t len);

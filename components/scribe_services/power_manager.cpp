@@ -1,21 +1,15 @@
 #include "power_manager.h"
 #include <esp_log.h>
 #include <esp_sleep.h>
-#include <esp_adc/adc_oneshot.h>
-#include <esp_adc/adc_cali_scheme.h>
 #include <driver/gpio.h>
+#include "battery.h"
+#include "../scribe_hw/tab5_io_expander.h"
+#include "../scribe_ui/mipi_dsi_display.h"
 
 static const char* TAG = "SCRIBE_POWER";
 
-// Hardware configuration (adjust for Tab5)
-#define BATTERY_ADC_CHANNEL     ADC_CHANNEL_0
-#define BATTERY_ADC_ATTEN       ADC_ATTEN_DB_12
-#define CHARGING_GPIO           GPIO_NUM_NC  // Configure based on hardware
+// Hardware configuration
 #define WAKE_GPIO_MASK          (1ULL << 0)  // GPIO0 as wake source
-
-// Battery voltage thresholds (in mV)
-#define BATTERY_VOLTAGE_MAX     4200
-#define BATTERY_VOLTAGE_MIN     3300
 
 PowerManager& PowerManager::getInstance() {
     static PowerManager instance;
@@ -27,69 +21,17 @@ esp_err_t PowerManager::init() {
 
     last_activity_time_ = xTaskGetTickCount();
 
-    // Configure ADC for battery monitoring
-    adc_oneshot_unit_handle_t adc_handle;
-    adc_oneshot_unit_init_cfg_t init_config = {};
-    init_config.unit_id = ADC_UNIT_1;
-    init_config.ulp_mode = ADC_ULP_MODE_DISABLE;
-#if defined(ADC_RTC_CLK_SRC_DEFAULT)
-    init_config.clk_src = ADC_RTC_CLK_SRC_DEFAULT;
-#elif defined(ADC_DIGI_CLK_SRC_DEFAULT)
-    init_config.clk_src = ADC_DIGI_CLK_SRC_DEFAULT;
-#endif
-
-    esp_err_t ret = adc_oneshot_new_unit(&init_config, &adc_handle);
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "ADC init failed: %s - battery monitoring disabled", esp_err_to_name(ret));
-    } else {
-        adc_oneshot_chan_cfg_t config = {
-            .atten = BATTERY_ADC_ATTEN,
-            .bitwidth = ADC_BITWIDTH_12,
-        };
-        adc_oneshot_config_channel(adc_handle, BATTERY_ADC_CHANNEL, &config);
-    }
-
-    // Configure charging status GPIO
-    int charging_gpio = static_cast<int>(CHARGING_GPIO);
-    if (GPIO_IS_VALID_GPIO(charging_gpio)) {
-        gpio_config_t io_conf = {};
-        io_conf.pin_bit_mask = (1ULL << charging_gpio);
-        io_conf.mode = GPIO_MODE_INPUT;
-        io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        io_conf.intr_type = GPIO_INTR_DISABLE;
-#if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
-        io_conf.hys_ctrl_mode = GPIO_HYS_SOFT_DISABLE;
-#endif
-        gpio_config(&io_conf);
-    }
-
     updateBatteryStatus();
 
     return ESP_OK;
 }
 
 void PowerManager::updateBatteryStatus() {
-    // TODO: Read battery voltage from ADC
-    // For now, use placeholder values that can be updated when hardware is available
-    float voltage = 0.0f;
+    Battery& battery = Battery::getInstance();
+    battery.update();
 
-    // Calculate battery percentage
-    int percentage = 100;
-    if (voltage > 0) {
-        percentage = (int)((voltage - BATTERY_VOLTAGE_MIN) /
-                          (BATTERY_VOLTAGE_MAX - BATTERY_VOLTAGE_MIN) * 100);
-        percentage = (percentage < 0) ? 0 : (percentage > 100) ? 100 : percentage;
-    }
-
-    battery_percentage_.store(percentage);
-
-    // Check charging status
-    bool charging = false;
-    if (CHARGING_GPIO != GPIO_NUM_NC) {
-        charging = (gpio_get_level(CHARGING_GPIO) == 0);  // Active low typically
-    }
-    charging_.store(charging);
+    battery_percentage_.store(battery.getPercentage());
+    charging_.store(battery.isCharging());
 
     if (battery_callback_) {
         battery_callback_(battery_percentage_.load(), charging_.load());
@@ -112,7 +54,10 @@ esp_err_t PowerManager::configureWakeSources() {
 esp_err_t PowerManager::prepareForSleep() {
     ESP_LOGI(TAG, "Preparing for sleep...");
 
-    // TODO: Turn off display backlight
+    // Turn off display and backlight
+    MIPIDSI::setBacklight(0);
+    MIPIDSI::sleep(true);
+
     // TODO: Stop USB host (save power)
     // TODO: Reduce CPU frequency
 
@@ -125,7 +70,10 @@ esp_err_t PowerManager::prepareForSleep() {
 esp_err_t PowerManager::resumeFromSleep() {
     ESP_LOGI(TAG, "Resuming from sleep...");
 
-    // TODO: Turn on display backlight
+    // Wake display and restore backlight
+    MIPIDSI::sleep(false);
+    MIPIDSI::setBacklight(100);  // Full brightness on wake
+
     // TODO: Restart USB host
     // TODO: Restore CPU frequency
 
@@ -145,7 +93,7 @@ esp_err_t PowerManager::enterSleep() {
     // Use light sleep for faster wake
     esp_light_sleep_start();
 
-    return ESP_OK;
+    return wake();
 }
 
 esp_err_t PowerManager::wake() {
@@ -179,6 +127,9 @@ esp_err_t PowerManager::powerOff() {
     // TODO: Ensure all file handles are closed
     // TODO: Unmount SD card
     // TODO: Turn off all peripherals
+
+    tab5::IOExpander::getInstance().init();
+    tab5::IOExpander::getInstance().pulsePowerOff();
 
     // Enter deep sleep (effectively power off)
     esp_deep_sleep_start();

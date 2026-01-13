@@ -1,13 +1,32 @@
 #include "wifi_manager.h"
+#include "sdkconfig.h"
 #include <esp_log.h>
 #include <esp_event.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
+#include <freertos/task.h>
 #include <cstring>
 #include <soc/soc_caps.h>
-#if SOC_WIFI_SUPPORTED
+
+#if defined(CONFIG_ESP_WIFI_REMOTE_ENABLED) && CONFIG_ESP_WIFI_REMOTE_ENABLED
+#define SCRIBE_WIFI_REMOTE 1
+#else
+#define SCRIBE_WIFI_REMOTE 0
+#endif
+
+#if SOC_WIFI_SUPPORTED || SCRIBE_WIFI_REMOTE
+#define SCRIBE_WIFI_AVAILABLE 1
+#else
+#define SCRIBE_WIFI_AVAILABLE 0
+#endif
+
+#if SCRIBE_WIFI_AVAILABLE
 #include <esp_wifi.h>
 #include <esp_netif.h>
+#endif
+
+#if SCRIBE_WIFI_REMOTE
+#include "tab5_io_expander.h"
 #endif
 
 static const char* TAG = "SCRIBE_WIFI";
@@ -19,14 +38,40 @@ static const char* TAG = "SCRIBE_WIFI";
 // Maximum number of networks to store from scan
 #define MAX_SCAN_NETWORKS 20
 
+#if SCRIBE_WIFI_REMOTE
+static esp_err_t prepareRemoteWiFiHardware() {
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
+    return ESP_ERR_NOT_SUPPORTED;
+#else
+    tab5::IOExpander& io = tab5::IOExpander::getInstance();
+    esp_err_t ret = io.init();
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    ret = io.setWlanPower(true);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    ret = io.setWifiAntennaExternal(false);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to set WiFi antenna: %s", esp_err_to_name(ret));
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+    return ESP_OK;
+#endif
+}
+#endif
+
 // Scan result storage
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
 static wifi_ap_record_t* s_scan_records = nullptr;
-static int s_scan_count = 0;
+static uint16_t s_scan_count = 0;
 #endif
 
 // Forward declarations for event handlers
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data);
 #endif
@@ -50,10 +95,24 @@ esp_err_t WiFiManager::init() {
 }
 
 esp_err_t WiFiManager::initWiFiStack() {
-#if SOC_WIFI_SUPPORTED
-    // Initialize TCP/IP stack
-    esp_err_t ret = esp_netif_init();
+#if SCRIBE_WIFI_AVAILABLE
+    esp_err_t ret = esp_event_loop_create_default();
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "Failed to create event loop: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+#if SCRIBE_WIFI_REMOTE
+    ret = prepareRemoteWiFiHardware();
     if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to power WiFi module: %s", esp_err_to_name(ret));
+        return ret;
+    }
+#endif
+
+    // Initialize TCP/IP stack
+    ret = esp_netif_init();
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "Failed to initialize netif: %s", esp_err_to_name(ret));
         return ret;
     }
@@ -107,7 +166,7 @@ esp_err_t WiFiManager::setEnabled(bool enabled) {
     enabled_.store(enabled);
 
     if (enabled && !was_enabled) {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
         ESP_LOGI(TAG, "Enabling WiFi...");
         return startWiFi();
 #else
@@ -122,7 +181,7 @@ esp_err_t WiFiManager::setEnabled(bool enabled) {
 }
 
 esp_err_t WiFiManager::startWiFi() {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     esp_err_t ret = esp_wifi_start();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start WiFi: %s", esp_err_to_name(ret));
@@ -138,7 +197,7 @@ esp_err_t WiFiManager::startWiFi() {
 }
 
 esp_err_t WiFiManager::stopWiFi() {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     // Disconnect first if connected
     if (connected_.load()) {
         disconnect();
@@ -161,7 +220,7 @@ std::string WiFiManager::getSSID() const {
 }
 
 esp_err_t WiFiManager::startScan(WiFiScanCallback callback) {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     if (!enabled_.load()) {
         ESP_LOGE(TAG, "WiFi is not enabled");
         return ESP_ERR_INVALID_STATE;
@@ -189,7 +248,7 @@ esp_err_t WiFiManager::startScan(WiFiScanCallback callback) {
 }
 
 esp_err_t WiFiManager::connect(const std::string& ssid, const std::string& password) {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     if (!enabled_.load()) {
         ESP_LOGE(TAG, "WiFi is not enabled");
         return ESP_ERR_INVALID_STATE;
@@ -224,7 +283,7 @@ esp_err_t WiFiManager::connect(const std::string& ssid, const std::string& passw
 }
 
 esp_err_t WiFiManager::disconnect() {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     ESP_LOGI(TAG, "Disconnecting WiFi...");
     esp_err_t ret = esp_wifi_disconnect();
     if (ret != ESP_OK) {
@@ -250,7 +309,7 @@ esp_err_t WiFiManager::disconnect() {
 }
 
 std::string WiFiManager::getMacAddress() const {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     uint8_t mac[6];
     esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, mac);
     if (ret != ESP_OK) {
@@ -261,14 +320,13 @@ std::string WiFiManager::getMacAddress() const {
     snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     return std::string(mac_str);
-    return std::string(mac_str);
 #else
     return std::string();
 #endif
 }
 
 std::string WiFiManager::getIPAddress() const {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     if (!connected_.load()) {
         return "";
     }
@@ -288,14 +346,13 @@ std::string WiFiManager::getIPAddress() const {
     char ip_str[16];
     snprintf(ip_str, sizeof(ip_str), IPSTR, IP2STR(&ip_info.ip));
     return std::string(ip_str);
-    return std::string(ip_str);
 #else
     return std::string();
 #endif
 }
 
 void WiFiManager::handleWiFiEvent(int32_t event_id, void* event_data) {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     switch (event_id) {
         case WIFI_EVENT_STA_START:
             ESP_LOGD(TAG, "WiFi station started");
@@ -362,7 +419,6 @@ void WiFiManager::handleWiFiEvent(int32_t event_id, void* event_data) {
         default:
             break;
     }
-    }
 #else
     (void)event_id;
     (void)event_data;
@@ -370,7 +426,7 @@ void WiFiManager::handleWiFiEvent(int32_t event_id, void* event_data) {
 }
 
 void WiFiManager::handleIPEvent(int32_t event_id, void* event_data) {
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
     if (event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
@@ -388,7 +444,7 @@ void WiFiManager::handleIPEvent(int32_t event_id, void* event_data) {
 }
 
 // C wrapper for event handler
-#if SOC_WIFI_SUPPORTED
+#if SCRIBE_WIFI_AVAILABLE
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data) {
     WiFiManager* mgr = static_cast<WiFiManager*>(arg);

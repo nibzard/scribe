@@ -44,6 +44,7 @@ public:
     esp_err_t stop();
 
     bool isConnected() const { return connected_.load(); }
+    bool isRunning() const { return running_.load(); }
 
 private:
     KeyboardHost() = default;

@@ -101,7 +101,7 @@ private:
     std::atomic<bool> activity_monitoring_{false};
     TickType_t last_activity_time_;
 
-    // Update battery status from ADC
+    // Update battery status from hardware monitor
     void updateBatteryStatus();
 
     // Activity timer callback

@@ -1,0 +1,5 @@
+.cache
+.vscode
+build
+dependencies
+.DS_Store

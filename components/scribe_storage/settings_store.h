@@ -19,6 +19,9 @@ struct AppSettings {
     // Auto-sleep: 0=off, 1=5min, 2=15min, 3=30min
     int auto_sleep = 2;  // Default 15 minutes
 
+    // Display orientation: 0=auto (IMU), 1=landscape, 2=portrait
+    int display_orientation = 0;
+
     // WiFi enabled
     bool wifi_enabled = false;
 

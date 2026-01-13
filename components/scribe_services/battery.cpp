@@ -1,24 +1,7 @@
 #include "battery.h"
 #include <esp_log.h>
-#include <esp_adc/adc_oneshot.h>
-#include <esp_adc/adc_cali_scheme.h>
-#include <esp_adc/adc_cali.h>
-#include <driver/gpio.h>
-#include <driver/rtc_io.h>
 
 static const char* TAG = "SCRIBE_BATTERY";
-
-// Battery hardware configuration
-// Adjust these values based on actual Tab5 hardware design
-#define VOLTAGE_DIVIDER_RATIO 2.0f      // Adjust based on hardware divider
-#define BATTERY_ADC_CHANNEL    ADC_CHANNEL_0  // GPIO1
-#define BATTERY_ADC_UNIT        ADC_UNIT_1
-#define CHARGING_GPIO          GPIO_NUM_2     // Charging status pin
-#define BATTERY_LOW_PERCENT    20             // Low battery threshold
-
-// ADC configuration
-#define ADC_ATTEN       ADC_ATTEN_DB_12
-#define ADC_WIDTH       ADC_BITWIDTH_12
 
 // Battery percentage calculation
 struct BatteryCurve {
@@ -26,7 +9,7 @@ struct BatteryCurve {
     int percentage;
 };
 
-// Approximate LiPo discharge curve
+// Approximate LiPo discharge curve (per-cell for 2S pack)
 static const BatteryCurve battery_curve[] = {
     {4.2f, 100},
     {4.0f, 90},
@@ -46,57 +29,23 @@ Battery& Battery::getInstance() {
 esp_err_t Battery::init() {
     ESP_LOGI(TAG, "Initializing battery monitor...");
 
-    // Initialize ADC for battery voltage reading
-    adc_oneshot_unit_init_cfg_t adc_init_cfg = {};
-    adc_init_cfg.unit_id = BATTERY_ADC_UNIT;
-    adc_init_cfg.ulp_mode = ADC_ULP_MODE_DISABLE;
-#if defined(ADC_RTC_CLK_SRC_DEFAULT)
-    adc_init_cfg.clk_src = ADC_RTC_CLK_SRC_DEFAULT;
-#elif defined(ADC_DIGI_CLK_SRC_DEFAULT)
-    adc_init_cfg.clk_src = ADC_DIGI_CLK_SRC_DEFAULT;
-#endif
+    // Initialize IO expander for charge status.
+    tab5::IOExpander::getInstance().init();
 
-    esp_err_t ret = adc_oneshot_new_unit(&adc_init_cfg, &adc_handle_);
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to initialize ADC unit: %s", esp_err_to_name(ret));
-        // Continue anyway - will use estimated values
-        adc_handle_ = nullptr;
+    // Initialize INA226 power monitor.
+    ina226_ready_ = ina226_.init();
+    if (ina226_ready_) {
+        tab5::Ina226::Config cfg;
+        cfg.sampling_rate = tab5::Ina226::Sampling::Rate16;
+        cfg.bus_conversion_time = tab5::Ina226::ConversionTime::Us1100;
+        cfg.shunt_conversion_time = tab5::Ina226::ConversionTime::Us1100;
+        cfg.mode = tab5::Ina226::Mode::ShuntAndBus;
+        cfg.shunt_res = 0.005f;
+        cfg.max_expected_current = 2.0f;
+        ina226_.configure(cfg);
     } else {
-        // Configure ADC channel
-        adc_oneshot_chan_cfg_t chan_cfg = {
-            .atten = ADC_ATTEN,
-            .bitwidth = ADC_WIDTH,
-        };
-        ret = adc_oneshot_config_channel(adc_handle_, BATTERY_ADC_CHANNEL, &chan_cfg);
-        if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "Failed to configure ADC channel: %s", esp_err_to_name(ret));
-        }
-
-        // Initialize ADC calibration (optional, improves accuracy)
-        adc_cali_curve_fitting_config_t cali_config = {};
-        cali_config.unit_id = BATTERY_ADC_UNIT;
-        cali_config.atten = ADC_ATTEN;
-        cali_config.bitwidth = ADC_WIDTH;
-        cali_config.chan = BATTERY_ADC_CHANNEL;
-        ret = adc_cali_create_scheme_curve_fitting(&cali_config, &adc_cali_handle_);
-        if (ret != ESP_OK) {
-            ESP_LOGD(TAG, "ADC calibration not available: %s", esp_err_to_name(ret));
-            adc_cali_handle_ = nullptr;
-        }
+        ESP_LOGW(TAG, "INA226 not detected; battery readings will be estimated");
     }
-
-    // Initialize GPIO for charging status detection
-    gpio_config_t io_conf = {};
-    io_conf.pin_bit_mask = (1ULL << CHARGING_GPIO);
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-#if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
-    io_conf.hys_ctrl_mode = GPIO_HYS_SOFT_DISABLE;
-#endif
-    gpio_config(&io_conf);
-    charging_gpio_ = CHARGING_GPIO;
 
     update();
 
@@ -105,71 +54,32 @@ esp_err_t Battery::init() {
 }
 
 void Battery::deinit() {
-    if (adc_handle_) {
-        adc_oneshot_del_unit(adc_handle_);
-        adc_handle_ = nullptr;
-    }
-
-    if (adc_cali_handle_) {
-        adc_cali_delete_scheme_curve_fitting(adc_cali_handle_);
-        adc_cali_handle_ = nullptr;
-    }
+    // No dynamic resources to release.
 }
 
 void Battery::update() {
     voltage_ = readVoltage();
     percentage_ = voltageToPercentage(voltage_);
-
-    // Read charging status from GPIO
-    if (charging_gpio_ != GPIO_NUM_NC) {
-        // Active low - pin is low when charging
-        charging_ = (gpio_get_level(charging_gpio_) == 0);
-    } else {
-        charging_ = false;
-    }
+    charging_ = tab5::IOExpander::getInstance().isCharging();
 
     ESP_LOGD(TAG, "Battery: %d%%, %.2fV, Charging: %s",
              percentage_, voltage_, charging_ ? "yes" : "no");
 }
 
 float Battery::readVoltage() {
-    if (!adc_handle_) {
-        // ADC not available, return estimated value
+    if (!ina226_ready_) {
         return 3.85f;
     }
 
-    int adc_raw = 0;
-    esp_err_t ret = adc_oneshot_read(adc_handle_, BATTERY_ADC_CHANNEL, &adc_raw);
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to read ADC: %s", esp_err_to_name(ret));
-        return 3.85f;  // Default estimated value
-    }
-
-    // Convert ADC reading to voltage
-    int voltage_mv = 0;
-    if (adc_cali_handle_) {
-        adc_cali_raw_to_voltage(adc_cali_handle_, adc_raw, &voltage_mv);
-    } else {
-        // Fallback: rough conversion without calibration
-        // ADC_ATTEN_DB_12: 0-3.1V range, 12-bit = 4095 steps
-        voltage_mv = (adc_raw * 3100) / 4095;
-    }
-
-    // Apply voltage divider ratio to get battery voltage
-    float battery_voltage = (voltage_mv / 1000.0f) * VOLTAGE_DIVIDER_RATIO;
-
-    ESP_LOGV(TAG, "ADC raw: %d, measured: %.2fV, battery: %.2fV",
-             adc_raw, voltage_mv / 1000.0f, battery_voltage);
-
-    return battery_voltage;
+    // INA226 reports pack voltage; convert to per-cell voltage for 2S pack.
+    float pack_voltage = ina226_.getBusVoltage();
+    return pack_voltage * 0.5f;
 }
 
 int Battery::voltageToPercentage(float voltage) {
-    // Clamp voltage to valid range
     if (voltage > 4.2f) voltage = 4.2f;
     if (voltage < 3.0f) voltage = 3.0f;
 
-    // Linear interpolation between curve points
     for (size_t i = 0; i < sizeof(battery_curve) / sizeof(BatteryCurve) - 1; i++) {
         if (voltage >= battery_curve[i + 1].voltage) {
             float t = (voltage - battery_curve[i + 1].voltage) /
@@ -182,7 +92,7 @@ int Battery::voltageToPercentage(float voltage) {
 }
 
 bool Battery::isLow() const {
-    return percentage_ <= BATTERY_LOW_PERCENT;
+    return percentage_ <= 20;
 }
 
 bool Battery::isCritical() const {

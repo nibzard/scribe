@@ -1,9 +1,8 @@
 #pragma once
 
 #include <esp_err.h>
-#include <driver/gpio.h>
-#include <esp_adc/adc_oneshot.h>
-#include <esp_adc/adc_cali_scheme.h>
+#include "../scribe_hw/tab5_ina226.h"
+#include "../scribe_hw/tab5_io_expander.h"
 
 // Battery monitoring using ADC
 class Battery {
@@ -35,23 +34,16 @@ public:
     void update();
 
 private:
-    Battery() : percentage_(100), voltage_(4.2f), charging_(false),
-                adc_handle_(nullptr), adc_cali_handle_(nullptr),
-                charging_gpio_(GPIO_NUM_NC) {}
+    Battery() : percentage_(100), voltage_(4.2f), charging_(false) {}
     ~Battery() = default;
 
     int percentage_;
     float voltage_;
     bool charging_;
 
-    // ADC handle
-    adc_oneshot_unit_handle_t adc_handle_;
-    adc_cali_handle_t adc_cali_handle_;
+    tab5::Ina226 ina226_{};
+    bool ina226_ready_{false};
 
-    // Charging status GPIO
-    gpio_num_t charging_gpio_;
-
-    // Read ADC and calculate voltage
     float readVoltage();
 
     // Convert voltage to percentage

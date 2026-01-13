@@ -12,5 +12,8 @@ idf_component_register(SRCS
         esp_system
         esp_timer
         nvs_flash
+        esp_driver_sdmmc
+        esp_driver_sdspi
+        esp_driver_spi
         scribe_editor
 )

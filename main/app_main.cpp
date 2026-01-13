@@ -20,6 +20,9 @@
 #include "power_manager.h"
 #include "battery.h"
 #include "ai_assist.h"
+#include "rtc_time.h"
+#include "audio_manager.h"
+#include "imu_manager.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -132,6 +135,23 @@ extern "C" void app_main(void)
     // Initialize power manager
     PowerManager& power = PowerManager::getInstance();
     power.init();
+
+    // Initialize audio codec (speaker + mic)
+    AudioManager& audio = AudioManager::getInstance();
+    ret = audio.init();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Audio init failed: %s", esp_err_to_name(ret));
+    }
+
+    // Initialize IMU (BMI270)
+    ImuManager& imu = ImuManager::getInstance();
+    ret = imu.init();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "IMU init failed: %s", esp_err_to_name(ret));
+    }
+
+    // Initialize RTC + SNTP time sync
+    initTimeSync();
 
     // Initialize AI assistance (optional)
     AIAssist& ai = AIAssist::getInstance();

@@ -1,5 +1,7 @@
 #include "screen_diagnostics.h"
 #include "../../scribe_services/battery.h"
+#include "../../scribe_services/audio_manager.h"
+#include "../../scribe_services/imu_manager.h"
 #include "../../scribe_services/rtc_time.h"
 #include "../../scribe_services/wifi_manager.h"
 #include "../../scribe_storage/storage_manager.h"
@@ -19,6 +21,20 @@
 #include <unistd.h>
 
 static const char* TAG = "SCRIBE_SCREEN_DIAGNOSTICS";
+
+static const char* orientationLabel(int value) {
+    Strings& strings = Strings::getInstance();
+    switch (value) {
+        case 0:
+            return strings.get("settings.orientation_auto");
+        case 1:
+            return strings.get("settings.orientation_landscape");
+        case 2:
+            return strings.get("settings.orientation_portrait");
+        default:
+            return strings.get("settings.orientation_auto");
+    }
+}
 
 ScreenDiagnostics::ScreenDiagnostics() : screen_(nullptr) {
 }
@@ -161,6 +177,18 @@ void ScreenDiagnostics::updateSystemInfo() {
              esp_timer_get_time() / 1000000);
     lv_list_add_button(info_list_, LV_SYMBOL_REFRESH, buf);
 
+    // Audio + IMU status
+    AudioManager& audio = AudioManager::getInstance();
+    snprintf(buf, sizeof(buf), "Audio: %s/%s",
+             audio.hasSpeaker() ? "Speaker" : "No speaker",
+             audio.hasMicrophones() ? "Mics" : "No mics");
+    lv_list_add_button(info_list_, LV_SYMBOL_VOLUME_MAX, buf);
+
+    ImuManager& imu = ImuManager::getInstance();
+    snprintf(buf, sizeof(buf), "IMU: %s",
+             imu.isAvailable() ? "Ready" : "Not detected");
+    lv_list_add_button(info_list_, LV_SYMBOL_GPS, buf);
+
     // Back button
     lv_list_add_button(info_list_, LV_SYMBOL_LEFT, Strings::getInstance().get("common.back"));
 }
@@ -215,6 +243,8 @@ bool ScreenDiagnostics::exportLogs() {
 
     Battery& battery = Battery::getInstance();
     WiFiManager& wifi = WiFiManager::getInstance();
+    AudioManager& audio = AudioManager::getInstance();
+    ImuManager& imu = ImuManager::getInstance();
 
     AppSettings settings;
     SettingsStore::getInstance().load(settings);
@@ -250,11 +280,18 @@ bool ScreenDiagnostics::exportLogs() {
     }
     fprintf(f, "\n");
 
+    fprintf(f, "Audio/IMU\n");
+    fprintf(f, "Speaker: %s\n", audio.hasSpeaker() ? "yes" : "no");
+    fprintf(f, "Microphones: %s\n", audio.hasMicrophones() ? "yes" : "no");
+    fprintf(f, "IMU: %s\n", imu.isAvailable() ? "ready" : "not detected");
+    fprintf(f, "\n");
+
     fprintf(f, "Settings\n");
     fprintf(f, "Theme: %s\n", settings.dark_theme ? "dark" : "light");
     fprintf(f, "Font size: %d\n", settings.font_size);
     fprintf(f, "Keyboard layout: %d\n", settings.keyboard_layout);
     fprintf(f, "Auto-sleep: %d\n", settings.auto_sleep);
+    fprintf(f, "Orientation: %s\n", orientationLabel(settings.display_orientation));
     fprintf(f, "Backup enabled: %s\n", settings.backup_enabled ? "yes" : "no");
     fprintf(f, "WiFi enabled: %s\n", settings.wifi_enabled ? "yes" : "no");
 

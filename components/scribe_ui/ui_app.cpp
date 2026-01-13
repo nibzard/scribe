@@ -1,6 +1,8 @@
 #include "ui_app.h"
 #include "display_driver.h"
 #include "mipi_dsi_display.h"
+#include "touch_gt911.h"
+#include "touch_st7123.h"
 #include "../scribe_export/export_sd.h"
 #include "../scribe_export/send_to_computer.h"
 #include "../scribe_input/keymap.h"
@@ -33,6 +35,7 @@
 #include "../scribe_services/battery.h"
 #include "../scribe_services/ai_assist.h"
 #include "../scribe_services/github_backup.h"
+#include "../scribe_services/imu_manager.h"
 #include "../scribe_services/power_manager.h"
 #include "../scribe_services/rtc_time.h"
 #include "../scribe_services/wifi_manager.h"
@@ -44,11 +47,40 @@
 #include <lvgl.h>
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <ctime>
+#include <esp_system.h>
 #include <unistd.h>
 
 static const char* TAG = "SCRIBE_UI";
+
+namespace {
+constexpr float kImuOrientationMinTiltG = 0.35f;
+constexpr float kImuOrientationMinDeltaG = 0.15f;
+
+bool getImuOrientation(MIPIDSI::Orientation& orientation) {
+    ImuManager& imu = ImuManager::getInstance();
+    if (!imu.isAvailable() || !imu.hasSample()) {
+        return false;
+    }
+
+    ImuSample sample = imu.getSample();
+    float abs_x = std::fabs(sample.accel_x);
+    float abs_y = std::fabs(sample.accel_y);
+
+    if (abs_x < kImuOrientationMinTiltG && abs_y < kImuOrientationMinTiltG) {
+        return false;
+    }
+    if (std::fabs(abs_x - abs_y) < kImuOrientationMinDeltaG) {
+        return false;
+    }
+
+    orientation = abs_x > abs_y ? MIPIDSI::Orientation::LANDSCAPE
+                                : MIPIDSI::Orientation::PORTRAIT;
+    return true;
+}
+}  // namespace
 
 // LVGL tick task
 static void lvgl_tick_task(void* arg) {
@@ -92,17 +124,17 @@ esp_err_t UIApp::init() {
     };
 #else
     MIPIDSI::DisplayConfig dsi_config = {
-        .panel = MIPIDSI::PanelType::ST7789,    // Common panel type
-        .width = 320,                           // Tab5 display width
-        .height = 240,                          // Tab5 display height
+        .panel = MIPIDSI::PanelType::ST7123,    // Tab5 MIPI-DSI panel
+        .width = 720,
+        .height = 1280,
         .fps = 60,
-        .use_spi = true,                        // Use SPI interface
-        .spi_freq_mhz = 40,                     // 40MHz SPI
-        .dc_pin = GPIO_NUM_4,                   // Data/Command pin (adjust for hardware)
-        .reset_pin = GPIO_NUM_5,                // Reset pin (adjust for hardware)
-        .cs_pin = GPIO_NUM_15,                  // Chip select (adjust for hardware)
-        .backlight_pin = GPIO_NUM_16,           // Backlight control (adjust for hardware)
-        .rgb565_byte_swap = true                // Swap bytes for RGB565
+        .use_spi = false,
+        .spi_freq_mhz = 0,
+        .dc_pin = GPIO_NUM_NC,
+        .reset_pin = GPIO_NUM_NC,
+        .cs_pin = GPIO_NUM_NC,
+        .backlight_pin = GPIO_NUM_22,
+        .rgb565_byte_swap = false
     };
 #endif
 
@@ -115,6 +147,34 @@ esp_err_t UIApp::init() {
                 : MIPIDSI::Orientation::PORTRAIT);
         }
         MIPIDSI::setBacklight(100);
+
+#if !defined(CONFIG_SCRIBE_WOKWI_SIM) || !CONFIG_SCRIBE_WOKWI_SIM
+        auto attach_touch = [&](lv_indev_read_cb_t read_cb) {
+            lv_indev_t* indev = lv_indev_create();
+            lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+            lv_indev_set_read_cb(indev, read_cb);
+            lv_indev_set_display(indev, MIPIDSI::getLVGLDisplay());
+        };
+
+        bool touch_ready = false;
+        TouchST7123& st_touch = TouchST7123::getInstance();
+        if (st_touch.init(dsi_config.width, dsi_config.height) == ESP_OK) {
+            attach_touch(TouchST7123::lvglReadCb);
+            touch_ready = true;
+        }
+
+        if (!touch_ready) {
+            TouchGT911& gt_touch = TouchGT911::getInstance();
+            if (gt_touch.init(dsi_config.width, dsi_config.height) == ESP_OK) {
+                attach_touch(TouchGT911::lvglReadCb);
+                touch_ready = true;
+            }
+        }
+
+        if (!touch_ready) {
+            ESP_LOGW(TAG, "Touch controller init failed");
+        }
+#endif
     } else {
         ESP_LOGW(TAG, "MIPI-DSI display init failed: %s", esp_err_to_name(ret));
         ESP_LOGI(TAG, "Falling back to generic display driver");
@@ -142,6 +202,7 @@ esp_err_t UIApp::init() {
     SettingsStore& settings_store = SettingsStore::getInstance();
     settings_store.init();
     settings_store.load(settings_);
+    applyDisplayOrientation();
     Theme::applyTheme(settings_.dark_theme);
 
     // Apply keyboard layout from settings
@@ -274,6 +335,8 @@ esp_err_t UIApp::init() {
             settings_.keyboard_layout = (settings_.keyboard_layout + delta + 4) % 4;
         } else if (setting == "auto_sleep") {
             settings_.auto_sleep = std::max(0, std::min(3, settings_.auto_sleep + delta));
+        } else if (setting == "display_orientation") {
+            settings_.display_orientation = (settings_.display_orientation + delta + 3) % 3;
         }
         SettingsStore::getInstance().save(settings_);
         applySettings();
@@ -1413,6 +1476,17 @@ void UIApp::showToastInternal(const char* message, uint32_t duration_ms) {
 }
 
 void UIApp::applySettings() {
+    if (current_orientation_ != settings_.display_orientation) {
+        current_orientation_ = settings_.display_orientation;
+        if (running_) {
+            showToast(Strings::getInstance().get("settings.orientation_restart"));
+            vTaskDelay(pdMS_TO_TICKS(300));
+            esp_restart();
+            return;
+        }
+        applyDisplayOrientation();
+    }
+
     Theme::applyTheme(settings_.dark_theme);
     setKeyboardLayout(intToLayout(settings_.keyboard_layout));
     WiFiManager::getInstance().setEnabled(settings_.wifi_enabled);
@@ -1444,6 +1518,25 @@ void UIApp::applySettings() {
     if (settings_screen_) {
         settings_screen_->setSettings(settings_);
     }
+}
+
+void UIApp::applyDisplayOrientation() {
+    if (!MIPIDSI::getLVGLDisplay()) {
+        return;
+    }
+    MIPIDSI::Orientation orientation = MIPIDSI::Orientation::LANDSCAPE;
+    if (settings_.display_orientation == 1) {
+        orientation = MIPIDSI::Orientation::LANDSCAPE;
+    } else if (settings_.display_orientation == 2) {
+        orientation = MIPIDSI::Orientation::PORTRAIT;
+    } else {
+        MIPIDSI::Orientation imu_orientation = MIPIDSI::Orientation::LANDSCAPE;
+        if (getImuOrientation(imu_orientation)) {
+            orientation = imu_orientation;
+        }
+    }
+    MIPIDSI::setOrientation(orientation);
+    current_orientation_ = settings_.display_orientation;
 }
 
 void UIApp::handlePowerOffConfirm() {

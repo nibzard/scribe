@@ -3,6 +3,19 @@
 #include <atomic>
 
 #include <esp_err.h>
+#include "sdkconfig.h"
+
+#if defined(CONFIG_ESP_WIFI_REMOTE_ENABLED) && CONFIG_ESP_WIFI_REMOTE_ENABLED
+#define SCRIBE_WIFI_REMOTE 1
+#else
+#define SCRIBE_WIFI_REMOTE 0
+#endif
+
+#if SOC_WIFI_SUPPORTED || SCRIBE_WIFI_REMOTE
+#define SCRIBE_WIFI_AVAILABLE 1
+#else
+#define SCRIBE_WIFI_AVAILABLE 0
+#endif
 #include <functional>
 #include <string>
 #include <vector>
@@ -60,6 +73,10 @@ public:
     // Get IP address (empty if not connected)
     std::string getIPAddress() const;
 
+    // Internal event handlers (public for C wrapper access)
+    void handleWiFiEvent(int32_t event_id, void* event_data);
+    void handleIPEvent(int32_t event_id, void* event_data);
+
 private:
     WiFiManager() = default;
     ~WiFiManager() = default;
@@ -69,10 +86,6 @@ private:
     std::string current_ssid_;
     WiFiScanCallback scan_callback_;
     WiFiStatusCallback status_callback_;
-
-    // Internal event handlers
-    void handleWiFiEvent(int32_t event_id, void* event_data);
-    void handleIPEvent(int32_t event_id, void* event_data);
 
     // Initialize WiFi stack
     esp_err_t initWiFiStack();

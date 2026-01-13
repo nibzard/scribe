@@ -39,6 +39,8 @@ private:
 
     std::atomic<bool> running_{false};
     std::atomic<bool> device_mode_active_{false};
+    std::atomic<bool> initialized_{false};
+    std::atomic<bool> keyboard_was_running_{false};
     std::string text_to_send_;
     size_t send_pos_ = 0;
     ExportProgressCallback progress_callback_;

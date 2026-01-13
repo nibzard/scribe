@@ -1,0 +1,22 @@
+[
+    {
+        "url": "https://github.com/Forairaaaaa/mooncake.git",
+        "path": "dependencies/mooncake",
+        "branch": "v2.1.0"
+    },
+    {
+        "url": "https://github.com/Forairaaaaa/mooncake_log.git",
+        "path": "dependencies/mooncake_log",
+        "branch": "v1.0.0"
+    },
+    {
+        "url": "https://github.com/lvgl/lvgl.git",
+        "path": "dependencies/lvgl",
+        "branch": "v9.2.2"
+    },
+    {
+        "url": "https://github.com/Forairaaaaa/smooth_ui_toolkit.git",
+        "path": "dependencies/smooth_ui_toolkit",
+        "branch": "v2.0.0"
+    }
+]

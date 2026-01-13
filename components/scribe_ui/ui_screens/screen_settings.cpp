@@ -30,12 +30,23 @@ static const char* autoSleepLabel(int value) {
     }
 }
 
+static const char* orientationLabel(int value) {
+    Strings& strings = Strings::getInstance();
+    switch (value) {
+        case 0: return strings.get("settings.orientation_auto");
+        case 1: return strings.get("settings.orientation_landscape");
+        case 2: return strings.get("settings.orientation_portrait");
+        default: return strings.get("settings.orientation_auto");
+    }
+}
+
 static const char* keyboardLayoutLabel(int value) {
     switch (value) {
         case 0: return "US";
         case 1: return "UK";
         case 2: return "DE";
         case 3: return "FR";
+        case 4: return "HR";
         default: return "US";
     }
 }
@@ -101,6 +112,8 @@ void ScreenSettings::rebuildList() {
 
     Strings& strings = Strings::getInstance();
     addItem(strings.get("settings.theme"), themeLabel(settings_.dark_theme), "theme", LV_SYMBOL_IMAGE);
+    addItem(strings.get("settings.orientation"), orientationLabel(settings_.display_orientation),
+            "display_orientation", LV_SYMBOL_LOOP);
     addItem(strings.get("settings.font_size"), fontSizeLabel(settings_.font_size), "font_size", LV_SYMBOL_EDIT);
     addItem(strings.get("settings.keyboard_layout"), keyboardLayoutLabel(settings_.keyboard_layout), "keyboard_layout", LV_SYMBOL_KEYBOARD);
     addItem(strings.get("settings.auto_sleep"), autoSleepLabel(settings_.auto_sleep), "auto_sleep", LV_SYMBOL_GPS);

@@ -11,19 +11,20 @@ static const char* layout_names[] = {
     "US",
     "UK",
     "DE",
-    "FR"
+    "FR",
+    "HR"
 };
 
 const char* getLayoutName(KeyboardLayout layout) {
     int idx = static_cast<int>(layout);
-    if (idx >= 0 && idx < 4) {
+    if (idx >= 0 && idx < 5) {
         return layout_names[idx];
     }
     return "US";
 }
 
 KeyboardLayout intToLayout(int value) {
-    if (value >= 0 && value <= 3) {
+    if (value >= 0 && value <= 4) {
         return static_cast<KeyboardLayout>(value);
     }
     return KeyboardLayout::US;
@@ -262,6 +263,34 @@ static char lookupChar(const KeyMapping* layout, size_t size, KeyEvent::Key key,
     return 0;
 }
 
+// Croatian Layout (QWERTY)
+static const KeyMapping hr_layout[] = {
+    {KeyEvent::Key::A, 'a', 'A'}, {KeyEvent::Key::B, 'b', 'B'}, {KeyEvent::Key::C, 'c', 'C'},
+    {KeyEvent::Key::D, 'd', 'D'}, {KeyEvent::Key::E, 'e', 'E'}, {KeyEvent::Key::F, 'f', 'F'},
+    {KeyEvent::Key::G, 'g', 'G'}, {KeyEvent::Key::H, 'h', 'H'}, {KeyEvent::Key::I, 'i', 'I'},
+    {KeyEvent::Key::J, 'j', 'J'}, {KeyEvent::Key::K, 'k', 'K'}, {KeyEvent::Key::L, 'l', 'L'},
+    {KeyEvent::Key::M, 'm', 'M'}, {KeyEvent::Key::N, 'n', 'N'}, {KeyEvent::Key::O, 'o', 'O'},
+    {KeyEvent::Key::P, 'p', 'P'}, {KeyEvent::Key::Q, 'q', 'Q'}, {KeyEvent::Key::R, 'r', 'R'},
+    {KeyEvent::Key::S, 's', 'S'}, {KeyEvent::Key::T, 't', 'T'}, {KeyEvent::Key::U, 'u', 'U'},
+    {KeyEvent::Key::V, 'v', 'V'}, {KeyEvent::Key::W, 'w', 'W'}, {KeyEvent::Key::X, 'x', 'X'},
+    {KeyEvent::Key::Y, 'y', 'Y'}, {KeyEvent::Key::Z, 'z', 'Z'},
+    {KeyEvent::Key::_0, '0', '='}, {KeyEvent::Key::_1, '1', '!'}, {KeyEvent::Key::_2, '2', '"'},
+    {KeyEvent::Key::_3, '3', '#'}, {KeyEvent::Key::_4, '4', '$'}, {KeyEvent::Key::_5, '5', '%'},
+    {KeyEvent::Key::_6, '6', '&'}, {KeyEvent::Key::_7, '7', '/'}, {KeyEvent::Key::_8, '8', '('},
+    {KeyEvent::Key::_9, '9', ')'},
+    {KeyEvent::Key::SPACE, ' ', ' '},
+    {KeyEvent::Key::MINUS, '-', '?'}, {KeyEvent::Key::EQUAL, '+', '*'},
+    {KeyEvent::Key::LBRACKET, 's', 'D'},  // š→s, đ→D (Croatian - ASCII fallback)
+    {KeyEvent::Key::RBRACKET, 'c', 'C'},  // č→c, ć→C (Croatian - ASCII fallback)
+    {KeyEvent::Key::BACKSLASH, 'z', '\''},      // ž→z, ' (Croatian - ASCII fallback)
+    {KeyEvent::Key::SEMICOLON, ';', ':'},
+    {KeyEvent::Key::QUOTE, '-', '_'},
+    {KeyEvent::Key::COMMA, ',', ';'},
+    {KeyEvent::Key::PERIOD, '.', ':'},
+    {KeyEvent::Key::SLASH, '/', '?'},
+    {KeyEvent::Key::GRAVE, '`', '^'},
+};
+
 char mapKeyToChar(KeyEvent::Key key, bool shift) {
     switch (current_layout) {
         case KeyboardLayout::US:
@@ -272,6 +301,8 @@ char mapKeyToChar(KeyEvent::Key key, bool shift) {
             return lookupChar(de_layout, sizeof(de_layout)/sizeof(KeyMapping), key, shift);
         case KeyboardLayout::FR:
             return lookupChar(fr_layout, sizeof(fr_layout)/sizeof(KeyMapping), key, shift);
+        case KeyboardLayout::HR:
+            return lookupChar(hr_layout, sizeof(hr_layout)/sizeof(KeyMapping), key, shift);
         default:
             return lookupChar(us_layout, sizeof(us_layout)/sizeof(KeyMapping), key, shift);
     }

@@ -5,16 +5,26 @@ idf_component_register(SRCS
     "wifi_manager.cpp"
     "github_backup.cpp"
     "ai_assist.cpp"
+    "audio_feedback.cpp"
+    "audio_manager.cpp"
+    "imu_manager.cpp"
     INCLUDE_DIRS "."
     REQUIRES
-        esp_adc
         esp_driver_gpio
+        esp_driver_ledc
+        esp_driver_spi
         esp_common
+        esp_driver_i2s
+        lvgl
         esp_wifi
+        esp_wifi_remote
         esp_event
         nvs_flash
         esp_http_client
         mbedtls
         json
         scribe_secrets
+        scribe_hw
+        sensor_bmi270
+        esp_codec_dev
 )

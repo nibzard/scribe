@@ -9,6 +9,7 @@ enum class KeyboardLayout : int {
     UK = 1,
     DE = 2,  // German
     FR = 3,  // French AZERTY
+    HR = 4,  // Croatian
 };
 
 // Get layout name for display

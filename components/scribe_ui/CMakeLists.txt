@@ -2,6 +2,9 @@ idf_component_register(SRCS
     "ui_app.cpp"
     "display_driver.cpp"
     "mipi_dsi_display.cpp"
+    "touch_gt911.cpp"
+    "touch_st7123.cpp"
+    "touch_controller.cpp"
     "theme/theme.cpp"
     "widgets/text_view.cpp"
     "widgets/toast.cpp"
@@ -26,10 +29,18 @@ idf_component_register(SRCS
     INCLUDE_DIRS "."
     REQUIRES
         lvgl
+        esp_driver_gpio
+        esp_driver_ledc
+        esp_driver_spi
+        esp_hw_support
+        esp_lcd
+        esp_lcd_touch_gt911
+        esp_lcd_touch_st7123
         scribe_input
         scribe_editor
         scribe_storage
         scribe_services
         scribe_utils
+        scribe_hw
         spi_flash
 )

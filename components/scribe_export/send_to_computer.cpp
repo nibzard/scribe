@@ -1,9 +1,18 @@
 #include "send_to_computer.h"
+#include "usb_hid_device.h"
+#include "sdkconfig.h"
 #include "../scribe_input/keymap.h"
+#include "keyboard_host.h"
 #include <esp_log.h>
 #include <cstring>
 
-#ifdef CONFIG_TINYUSB_ENABLED
+#if defined(CONFIG_TINYUSB_HID_COUNT) && (CONFIG_TINYUSB_HID_COUNT > 0)
+#define SCRIBE_TINYUSB_HID 1
+#else
+#define SCRIBE_TINYUSB_HID 0
+#endif
+
+#if SCRIBE_TINYUSB_HID
 #include <tusb.h>
 #endif
 
@@ -15,6 +24,10 @@ SendToComputer& SendToComputer::getInstance() {
 }
 
 esp_err_t SendToComputer::init() {
+    if (initialized_.load()) {
+        return ESP_OK;
+    }
+
     ESP_LOGI(TAG, "Initializing Send to Computer (USB HID device mode)...");
 
     // Create mutex for thread safety
@@ -24,14 +37,19 @@ esp_err_t SendToComputer::init() {
         return ESP_ERR_NO_MEM;
     }
 
-#ifdef CONFIG_TINYUSB_ENABLED
-    // TinyUSB is initialized by the USB stack
-    ESP_LOGI(TAG, "TinyUSB support enabled");
+#if SCRIBE_TINYUSB_HID
+    esp_err_t ret = initUsbHidDevice();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "TinyUSB init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    ESP_LOGI(TAG, "TinyUSB HID device ready");
 #else
-    ESP_LOGW(TAG, "TinyUSB not enabled - Send to Computer requires CONFIG_TINYUSB_ENABLED");
+    ESP_LOGW(TAG, "TinyUSB HID not enabled - set CONFIG_TINYUSB_HID_COUNT > 0");
 #endif
 
     ESP_LOGI(TAG, "Send to Computer initialized");
+    initialized_.store(true);
     return ESP_OK;
 }
 
@@ -43,7 +61,16 @@ esp_err_t SendToComputer::switchToDeviceMode() {
     // 2. Start USB device (HID keyboard)
     // User may need to unplug keyboard or use dual-port configuration
 
-#ifdef CONFIG_TINYUSB_ENABLED
+#if SCRIBE_TINYUSB_HID
+    KeyboardHost& keyboard = KeyboardHost::getInstance();
+    if (keyboard.isRunning()) {
+        keyboard.stop();
+        keyboard_was_running_.store(true);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    } else {
+        keyboard_was_running_.store(false);
+    }
+
     // TinyUSB device stack should already be initialized
     // Just need to ensure we're in device mode
     device_mode_active_.store(true);
@@ -60,8 +87,11 @@ esp_err_t SendToComputer::switchToHostMode() {
 
     device_mode_active_.store(false);
 
-    // Reinitialize keyboard host
-    // This would be called after export completes
+    // Reinitialize keyboard host if it was active before switching
+    if (keyboard_was_running_.load()) {
+        KeyboardHost::getInstance().start();
+        keyboard_was_running_.store(false);
+    }
 
     return ESP_OK;
 }
@@ -138,7 +168,7 @@ SendToComputer::HIDKeycode SendToComputer::charToHIDKeycode(char c) const {
 }
 
 esp_err_t SendToComputer::sendHIDReport(uint8_t keycode, uint8_t modifiers, bool press) {
-#ifdef CONFIG_TINYUSB_ENABLED
+#if SCRIBE_TINYUSB_HID
     if (!tud_ready()) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -173,6 +203,13 @@ esp_err_t SendToComputer::start(const std::string& text, ExportProgressCallback 
     if (running_.load()) {
         ESP_LOGW(TAG, "Already sending");
         return ESP_ERR_INVALID_STATE;
+    }
+
+    if (!initialized_.load()) {
+        esp_err_t init_ret = init();
+        if (init_ret != ESP_OK) {
+            return init_ret;
+        }
     }
 
     // Switch to device mode

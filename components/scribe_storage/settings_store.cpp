@@ -43,6 +43,12 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
 
     settings = AppSettings();
 
+    int settings_version = 1;
+    cJSON* version = cJSON_GetObjectItem(root, "version");
+    if (cJSON_IsNumber(version)) {
+        settings_version = version->valueint;
+    }
+
     cJSON* dark = cJSON_GetObjectItem(root, "dark_theme");
     if (cJSON_IsBool(dark)) {
         settings.dark_theme = cJSON_IsTrue(dark);
@@ -61,6 +67,25 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
     cJSON* sleep = cJSON_GetObjectItem(root, "auto_sleep");
     if (cJSON_IsNumber(sleep)) {
         settings.auto_sleep = sleep->valueint;
+    }
+
+    cJSON* orientation = cJSON_GetObjectItem(root, "display_orientation");
+    if (cJSON_IsNumber(orientation)) {
+        int value = orientation->valueint;
+        if (settings_version < 2) {
+            if (value == 0) {
+                settings.display_orientation = 1;
+            } else if (value == 1) {
+                settings.display_orientation = 2;
+            } else {
+                settings.display_orientation = 0;
+            }
+        } else {
+            settings.display_orientation = value;
+        }
+    }
+    if (settings.display_orientation < 0 || settings.display_orientation > 2) {
+        settings.display_orientation = 0;
     }
 
     cJSON* wifi = cJSON_GetObjectItem(root, "wifi_enabled");
@@ -84,11 +109,12 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
 
 esp_err_t SettingsStore::save(const AppSettings& settings) {
     cJSON* root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "version", 1);
+    cJSON_AddNumberToObject(root, "version", 2);
     cJSON_AddBoolToObject(root, "dark_theme", settings.dark_theme);
     cJSON_AddNumberToObject(root, "font_size", settings.font_size);
     cJSON_AddNumberToObject(root, "keyboard_layout", settings.keyboard_layout);
     cJSON_AddNumberToObject(root, "auto_sleep", settings.auto_sleep);
+    cJSON_AddNumberToObject(root, "display_orientation", settings.display_orientation);
     cJSON_AddBoolToObject(root, "wifi_enabled", settings.wifi_enabled);
     cJSON_AddBoolToObject(root, "backup_enabled", settings.backup_enabled);
 

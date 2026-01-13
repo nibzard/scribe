@@ -1,3 +1,5 @@
+#include "rtc_time.h"
+#include "../scribe_hw/tab5_rx8130.h"
 #include <esp_log.h>
 #include <esp_sntp.h>
 #include <time.h>
@@ -7,21 +9,10 @@
 static const char* TAG = "SCRIBE_TIME";
 
 static bool time_synced = false;
+static tab5::Rx8130 rtc;
+static bool rtc_ready = false;
 
-void time_sync_notification(struct timeval *tv) {
-    ESP_LOGI(TAG, "Time synchronized");
-    time_synced = true;
-}
-
-void initTimeSync() {
-    ESP_LOGI(TAG, "Initializing time sync...");
-
-    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
-    esp_sntp_setservername(0, "pool.ntp.org");
-    esp_sntp_set_time_sync_notification_cb(time_sync_notification);
-    esp_sntp_init();
-
-    // Set initial time to a reasonable default
+static void set_default_time() {
     struct tm ti = {};
     ti.tm_year = 2026 - 1900;
     ti.tm_mon = 0;
@@ -32,6 +23,41 @@ void initTimeSync() {
     time_t t = mktime(&ti);
     struct timeval tv = {.tv_sec = t, .tv_usec = 0};
     settimeofday(&tv, nullptr);
+}
+
+static void time_sync_notification(struct timeval *tv) {
+    ESP_LOGI(TAG, "Time synchronized");
+    time_synced = true;
+
+    if (rtc_ready && tv) {
+        time_t now = tv->tv_sec;
+        struct tm timeinfo;
+        gmtime_r(&now, &timeinfo);
+        rtc.writeTime(timeinfo);
+    }
+}
+
+void initTimeSync() {
+    ESP_LOGI(TAG, "Initializing time sync...");
+
+    rtc_ready = rtc.init();
+    if (rtc_ready) {
+        struct tm rtc_time = {};
+        if (rtc.readTime(&rtc_time)) {
+            time_t t = mktime(&rtc_time);
+            struct timeval tv = {.tv_sec = t, .tv_usec = 0};
+            settimeofday(&tv, nullptr);
+        } else {
+            set_default_time();
+        }
+    } else {
+        set_default_time();
+    }
+
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_set_time_sync_notification_cb(time_sync_notification);
+    esp_sntp_init();
 }
 
 bool isTimeSynced() {

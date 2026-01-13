@@ -157,6 +157,7 @@ private:
     std::string current_project_path_;
     std::string current_project_name_;
     AppSettings settings_;
+    int current_orientation_ = -1;
 
     enum class ScreenType {
         Editor,
@@ -229,4 +230,5 @@ private:
     void jumpToFindMatch(int direction);
     void showToastInternal(const char* message, uint32_t duration_ms);
     void applySettings();
+    void applyDisplayOrientation();
 };
