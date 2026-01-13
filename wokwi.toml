@@ -1,5 +1,5 @@
 [wokwi]
 version = 1
-firmware = "build-wokwi/flasher_args.json"
+firmware = "build-wokwi/uf2.bin"
 elf = "build-wokwi/scribe.elf"
 rfc2217ServerPort = 4000

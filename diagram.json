@@ -4,11 +4,13 @@
   "editor": "wokwi",
   "parts": [
     {
-      "type": "board-esp32-p4-function-ev",
+      "type": "board-esp32-p4-preview",
       "id": "esp",
       "top": 0,
       "left": 0,
-      "attrs": {}
+      "attrs": {
+        "serialInterface": "USB_SERIAL_JTAG"
+      }
     },
     {
       "type": "wokwi-ili9341",
@@ -28,7 +30,7 @@
       ]
     ],
     [
-      "esp:GND",
+      "esp:GND.1",
       "tft:GND",
       "black",
       [
@@ -36,7 +38,7 @@
       ]
     ],
     [
-      "esp:GPIO18",
+      "esp:18",
       "tft:SCK",
       "green",
       [
@@ -44,7 +46,7 @@
       ]
     ],
     [
-      "esp:GPIO23",
+      "esp:23",
       "tft:MOSI",
       "green",
       [
@@ -52,7 +54,7 @@
       ]
     ],
     [
-      "esp:GPIO15",
+      "esp:15",
       "tft:CS",
       "orange",
       [
@@ -60,7 +62,7 @@
       ]
     ],
     [
-      "esp:GPIO4",
+      "esp:4",
       "tft:DC",
       "orange",
       [
@@ -68,7 +70,7 @@
       ]
     ],
     [
-      "esp:GPIO5",
+      "esp:5",
       "tft:RESET",
       "orange",
       [

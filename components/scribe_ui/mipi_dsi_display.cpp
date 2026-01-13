@@ -1,5 +1,6 @@
 #include "mipi_dsi_display.h"
 #include "../scribe_hw/tab5_io_expander.h"
+#include "sdkconfig.h"
 #include <driver/ledc.h>
 #include <esp_err.h>
 #include <esp_heap_caps.h>
@@ -28,6 +29,7 @@ static struct {
 
     // SPI device handle (if using SPI)
     spi_device_handle_t spi_handle;
+    spi_host_device_t spi_host;
 
     // DSI handles
     esp_lcd_dsi_bus_handle_t dsi_bus;
@@ -49,6 +51,7 @@ static struct {
     .current_orientation = Orientation::PORTRAIT,
     .use_spi = true,
     .spi_handle = nullptr,
+    .spi_host = SPI2_HOST,
     .dsi_bus = nullptr,
     .dsi_io = nullptr,
     .dsi_panel = nullptr,
@@ -236,7 +239,18 @@ static esp_err_t spiWrite(const uint8_t* data, size_t len, bool is_data) {
     t.length = len * 8;  // Length in bits
     t.tx_buffer = data;
 
-    return spi_device_polling_transmit(state.spi_handle, &t);
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
+    if (state.config.cs_pin != GPIO_NUM_NC) {
+        gpio_set_level(state.config.cs_pin, 0);
+    }
+#endif
+    esp_err_t ret = spi_device_polling_transmit(state.spi_handle, &t);
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
+    if (state.config.cs_pin != GPIO_NUM_NC) {
+        gpio_set_level(state.config.cs_pin, 1);
+    }
+#endif
+    return ret;
 }
 
 // Write command byte
@@ -547,6 +561,9 @@ static esp_err_t initSPI() {
     gpio_set_direction(state.config.reset_pin, GPIO_MODE_OUTPUT);
     if (state.config.cs_pin != GPIO_NUM_NC) {
         gpio_set_direction(state.config.cs_pin, GPIO_MODE_OUTPUT);
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
+        gpio_set_level(state.config.cs_pin, 1);
+#endif
     }
 
     // Configure SPI bus
@@ -558,7 +575,15 @@ static esp_err_t initSPI() {
     bus_cfg.quadhd_io_num = GPIO_NUM_NC;
     bus_cfg.max_transfer_sz = static_cast<int>(state.buffer_size);
 
-    esp_err_t ret = spi_bus_initialize(SPI2_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+    int dma_chan = SPI_DMA_CH_AUTO;
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
+    dma_chan = SPI_DMA_DISABLED;
+#endif
+    spi_host_device_t host = SPI2_HOST;
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
+    host = SPI3_HOST;
+#endif
+    esp_err_t ret = spi_bus_initialize(host, &bus_cfg, dma_chan);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
         return ret;
@@ -569,16 +594,20 @@ static esp_err_t initSPI() {
     dev_cfg.clock_speed_hz = state.config.spi_freq_mhz * 1000 * 1000;
     dev_cfg.mode = 0;  // SPI mode 0
     dev_cfg.spics_io_num = state.config.cs_pin;
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
+    dev_cfg.spics_io_num = GPIO_NUM_NC;
+#endif
     dev_cfg.queue_size = 1;
     dev_cfg.flags = SPI_DEVICE_NO_DUMMY;
 
-    ret = spi_bus_add_device(SPI2_HOST, &dev_cfg, &state.spi_handle);
+    ret = spi_bus_add_device(host, &dev_cfg, &state.spi_handle);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
-        spi_bus_free(SPI2_HOST);
+        spi_bus_free(host);
         return ret;
     }
 
+    state.spi_host = host;
     ESP_LOGI(TAG, "SPI interface initialized");
     return ESP_OK;
 }
@@ -888,7 +917,7 @@ void MIPIDSI::deinit() {
 
     if (state.spi_handle) {
         spi_bus_remove_device(state.spi_handle);
-        spi_bus_free(SPI2_HOST);
+        spi_bus_free(state.spi_host);
         state.spi_handle = nullptr;
     }
 

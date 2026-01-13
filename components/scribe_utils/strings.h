@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef __cplusplus
+#include_next <strings.h>
+#else
 #include <esp_err.h>
 #include <string>
 #include <unordered_map>
@@ -33,3 +36,4 @@ private:
     std::unordered_map<std::string, std::string> strings_;
     bool loaded_ = false;
 };
+#endif
