@@ -25,6 +25,9 @@ compile_commands.json
 *.o
 *.d
 *.dSYM
+test/test_piece_table
+test/test_undo_stack
+test/test_editor_core
 
 # OS
 .DS_Store
