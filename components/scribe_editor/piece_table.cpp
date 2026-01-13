@@ -33,9 +33,10 @@ void PieceTable::insert(size_t pos, const std::string& text) {
     size_t add_start = add_buffer_->length();
     add_buffer_->append(text);
 
-    // Insert new piece
+    // Insert new piece (before when inserting at piece start)
     Piece new_piece(Piece::Type::ADD, 0, add_start, text.length());
-    pieces_.insert(pieces_.begin() + ppos.piece_index + 1, new_piece);
+    size_t insert_index = ppos.piece_index + (ppos.offset_in_piece > 0 ? 1 : 0);
+    pieces_.insert(pieces_.begin() + insert_index, new_piece);
 
     total_length_ += text.length();
 }
@@ -74,8 +75,8 @@ std::string PieceTable::getText() const {
 }
 
 std::string PieceTable::getTextRange(size_t start, size_t end) const {
-    if (start >= end) return "";
     if (end > total_length_) end = total_length_;
+    if (start >= end) return "";
 
     std::string result;
     result.reserve(end - start);

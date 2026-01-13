@@ -1,26 +1,33 @@
 // Unit tests for Undo Stack implementation
-// Tests undo/redo functionality with commands
+// Tests undo/redo functionality using Command pattern
 
 #include <unity.h>
-#include "../components/scribe_editor/undo_stack.h"
-#include "../components/scribe_editor/piece_table.h"
+#include "undo_stack.h"
+#include "piece_table.h"
 #include <string>
 
-// Test fixture
-static PieceTable* pt = nullptr;
-static UndoStack* undo = nullptr;
+// Unity test fixtures
+void setUp(void) {}
+void tearDown(void) {}
 
-void setUp(void) {
-    pt = new PieceTable();
-    pt->init();
-    undo = new UndoStack();
+// Helper to apply insert command
+void applyInsert(PieceTable* table, const Command& cmd) {
+    table->insert(cmd.position, cmd.text);
 }
 
-void tearDown(void) {
-    delete undo;
-    delete pt;
-    pt = nullptr;
-    undo = nullptr;
+// Helper to apply delete command
+void applyDelete(PieceTable* table, const Command& cmd) {
+    table->remove(cmd.position, cmd.position + cmd.length);
+}
+
+// Helper to undo insert
+void undoInsert(PieceTable* table, const Command& cmd) {
+    table->remove(cmd.position, cmd.position + cmd.length);
+}
+
+// Helper to undo delete (restore deleted text)
+void undoDelete(PieceTable* table, const Command& cmd) {
+    table->insert(cmd.position, cmd.text);
 }
 
 // ============================================================================
@@ -28,48 +35,59 @@ void tearDown(void) {
 // ============================================================================
 
 void test_undo_single_insert(void) {
-    pt->insert(0, 'a');
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    undo->saveState(pt);
+    pt.insert(0, "a");
+    undo.push(Command{CommandType::INSERT, 0, "a", 1});
 
-    pt->insert(1, 'b');
+    pt.insert(1, "b");
+    undo.push(Command{CommandType::INSERT, 1, "b", 1});
 
-    undo->undo(pt);
-
-    TEST_ASSERT_EQUAL_STRING("a", pt->getText().c_str());
+    // Undo the insert of "b" at position 1
+    Command undo_cmd = undo.undo();
+    undoInsert(&pt, undo_cmd);
+    TEST_ASSERT_EQUAL_STRING("a", pt.getText().c_str());
 }
 
 void test_undo_multiple_inserts(void) {
-    pt->insert(0, 'a');
-    undo->saveState(pt);
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    pt->insert(1, 'b');
-    undo->saveState(pt);
+    pt.insert(0, "a");
+    undo.push(Command{CommandType::INSERT, 0, "a", 1});
 
-    pt->insert(2, 'c');
-    undo->saveState(pt);
+    pt.insert(1, "b");
+    undo.push(Command{CommandType::INSERT, 1, "b", 1});
 
-    // Undo to "ab"
-    undo->undo(pt);
-    TEST_ASSERT_EQUAL_STRING("ab", pt->getText().c_str());
+    pt.insert(2, "c");
+    undo.push(Command{CommandType::INSERT, 2, "c", 1});
 
-    // Undo to "a"
-    undo->undo(pt);
-    TEST_ASSERT_EQUAL_STRING("a", pt->getText().c_str());
+    Command cmd = undo.undo();
+    undoInsert(&pt, cmd);
+    TEST_ASSERT_EQUAL_STRING("ab", pt.getText().c_str());
+
+    cmd = undo.undo();
+    undoInsert(&pt, cmd);
+    TEST_ASSERT_EQUAL_STRING("a", pt.getText().c_str());
 }
 
 void test_undo_delete(void) {
-    pt->insert(0, 'a');
-    pt->insert(1, 'b');
-    pt->insert(2, 'c');
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    undo->saveState(pt);
+    pt.insert(0, "abc");
+    undo.push(Command{CommandType::INSERT, 0, "abc", 3});
 
-    pt->erase(1, 1);  // Delete 'b'
+    pt.remove(1, 2);
+    undo.push(Command{CommandType::DELETE, 1, "b", 1});
 
-    undo->undo(pt);
-
-    TEST_ASSERT_EQUAL_STRING("abc", pt->getText().c_str());
+    Command cmd = undo.undo();
+    undoDelete(&pt, cmd);
+    TEST_ASSERT_EQUAL_STRING("abc", pt.getText().c_str());
 }
 
 // ============================================================================
@@ -77,42 +95,52 @@ void test_undo_delete(void) {
 // ============================================================================
 
 void test_redo_after_undo(void) {
-    pt->insert(0, 'a');
-    undo->saveState(pt);
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    pt->insert(1, 'b');
-    undo->saveState(pt);
+    pt.insert(0, "a");
+    undo.push(Command{CommandType::INSERT, 0, "a", 1});
 
-    // Undo
-    undo->undo(pt);
-    TEST_ASSERT_EQUAL_STRING("a", pt->getText().c_str());
+    pt.insert(1, "b");
+    undo.push(Command{CommandType::INSERT, 1, "b", 1});
 
-    // Redo
-    undo->redo(pt);
-    TEST_ASSERT_EQUAL_STRING("ab", pt->getText().c_str());
+    Command cmd = undo.undo();
+    undoInsert(&pt, cmd);
+    TEST_ASSERT_EQUAL_STRING("a", pt.getText().c_str());
+
+    Command redo_cmd = undo.redo();
+    applyInsert(&pt, redo_cmd);
+    TEST_ASSERT_EQUAL_STRING("ab", pt.getText().c_str());
 }
 
 void test_redo_multiple(void) {
-    pt->insert(0, 'a');
-    undo->saveState(pt);
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    pt->insert(1, 'b');
-    undo->saveState(pt);
+    pt.insert(0, "a");
+    undo.push(Command{CommandType::INSERT, 0, "a", 1});
 
-    pt->insert(2, 'c');
-    undo->saveState(pt);
+    pt.insert(1, "b");
+    undo.push(Command{CommandType::INSERT, 1, "b", 1});
 
-    // Undo twice
-    undo->undo(pt);
-    undo->undo(pt);
+    pt.insert(2, "c");
+    undo.push(Command{CommandType::INSERT, 2, "c", 1});
 
-    TEST_ASSERT_EQUAL_STRING("a", pt->getText().c_str());
+    Command cmd = undo.undo();
+    undoInsert(&pt, cmd);
+    cmd = undo.undo();
+    undoInsert(&pt, cmd);
 
-    // Redo twice
-    undo->redo(pt);
-    undo->redo(pt);
+    TEST_ASSERT_EQUAL_STRING("a", pt.getText().c_str());
 
-    TEST_ASSERT_EQUAL_STRING("abc", pt->getText().c_str());
+    Command redo_cmd = undo.redo();
+    applyInsert(&pt, redo_cmd);
+    redo_cmd = undo.redo();
+    applyInsert(&pt, redo_cmd);
+
+    TEST_ASSERT_EQUAL_STRING("abc", pt.getText().c_str());
 }
 
 // ============================================================================
@@ -120,44 +148,46 @@ void test_redo_multiple(void) {
 // ============================================================================
 
 void test_undo_empty_stack(void) {
-    pt->insert(0, 'a');
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    // Try to undo with empty stack
-    undo->undo(pt);
-
-    // Should still be "a"
-    TEST_ASSERT_EQUAL_STRING("a", pt->getText().c_str());
+    pt.insert(0, "a");
+    TEST_ASSERT_FALSE(undo.canUndo());
+    TEST_ASSERT_EQUAL_STRING("a", pt.getText().c_str());
 }
 
 void test_redo_empty_stack(void) {
-    pt->insert(0, 'a');
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    // Try to redo with empty redo stack
-    undo->redo(pt);
-
-    // Should still be "a"
-    TEST_ASSERT_EQUAL_STRING("a", pt->getText().c_str());
+    pt.insert(0, "a");
+    TEST_ASSERT_FALSE(undo.canRedo());
+    TEST_ASSERT_EQUAL_STRING("a", pt.getText().c_str());
 }
 
 void test_new_action_clears_redo(void) {
-    pt->insert(0, 'a');
-    undo->saveState(pt);
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    pt->insert(1, 'b');
-    undo->saveState(pt);
+    pt.insert(0, "a");
+    undo.push(Command{CommandType::INSERT, 0, "a", 1});
 
-    // Undo
-    undo->undo(pt);
-    TEST_ASSERT_EQUAL_STRING("a", pt->getText().c_str());
+    pt.insert(1, "b");
+    undo.push(Command{CommandType::INSERT, 1, "b", 1});
 
-    // New action
-    pt->insert(1, 'x');
-    undo->saveState(pt);
+    Command cmd = undo.undo();
+    undoInsert(&pt, cmd);
+    TEST_ASSERT_EQUAL_STRING("a", pt.getText().c_str());
+    TEST_ASSERT_TRUE(undo.canRedo());
 
-    // Redo should be cleared
-    undo->redo(pt);
+    pt.insert(1, "x");
+    undo.push(Command{CommandType::INSERT, 1, "x", 1});
 
-    TEST_ASSERT_EQUAL_STRING("ax", pt->getText().c_str());
+    TEST_ASSERT_EQUAL_STRING("ax", pt.getText().c_str());
+    TEST_ASSERT_FALSE(undo.canRedo());
 }
 
 // ============================================================================
@@ -165,43 +195,55 @@ void test_new_action_clears_redo(void) {
 // ============================================================================
 
 void test_can_undo(void) {
-    TEST_ASSERT_FALSE(undo->canUndo());
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    pt->insert(0, 'a');
-    undo->saveState(pt);
+    TEST_ASSERT_FALSE(undo.canUndo());
 
-    TEST_ASSERT_TRUE(undo->canUndo());
+    pt.insert(0, "a");
+    undo.push(Command{CommandType::INSERT, 0, "a", 1});
+
+    TEST_ASSERT_TRUE(undo.canUndo());
 }
 
 void test_can_redo(void) {
-    TEST_ASSERT_FALSE(undo->canRedo());
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    pt->insert(0, 'a');
-    undo->saveState(pt);
+    TEST_ASSERT_FALSE(undo.canRedo());
 
-    pt->insert(1, 'b');
-    undo->saveState(pt);
+    pt.insert(0, "a");
+    undo.push(Command{CommandType::INSERT, 0, "a", 1});
 
-    undo->undo(pt);
+    pt.insert(1, "b");
+    undo.push(Command{CommandType::INSERT, 1, "b", 1});
 
-    TEST_ASSERT_TRUE(undo->canRedo());
+    undo.undo();
+
+    TEST_ASSERT_TRUE(undo.canRedo());
 }
 
 void test_clear(void) {
-    pt->insert(0, 'a');
-    undo->saveState(pt);
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    pt->insert(1, 'b');
-    undo->saveState(pt);
+    pt.insert(0, "a");
+    undo.push(Command{CommandType::INSERT, 0, "a", 1});
 
-    undo->undo(pt);
+    pt.insert(1, "b");
+    undo.push(Command{CommandType::INSERT, 1, "b", 1});
 
-    TEST_ASSERT_TRUE(undo->canRedo());
+    undo.undo();
 
-    undo->clear();
+    TEST_ASSERT_TRUE(undo.canRedo());
 
-    TEST_ASSERT_FALSE(undo->canUndo());
-    TEST_ASSERT_FALSE(undo->canRedo());
+    undo.clear();
+
+    TEST_ASSERT_FALSE(undo.canUndo());
+    TEST_ASSERT_FALSE(undo.canRedo());
 }
 
 // ============================================================================
@@ -209,22 +251,23 @@ void test_clear(void) {
 // ============================================================================
 
 void test_undo_large_text(void) {
-    // Insert 100 chars
-    for (int i = 0; i < 100; i++) {
-        pt->insert(i, 'a');
-    }
-    undo->saveState(pt);
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    // Insert 100 more
-    for (int i = 100; i < 200; i++) {
-        pt->insert(i, 'b');
-    }
+    std::string text1(100, 'a');
+    pt.insert(0, text1);
+    undo.push(Command{CommandType::INSERT, 0, text1, 100});
 
-    TEST_ASSERT_EQUAL(200, pt->length());
+    std::string text2(100, 'b');
+    pt.insert(100, text2);
 
-    undo->undo(pt);
+    TEST_ASSERT_EQUAL(200, pt.length());
 
-    TEST_ASSERT_EQUAL(100, pt->length());
+    Command cmd = undo.undo();
+    undoInsert(&pt, cmd);
+
+    TEST_ASSERT_EQUAL(100, pt.length());
 }
 
 // ============================================================================
@@ -232,69 +275,66 @@ void test_undo_large_text(void) {
 // ============================================================================
 
 void test_complex_sequence(void) {
-    // Initial: "abc"
-    pt->insert(0, 'a');
-    pt->insert(1, 'b');
-    pt->insert(2, 'c');
-    undo->saveState(pt);
+    PieceTable pt;
+    pt.load("");
+    UndoStack undo;
 
-    // Insert: "abcd"
-    pt->insert(3, 'd');
-    undo->saveState(pt);
+    pt.insert(0, "abc");
+    undo.push(Command{CommandType::INSERT, 0, "abc", 3});
 
-    // Delete: "abd"
-    pt->erase(2, 1);
-    undo->saveState(pt);
+    pt.insert(3, "d");
+    undo.push(Command{CommandType::INSERT, 3, "d", 1});
 
-    // Insert: "abXe"
-    pt->insert(2, 'X');
-    pt->insert(3, 'e');
-    undo->saveState(pt);
+    pt.remove(2, 3);
+    undo.push(Command{CommandType::DELETE, 2, "c", 1});
 
-    TEST_ASSERT_EQUAL_STRING("abXe", pt->getText().c_str());
+    pt.insert(2, "X");
+    undo.push(Command{CommandType::INSERT, 2, "X", 1});
 
-    // Undo all
-    undo->undo(pt);  // -> "abd"
-    undo->undo(pt);  // -> "abcd"
-    undo->undo(pt);  // -> "abc"
+    pt.insert(4, "e");  // position 4 to put 'e' after 'd'
+    undo.push(Command{CommandType::INSERT, 4, "e", 1});
 
-    TEST_ASSERT_EQUAL_STRING("abc", pt->getText().c_str());
+    TEST_ASSERT_EQUAL_STRING("abXde", pt.getText().c_str());
 
-    // Redo all
-    undo->redo(pt);  // -> "abcd"
-    undo->redo(pt);  // -> "abd"
-    undo->redo(pt);  // -> "abXe"
+    Command cmd = undo.undo();
+    undoInsert(&pt, cmd);
+    cmd = undo.undo();
+    undoInsert(&pt, cmd);
+    cmd = undo.undo();
+    undoDelete(&pt, cmd);
+    cmd = undo.undo();
+    undoInsert(&pt, cmd);
 
-    TEST_ASSERT_EQUAL_STRING("abXe", pt->getText().c_str());
+    TEST_ASSERT_EQUAL_STRING("abc", pt.getText().c_str());
+
+    Command redo_cmd = undo.redo();
+    applyInsert(&pt, redo_cmd);
+    redo_cmd = undo.redo();
+    applyDelete(&pt, redo_cmd);  // redo a delete by applying it again
+    redo_cmd = undo.redo();
+    applyInsert(&pt, redo_cmd);
+    redo_cmd = undo.redo();
+    applyInsert(&pt, redo_cmd);
+
+    TEST_ASSERT_EQUAL_STRING("abXde", pt.getText().c_str());
 }
 
 // Main test runner
-int app_main(void) {
+int main(void) {
     UNITY_BEGIN();
 
-    // Basic undo tests
     RUN_TEST(test_undo_single_insert);
     RUN_TEST(test_undo_multiple_inserts);
     RUN_TEST(test_undo_delete);
-
-    // Redo tests
     RUN_TEST(test_redo_after_undo);
     RUN_TEST(test_redo_multiple);
-
-    // Edge cases
     RUN_TEST(test_undo_empty_stack);
     RUN_TEST(test_redo_empty_stack);
     RUN_TEST(test_new_action_clears_redo);
-
-    // State tests
     RUN_TEST(test_can_undo);
     RUN_TEST(test_can_redo);
     RUN_TEST(test_clear);
-
-    // Large text tests
     RUN_TEST(test_undo_large_text);
-
-    // Complex sequences
     RUN_TEST(test_complex_sequence);
 
     return UNITY_END();
