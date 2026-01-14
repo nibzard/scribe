@@ -161,6 +161,7 @@ void AIAssist::generationTask(void* arg) {
 
     ai->stream_error_seen_ = false;
     ai->stream_error_.clear();
+    ai->sse_buffer_.clear();
 
     // Build JSON request
     std::string json_body = ai->buildRequest(req->text, req->style, req->custom_instruction);
@@ -175,6 +176,16 @@ void AIAssist::generationTask(void* arg) {
     config.event_handler = AIAssist::httpEventHandler;
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client) {
+        if (ai->complete_cb_) {
+            ai->complete_cb_(false, "Failed to initialize HTTP client");
+        }
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        ai->generating_.store(false);
+        delete req;
+        vTaskDelete(nullptr);
+        return;
+    }
 
     // Set headers
     esp_http_client_set_header(client, "Content-Type", "application/json");
@@ -306,55 +317,62 @@ void AIAssist::parseSSE(const std::string& data) {
         return;
     }
 
-    // SSE format: "data: {...}\n\n"
-    size_t pos = 0;
-    while ((pos = data.find("data: ", pos)) != std::string::npos) {
-        pos += 6;  // Skip "data: "
+    sse_buffer_.append(data);
 
-        // Find end of line
-        size_t end = data.find('\n', pos);
-        if (end == std::string::npos) {
-            end = data.find('\r', pos);
+    size_t newline_pos = 0;
+    while ((newline_pos = sse_buffer_.find('\n')) != std::string::npos) {
+        std::string line = sse_buffer_.substr(0, newline_pos);
+        sse_buffer_.erase(0, newline_pos + 1);
+
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
         }
-        if (end == std::string::npos) {
-            break;
+        if (line.rfind("data:", 0) != 0) {
+            continue;
         }
 
-        std::string json_str = data.substr(pos, end - pos);
+        size_t payload_start = 5;
+        if (line.size() > payload_start && line[payload_start] == ' ') {
+            payload_start++;
+        }
 
-        // Check for [DONE] marker
+        std::string json_str = line.substr(payload_start);
+        if (json_str.empty()) {
+            continue;
+        }
         if (json_str == "[DONE]") {
+            sse_buffer_.clear();
             break;
         }
 
-        // Parse JSON
         cJSON* root = cJSON_Parse(json_str.c_str());
-        if (root) {
-            cJSON* type = cJSON_GetObjectItem(root, "type");
-            if (type && cJSON_IsString(type)) {
-                if (strcmp(type->valuestring, "response.output_text.delta") == 0) {
-                    cJSON* delta = cJSON_GetObjectItem(root, "delta");
-                    if (delta && cJSON_IsString(delta)) {
-                        if (stream_cb_) {
-                            stream_cb_(delta->valuestring);
-                        }
-                    }
-                } else if (strcmp(type->valuestring, "response.error") == 0) {
-                    cJSON* error = cJSON_GetObjectItem(root, "error");
-                    cJSON* message = error ? cJSON_GetObjectItem(error, "message") : nullptr;
-                    if (message && cJSON_IsString(message)) {
-                        stream_error_seen_ = true;
-                        stream_error_ = message->valuestring;
-                    } else {
-                        stream_error_seen_ = true;
-                        stream_error_ = "AI request failed";
+        if (!root) {
+            continue;
+        }
+
+        cJSON* type = cJSON_GetObjectItem(root, "type");
+        if (type && cJSON_IsString(type)) {
+            if (strcmp(type->valuestring, "response.output_text.delta") == 0) {
+                cJSON* delta = cJSON_GetObjectItem(root, "delta");
+                if (delta && cJSON_IsString(delta)) {
+                    if (stream_cb_) {
+                        stream_cb_(delta->valuestring);
                     }
                 }
+            } else if (strcmp(type->valuestring, "response.error") == 0) {
+                cJSON* error = cJSON_GetObjectItem(root, "error");
+                cJSON* message = error ? cJSON_GetObjectItem(error, "message") : nullptr;
+                if (message && cJSON_IsString(message)) {
+                    stream_error_seen_ = true;
+                    stream_error_ = message->valuestring;
+                } else {
+                    stream_error_seen_ = true;
+                    stream_error_ = "AI request failed";
+                }
             }
-            cJSON_Delete(root);
         }
 
-        pos = end + 1;
+        cJSON_Delete(root);
     }
 }
 

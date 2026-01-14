@@ -90,6 +90,7 @@ private:
     std::atomic<bool> cancel_flag_{false};
     bool stream_error_seen_ = false;
     std::string stream_error_;
+    std::string sse_buffer_;
 
     // HTTP event handler for streaming
     static esp_err_t httpEventHandler(esp_http_client_event_t* evt);

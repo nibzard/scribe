@@ -1,6 +1,7 @@
 #include "editor_core.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <sstream>
 
 EditorCore::EditorCore() : mode_(EditorMode::DRAFT) {
@@ -45,9 +46,15 @@ void EditorCore::moveCursor(size_t pos) {
 }
 
 void EditorCore::moveCursorRelative(int delta) {
-    size_t new_pos = cursor_.pos + delta;
-    if (delta < 0 && new_pos > cursor_.pos) new_pos = 0;  // Underflow check
-    moveCursor(new_pos);
+    int64_t new_pos = static_cast<int64_t>(cursor_.pos) + delta;
+    if (new_pos < 0) {
+        new_pos = 0;
+    }
+    size_t length = piece_table_.length();
+    if (new_pos > static_cast<int64_t>(length)) {
+        new_pos = static_cast<int64_t>(length);
+    }
+    moveCursor(static_cast<size_t>(new_pos));
 }
 
 void EditorCore::moveCursorLine(int delta) {
@@ -55,15 +62,20 @@ void EditorCore::moveCursorLine(int delta) {
 }
 
 void EditorCore::moveCursorRelativeSelect(int delta) {
-    size_t new_pos = cursor_.pos + delta;
-    if (delta < 0 && new_pos > cursor_.pos) new_pos = 0;  // Underflow check
-    if (new_pos > piece_table_.length()) new_pos = piece_table_.length();
+    int64_t new_pos = static_cast<int64_t>(cursor_.pos) + delta;
+    if (new_pos < 0) {
+        new_pos = 0;
+    }
+    size_t length = piece_table_.length();
+    if (new_pos > static_cast<int64_t>(length)) {
+        new_pos = static_cast<int64_t>(length);
+    }
 
     if (!hasSelection()) {
         selection_.start = cursor_.pos;
     }
-    selection_.end = new_pos;
-    cursor_.pos = new_pos;
+    selection_.end = static_cast<size_t>(new_pos);
+    cursor_.pos = selection_.end;
     updateCursorLineCol();
 }
 

@@ -333,13 +333,19 @@ extern "C" void app_main(void)
         // Show first run tip in UI task
         Event ev;
         ev.type = EventType::SHOW_FIRST_RUN;
-        xQueueSend(g_event_queue, &ev, 0);
+        if (xQueueSend(g_event_queue, &ev, 0) != pdTRUE) {
+            ESP_LOGW(TAG, "Failed to queue first-run event");
+        }
     } else {
         ESP_LOGI(TAG, "Loading last project: %s", last_id.c_str());
         Event ev;
         ev.type = EventType::PROJECT_OPEN;
         ev.data = new std::string(last_id);
-        xQueueSend(g_event_queue, &ev, 0);
+        if (xQueueSend(g_event_queue, &ev, 0) != pdTRUE) {
+            ESP_LOGW(TAG, "Failed to queue project open event");
+            delete static_cast<std::string*>(ev.data);
+            ev.data = nullptr;
+        }
 
         if (checkRecoveryNeeded(last_id)) {
             ESP_LOGI(TAG, "Recovery files found - will prompt user");
@@ -350,7 +356,11 @@ extern "C" void app_main(void)
             Event rev;
             rev.type = EventType::SHOW_RECOVERY;
             rev.data = payload;
-            xQueueSend(g_event_queue, &rev, 0);
+            if (xQueueSend(g_event_queue, &rev, 0) != pdTRUE) {
+                ESP_LOGW(TAG, "Failed to queue recovery event");
+                delete payload;
+                rev.data = nullptr;
+            }
         }
     }
 
@@ -510,6 +520,7 @@ static void ui_task(void* arg) {
         TickType_t current_time = xTaskGetTickCount();
         if (has_unsaved_changes && (current_time - last_keypress_time >= autosave_delay)) {
             // Trigger autosave
+            bool autosave_queued = false;
             if (g_editor) {
                 std::string project_id = ui.getCurrentProjectId();
                 if (!project_id.empty()) {
@@ -520,12 +531,20 @@ static void ui_task(void* arg) {
                     };
                     if (xQueueSend(g_storage_queue, &req, 0) != pdTRUE) {
                         delete req;
+                        ESP_LOGW(TAG, "Autosave queue full; will retry on next idle window");
                     } else {
                         ui.setSaving(true);
+                        autosave_queued = true;
                     }
+                } else {
+                    ESP_LOGW(TAG, "Autosave skipped; no active project");
                 }
+            }
+            if (autosave_queued) {
                 has_unsaved_changes = false;
                 ESP_LOGI(TAG, "Autosave triggered");
+            } else {
+                last_keypress_time = current_time;
             }
         }
 
@@ -566,7 +585,9 @@ static void storage_task(void* arg) {
             if (!storage.isMounted()) {
                 Event ev;
                 ev.type = EventType::STORAGE_ERROR;
-                xQueueSend(g_event_queue, &ev, 0);
+                if (xQueueSend(g_event_queue, &ev, portMAX_DELAY) != pdTRUE) {
+                    ESP_LOGW(TAG, "Failed to queue storage error event");
+                }
                 delete req;
                 continue;
             }
@@ -598,12 +619,16 @@ static void storage_task(void* arg) {
                 Event ev;
                 ev.type = EventType::STORAGE_SAVE_DONE;
                 ev.int_param = req->manual ? 1 : 0;
-                xQueueSend(g_event_queue, &ev, 0);
+                if (xQueueSend(g_event_queue, &ev, portMAX_DELAY) != pdTRUE) {
+                    ESP_LOGW(TAG, "Failed to queue storage save event");
+                }
             } else {
                 Event ev;
                 ev.type = EventType::STORAGE_ERROR;
                 ev.int_param = req->manual ? 1 : 0;
-                xQueueSend(g_event_queue, &ev, 0);
+                if (xQueueSend(g_event_queue, &ev, portMAX_DELAY) != pdTRUE) {
+                    ESP_LOGW(TAG, "Failed to queue storage error event");
+                }
             }
 
             delete req;
