@@ -4,6 +4,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <lvgl.h>
+#include <functional>
 #include <string>
 #include <vector>
 #include "key_event.h"
@@ -63,6 +64,11 @@ public:
 
     // Open a project by ID
     void openProject(const std::string& id);
+
+    // Override project open behavior (e.g., save-before-switch)
+    void setProjectOpenRequestCallback(std::function<void(const std::string& id)> cb) {
+        project_open_request_cb_ = cb;
+    }
 
     // Show find bar
     void showFind();
@@ -162,6 +168,7 @@ private:
     std::string current_project_name_;
     AppSettings settings_;
     int current_orientation_ = -1;
+    std::function<void(const std::string& id)> project_open_request_cb_;
 
     enum class ScreenType {
         Editor,

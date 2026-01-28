@@ -1,5 +1,6 @@
 #include "screen_recovery.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_RECOVERY";
@@ -18,7 +19,7 @@ void ScreenRecovery::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
@@ -29,7 +30,7 @@ void ScreenRecovery::createWidgets() {
     lv_label_set_text(icon, LV_SYMBOL_WARNING);
     lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 40);
     lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(icon, lv_color_hex(0xFF9800), 0);
+    lv_obj_set_style_text_color(icon, Theme::getColors().warning, 0);
 
     // Title
     lv_obj_t* title = lv_label_create(screen_);
@@ -55,6 +56,11 @@ void ScreenRecovery::createWidgets() {
     restore_btn_ = lv_button_create(screen_);
     lv_obj_set_size(restore_btn_, 140, 50);
     lv_obj_align(restore_btn_, LV_ALIGN_CENTER, -80, 60);
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(restore_btn_, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(restore_btn_, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(restore_btn_, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(restore_btn_, colors.text, LV_PART_MAIN);
 
     lv_obj_t* label = lv_label_create(restore_btn_);
     lv_label_set_text(label, Strings::getInstance().get("storage.recovery_restore"));
@@ -63,6 +69,10 @@ void ScreenRecovery::createWidgets() {
     keep_btn_ = lv_button_create(screen_);
     lv_obj_set_size(keep_btn_, 140, 50);
     lv_obj_align(keep_btn_, LV_ALIGN_CENTER, 80, 60);
+    lv_obj_set_style_bg_color(keep_btn_, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(keep_btn_, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(keep_btn_, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(keep_btn_, colors.text, LV_PART_MAIN);
 
     label = lv_label_create(keep_btn_);
     lv_label_set_text(label, Strings::getInstance().get("storage.recovery_keep"));
@@ -72,6 +82,18 @@ void ScreenRecovery::createWidgets() {
 
 void ScreenRecovery::show(const std::string& recovered_text) {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
+        const Theme::Colors& colors = Theme::getColors();
+        if (restore_btn_) {
+            lv_obj_set_style_bg_color(restore_btn_, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+            lv_obj_set_style_text_color(restore_btn_, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+            lv_obj_set_style_text_color(restore_btn_, colors.text, LV_PART_MAIN);
+        }
+        if (keep_btn_) {
+            lv_obj_set_style_bg_color(keep_btn_, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+            lv_obj_set_style_text_color(keep_btn_, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+            lv_obj_set_style_text_color(keep_btn_, colors.text, LV_PART_MAIN);
+        }
         lv_screen_load(screen_);
     }
 

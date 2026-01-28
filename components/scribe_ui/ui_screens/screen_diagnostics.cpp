@@ -7,6 +7,7 @@
 #include "../../scribe_storage/storage_manager.h"
 #include "../../scribe_storage/settings_store.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 #include <esp_chip_info.h>
 #include <esp_flash.h>
@@ -31,6 +32,10 @@ static const char* orientationLabel(int value) {
             return strings.get("settings.orientation_landscape");
         case 2:
             return strings.get("settings.orientation_portrait");
+        case 3:
+            return strings.get("settings.orientation_landscape_inverted");
+        case 4:
+            return strings.get("settings.orientation_portrait_inverted");
         default:
             return strings.get("settings.orientation_auto");
     }
@@ -50,7 +55,7 @@ void ScreenDiagnostics::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
@@ -66,6 +71,11 @@ void ScreenDiagnostics::createWidgets() {
     info_list_ = lv_list_create(screen_);
     lv_obj_set_size(info_list_, 380, 350);
     lv_obj_align(info_list_, LV_ALIGN_TOP_MID, 0, 60);
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(info_list_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(info_list_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(info_list_, colors.border, 0);
+    lv_obj_set_style_border_width(info_list_, 1, 0);
 
     // Add system info items
     char buf[128];
@@ -139,6 +149,14 @@ void ScreenDiagnostics::createWidgets() {
 
 void ScreenDiagnostics::show() {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
+        const Theme::Colors& colors = Theme::getColors();
+        if (info_list_) {
+            lv_obj_set_style_bg_color(info_list_, colors.fg, 0);
+            lv_obj_set_style_bg_opa(info_list_, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_color(info_list_, colors.border, 0);
+            lv_obj_set_style_border_width(info_list_, 1, 0);
+        }
         lv_screen_load(screen_);
         refreshData();
     }
@@ -287,7 +305,7 @@ bool ScreenDiagnostics::exportLogs() {
     fprintf(f, "\n");
 
     fprintf(f, "Settings\n");
-    fprintf(f, "Theme: %s\n", settings.dark_theme ? "dark" : "light");
+    fprintf(f, "Theme: %s\n", settings.theme_id.c_str());
     fprintf(f, "Font size: %d\n", settings.font_size);
     fprintf(f, "Keyboard layout: %d\n", settings.keyboard_layout);
     fprintf(f, "Auto-sleep: %d\n", settings.auto_sleep);

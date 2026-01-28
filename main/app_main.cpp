@@ -187,6 +187,16 @@ extern "C" void app_main(void)
     // Create editor instance
     g_editor = new EditorCore();
     ui.setEditor(g_editor);
+    ui.setProjectOpenRequestCallback([](const std::string& id) {
+        Event ev;
+        ev.type = EventType::PROJECT_SWITCH;
+        ev.data = new std::string(id);
+        if (xQueueSend(g_event_queue, &ev, 0) != pdTRUE) {
+            delete static_cast<std::string*>(ev.data);
+            ev.data = nullptr;
+            ESP_LOGW(TAG, "Failed to queue project switch event");
+        }
+    });
 
     // Set up keybinding callbacks
     g_keybindings.setMenuCallback([&ui]() {
@@ -415,8 +425,30 @@ static void ui_task(void* arg) {
     TickType_t last_keypress_time = xTaskGetTickCount();
     const TickType_t autosave_delay = pdMS_TO_TICKS(5000);  // 5 seconds idle
     const TickType_t ui_tick = pdMS_TO_TICKS(5);
-    bool has_unsaved_changes = false;
+    uint64_t last_saved_revision = 0;
+    uint64_t last_seen_revision = 0;
+    int inflight_saves = 0;
+    bool pending_project_switch = false;
+    std::string pending_project_id;
+    uint64_t pending_project_revision = 0;
     static bool sntp_started = false;
+
+    auto reset_save_state = [&]() {
+        if (g_editor) {
+            last_saved_revision = g_editor->getRevision();
+            last_seen_revision = last_saved_revision;
+        } else {
+            last_saved_revision = 0;
+            last_seen_revision = 0;
+        }
+        inflight_saves = 0;
+        pending_project_switch = false;
+        pending_project_id.clear();
+        pending_project_revision = 0;
+        ui.setSaving(false);
+    };
+
+    reset_save_state();
 
     // Start SNTP after UI task begins (TCP/IP is now ready)
     if (!sntp_started) {
@@ -454,7 +486,9 @@ static void ui_task(void* arg) {
 
                             if (ui.isEditorActive()) {
                                 last_keypress_time = xTaskGetTickCount();
-                                has_unsaved_changes = true;
+                                if (g_editor) {
+                                    last_seen_revision = g_editor->getRevision();
+                                }
                             }
                         }
                     }
@@ -479,7 +513,9 @@ static void ui_task(void* arg) {
                          (key_event.ctrl && (key_event.key == KeyEvent::Key::Z ||
                                              key_event.key == KeyEvent::Key::Y)))) {
                         last_keypress_time = xTaskGetTickCount();
-                        has_unsaved_changes = true;
+                        if (g_editor) {
+                            last_seen_revision = g_editor->getRevision();
+                        }
                     }
                     break;
                 }
@@ -509,20 +545,43 @@ static void ui_task(void* arg) {
                             delete req;
                             ui.showToast(Strings::getInstance().get("storage.write_error"));
                         } else {
+                            inflight_saves++;
                             ui.setSaving(true);
                         }
                     }
                     break;
                 }
-                case EventType::STORAGE_SAVE_DONE:
-                    ui.setSaving(false);
+                case EventType::STORAGE_SAVE_DONE: {
+                    if (event.u64_param > last_saved_revision) {
+                        last_saved_revision = event.u64_param;
+                    }
+                    if (inflight_saves > 0) {
+                        inflight_saves--;
+                    }
+                    ui.setSaving(inflight_saves > 0);
                     if (event.int_param == 1) {
                         ui.showToast(Strings::getInstance().get("hud.saved"));
                     }
+                    if (pending_project_switch && inflight_saves == 0 &&
+                        last_saved_revision >= pending_project_revision &&
+                        !pending_project_id.empty()) {
+                        ui.openProject(pending_project_id);
+                        reset_save_state();
+                    }
                     break;
+                }
                 case EventType::STORAGE_ERROR:
-                    ui.setSaving(false);
+                    if (inflight_saves > 0) {
+                        inflight_saves--;
+                    }
+                    ui.setSaving(inflight_saves > 0);
                     ui.showToast(Strings::getInstance().get("storage.write_error"));
+                    last_keypress_time = xTaskGetTickCount();
+                    if (pending_project_switch) {
+                        pending_project_switch = false;
+                        pending_project_id.clear();
+                        pending_project_revision = 0;
+                    }
                     break;
                 case EventType::BATTERY_LOW:
                     ui.showToast(Strings::getInstance().get("power.low_battery"));
@@ -530,11 +589,62 @@ static void ui_task(void* arg) {
                 case EventType::SHOW_FIRST_RUN:
                     ui.showFirstRun();
                     break;
+                case EventType::PROJECT_SWITCH: {
+                    std::string* project_id = static_cast<std::string*>(event.data);
+                    if (!project_id) {
+                        break;
+                    }
+                    std::string target_id = *project_id;
+                    delete project_id;
+
+                    if (target_id.empty() || target_id == ui.getCurrentProjectId()) {
+                        break;
+                    }
+
+                    if (!g_editor || ui.getCurrentProjectId().empty()) {
+                        ui.openProject(target_id);
+                        reset_save_state();
+                        break;
+                    }
+
+                    uint64_t current_rev = g_editor->getRevision();
+                    bool dirty = current_rev > last_saved_revision;
+
+                    if (!dirty && inflight_saves == 0) {
+                        ui.openProject(target_id);
+                        reset_save_state();
+                        break;
+                    }
+
+                    pending_project_switch = true;
+                    pending_project_id = target_id;
+                    pending_project_revision = current_rev;
+
+                    if (dirty) {
+                        EditorSnapshot snap = g_editor->createSnapshot(ui.getCurrentProjectId());
+                        StorageRequest* req = new StorageRequest{
+                            snap,
+                            true
+                        };
+                        if (xQueueSend(g_storage_queue, &req, 0) != pdTRUE) {
+                            delete req;
+                            ui.showToast(Strings::getInstance().get("storage.write_error"));
+                            pending_project_switch = false;
+                            pending_project_id.clear();
+                            pending_project_revision = 0;
+                        } else {
+                            inflight_saves++;
+                            ui.setSaving(true);
+                        }
+                    }
+                    break;
+                }
                 case EventType::PROJECT_OPEN: {
                     std::string* project_id = static_cast<std::string*>(event.data);
                     if (project_id) {
                         ui.openProject(*project_id);
                         delete project_id;
+                        reset_save_state();
                     }
                     break;
                 }
@@ -554,9 +664,18 @@ static void ui_task(void* arg) {
             }
         }
 
+        if (g_editor) {
+            uint64_t current_rev = g_editor->getRevision();
+            if (current_rev != last_seen_revision) {
+                last_seen_revision = current_rev;
+                last_keypress_time = xTaskGetTickCount();
+            }
+        }
+
         // Check for autosave trigger (every 5 seconds of idle time)
         TickType_t current_time = xTaskGetTickCount();
-        if (has_unsaved_changes && (current_time - last_keypress_time >= autosave_delay)) {
+        bool dirty = last_seen_revision > last_saved_revision;
+        if (dirty && inflight_saves == 0 && (current_time - last_keypress_time >= autosave_delay)) {
             // Trigger autosave
             bool autosave_queued = false;
             if (g_editor) {
@@ -574,6 +693,7 @@ static void ui_task(void* arg) {
                         if (use_lvgl_port) {
                             lvgl_port_lock(0);
                         }
+                        inflight_saves++;
                         ui.setSaving(true);
                         if (use_lvgl_port) {
                             lvgl_port_unlock();
@@ -585,7 +705,6 @@ static void ui_task(void* arg) {
                 }
             }
             if (autosave_queued) {
-                has_unsaved_changes = false;
                 ESP_LOGI(TAG, "Autosave triggered");
             } else {
                 last_keypress_time = current_time;
@@ -661,6 +780,7 @@ static void storage_task(void* arg) {
             if (!storage.isMounted()) {
                 Event ev;
                 ev.type = EventType::STORAGE_ERROR;
+                ev.u64_param = req->snapshot.revision;
                 if (xQueueSend(g_event_queue, &ev, portMAX_DELAY) != pdTRUE) {
                     ESP_LOGW(TAG, "Failed to queue storage error event");
                 }
@@ -675,7 +795,8 @@ static void storage_task(void* arg) {
                 .project_id = req->snapshot.project_id,
                 .table = req->snapshot.table,
                 .word_count = req->snapshot.word_count,
-                .timestamp = static_cast<uint64_t>(time(nullptr))
+                .timestamp = static_cast<uint64_t>(time(nullptr)),
+                .revision = req->snapshot.revision
             };
 
             esp_err_t ret = req->manual
@@ -695,6 +816,7 @@ static void storage_task(void* arg) {
                 Event ev;
                 ev.type = EventType::STORAGE_SAVE_DONE;
                 ev.int_param = req->manual ? 1 : 0;
+                ev.u64_param = req->snapshot.revision;
                 if (xQueueSend(g_event_queue, &ev, portMAX_DELAY) != pdTRUE) {
                     ESP_LOGW(TAG, "Failed to queue storage save event");
                 }
@@ -702,6 +824,7 @@ static void storage_task(void* arg) {
                 Event ev;
                 ev.type = EventType::STORAGE_ERROR;
                 ev.int_param = req->manual ? 1 : 0;
+                ev.u64_param = req->snapshot.revision;
                 if (xQueueSend(g_event_queue, &ev, portMAX_DELAY) != pdTRUE) {
                     ESP_LOGW(TAG, "Failed to queue storage error event");
                 }

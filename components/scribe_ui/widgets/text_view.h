@@ -44,6 +44,7 @@ public:
     void setFont(const lv_font_t* font);
     void setLineHeight(int height);
     void setViewportSize(int width, int height);
+    void applyTheme();
 
     // Get line info
     size_t getLineCount() const { return line_cache_.size(); }

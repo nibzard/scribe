@@ -1,5 +1,6 @@
 #include "dialog_power_off.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_DIALOG_POWER_OFF";
@@ -23,8 +24,9 @@ void DialogPowerOff::createWidgets() {
     dialog_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(dialog_, 300, 150);
     lv_obj_center(dialog_);
-    lv_obj_set_style_bg_color(dialog_, lv_color_white(), 0);
-    lv_obj_set_style_border_color(dialog_, lv_color_hex(0x000000), 0);
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(dialog_, colors.fg, 0);
+    lv_obj_set_style_border_color(dialog_, colors.border, 0);
     lv_obj_set_style_border_width(dialog_, 2, 0);
     lv_obj_add_flag(dialog_, LV_OBJ_FLAG_HIDDEN);
 
@@ -72,6 +74,9 @@ void DialogPowerOff::createWidgets() {
 
 void DialogPowerOff::show() {
     if (dialog_) {
+        const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_style_bg_color(dialog_, colors.fg, 0);
+        lv_obj_set_style_border_color(dialog_, colors.border, 0);
         lv_obj_clear_flag(dialog_, LV_OBJ_FLAG_HIDDEN);
     }
 }

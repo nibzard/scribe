@@ -1,5 +1,6 @@
 #include "screen_export.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_EXPORT";
@@ -18,7 +19,7 @@ void ScreenExport::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
@@ -34,24 +35,33 @@ void ScreenExport::createWidgets() {
     btn_list_ = lv_list_create(screen_);
     lv_obj_set_size(btn_list_, 300, 250);
     lv_obj_align(btn_list_, LV_ALIGN_TOP_MID, 0, 90);
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(btn_list_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(btn_list_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(btn_list_, colors.border, 0);
+    lv_obj_set_style_border_width(btn_list_, 1, 0);
 
     buttons_.clear();
     types_.clear();
 
+    auto addOption = [&](const char* label, const char* type, const char* symbol) {
+        lv_obj_t* btn = lv_list_add_button(btn_list_, symbol, label);
+        lv_obj_set_style_bg_color(btn, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
+        buttons_.push_back(btn);
+        types_.push_back(type);
+    };
+
     // Send to Computer (highlighted - recommended)
-    buttons_.push_back(lv_list_add_button(btn_list_, LV_SYMBOL_WIFI,
-        Strings::getInstance().get("export.send_to_computer")));
-    types_.push_back("send_to_computer");
+    addOption(Strings::getInstance().get("export.send_to_computer"), "send_to_computer", LV_SYMBOL_WIFI);
 
     // Export to SD - .md (default)
-    buttons_.push_back(lv_list_add_button(btn_list_, LV_SYMBOL_SD_CARD,
-        Strings::getInstance().get("export.to_sd_md")));
-    types_.push_back("sd_md");
+    addOption(Strings::getInstance().get("export.to_sd_md"), "sd_md", LV_SYMBOL_SD_CARD);
 
     // Export to SD - .txt
-    buttons_.push_back(lv_list_add_button(btn_list_, LV_SYMBOL_FILE,
-        Strings::getInstance().get("export.to_sd_txt")));
-    types_.push_back("sd_txt");
+    addOption(Strings::getInstance().get("export.to_sd_txt"), "sd_txt", LV_SYMBOL_FILE);
 
     // Privacy notice
     privacy_label_ = lv_label_create(screen_);
@@ -59,12 +69,14 @@ void ScreenExport::createWidgets() {
     lv_obj_set_width(privacy_label_, 300);
     lv_label_set_text(privacy_label_, Strings::getInstance().get("export.privacy"));
     lv_obj_align(privacy_label_, LV_ALIGN_TOP_MID, 0, LV_VER_RES - 80);
+    lv_obj_set_style_text_color(privacy_label_, colors.text_secondary, 0);
 
     // Progress label (hidden initially)
     progress_label_ = lv_label_create(screen_);
     lv_label_set_text(progress_label_, "");
     lv_obj_align(progress_label_, LV_ALIGN_BOTTOM_MID, 0, -20);
     lv_obj_add_flag(progress_label_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_text_color(progress_label_, colors.text, 0);
 
     // Send to Computer instructions (hidden by default)
     instructions_body_ = lv_label_create(screen_);
@@ -74,20 +86,44 @@ void ScreenExport::createWidgets() {
     lv_obj_align(instructions_body_, LV_ALIGN_TOP_MID, 0, 120);
     lv_obj_set_style_text_align(instructions_body_, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_add_flag(instructions_body_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_text_color(instructions_body_, colors.text, 0);
 
     instructions_confirm_ = lv_label_create(screen_);
     lv_label_set_text(instructions_confirm_, Strings::getInstance().get("export.send_confirm"));
     lv_obj_align(instructions_confirm_, LV_ALIGN_TOP_MID, 0, 200);
     lv_obj_add_flag(instructions_confirm_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_text_color(instructions_confirm_, colors.text_secondary, 0);
 
     instructions_cancel_ = lv_label_create(screen_);
     lv_label_set_text(instructions_cancel_, Strings::getInstance().get("export.send_cancel"));
     lv_obj_align(instructions_cancel_, LV_ALIGN_TOP_MID, 0, 220);
     lv_obj_add_flag(instructions_cancel_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_text_color(instructions_cancel_, colors.text_secondary, 0);
 }
 
 void ScreenExport::show() {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
+        if (btn_list_) {
+            const Theme::Colors& colors = Theme::getColors();
+            lv_obj_set_style_bg_color(btn_list_, colors.fg, 0);
+            lv_obj_set_style_bg_opa(btn_list_, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_color(btn_list_, colors.border, 0);
+            lv_obj_set_style_border_width(btn_list_, 1, 0);
+            for (auto* btn : buttons_) {
+                if (!btn) continue;
+                lv_obj_set_style_bg_color(btn, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+                lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+                lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+                lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
+            }
+            if (title_label_) lv_obj_set_style_text_color(title_label_, colors.text, 0);
+            if (privacy_label_) lv_obj_set_style_text_color(privacy_label_, colors.text_secondary, 0);
+            if (progress_label_) lv_obj_set_style_text_color(progress_label_, colors.text, 0);
+            if (instructions_body_) lv_obj_set_style_text_color(instructions_body_, colors.text, 0);
+            if (instructions_confirm_) lv_obj_set_style_text_color(instructions_confirm_, colors.text_secondary, 0);
+            if (instructions_cancel_) lv_obj_set_style_text_color(instructions_cancel_, colors.text_secondary, 0);
+        }
         lv_screen_load(screen_);
         selected_index_ = 0;
         setMode(Mode::List);

@@ -8,10 +8,10 @@
 
 struct AppSettings {
     // Theme settings
-    bool dark_theme = false;
+    std::string theme_id = "dracula";
 
-    // Font size: 0=small, 1=medium, 2=large
-    int font_size = 1;
+    // Font size in pixels
+    int font_size = 16;
 
     // Keyboard layout (future expansion)
     int keyboard_layout = 0;  // 0=US
@@ -19,7 +19,8 @@ struct AppSettings {
     // Auto-sleep: 0=off, 1=5min, 2=15min, 3=30min
     int auto_sleep = 2;  // Default 15 minutes
 
-    // Display orientation: 0=auto (IMU), 1=landscape, 2=portrait
+    // Display orientation: 0=auto (IMU), 1=landscape, 2=portrait,
+    // 3=landscape inverted, 4=portrait inverted
     int display_orientation = 0;
 
     // WiFi enabled

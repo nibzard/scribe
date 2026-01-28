@@ -150,7 +150,7 @@ bool M5StackTab5::initialize_lcd() {
   } else if (detected_controller == DisplayController::ST7123 && lcd_handles_.panel == nullptr) {
     dpi_cfg.virtual_channel = 0;
     dpi_cfg.dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT;
-    dpi_cfg.dpi_clock_freq_mhz = 70;
+    dpi_cfg.dpi_clock_freq_mhz = 73;
     dpi_cfg.pixel_format = LCD_COLOR_PIXEL_FORMAT_RGB565;
     dpi_cfg.num_fbs = 1;
     dpi_cfg.video_timing.h_size = display_width_;

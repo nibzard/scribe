@@ -3,6 +3,7 @@
 #include "../scribe_services/github_backup.h"
 #include "../scribe_services/wifi_manager.h"
 #include "../scribe_secrets/secrets_nvs.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_BACKUP";
@@ -25,17 +26,19 @@ void ScreenBackup::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
 
 void ScreenBackup::createWidgets() {
+    const Theme::Colors& colors = Theme::getColors();
     // Title
     title_label_ = lv_label_create(screen_);
     lv_label_set_text(title_label_, Strings::getInstance().get("backup.title"));
     lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 30);
     lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(title_label_, colors.text, 0);
 
     // Description
     description_label_ = lv_label_create(screen_);
@@ -44,6 +47,7 @@ void ScreenBackup::createWidgets() {
     lv_label_set_text(description_label_, Strings::getInstance().get("backup.off_desc"));
     lv_obj_align(description_label_, LV_ALIGN_TOP_MID, 0, 70);
     lv_obj_set_style_text_align(description_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(description_label_, colors.text, 0);
 
     // Status label
     status_label_ = lv_label_create(screen_);
@@ -52,15 +56,24 @@ void ScreenBackup::createWidgets() {
     lv_label_set_text(status_label_, Strings::getInstance().get("backup.choose_provider"));
     lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, 130);
     lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(status_label_, colors.text, 0);
 
     // Provider list
     provider_list_ = lv_list_create(screen_);
     lv_obj_set_size(provider_list_, 350, 250);
     lv_obj_align(provider_list_, LV_ALIGN_TOP_MID, 0, 170);
+    lv_obj_set_style_bg_color(provider_list_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(provider_list_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(provider_list_, colors.border, 0);
+    lv_obj_set_style_border_width(provider_list_, 1, 0);
 
     // GitHub repository option
     lv_obj_t* btn = lv_list_add_button(provider_list_, LV_SYMBOL_UPLOAD,
         Strings::getInstance().get("backup.github"));
+    lv_obj_set_style_bg_color(btn, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
     lv_obj_add_event_cb(btn, [](lv_event_t* e) {
         lv_obj_t* target = lv_event_get_target_obj(e);
         ScreenBackup* screen = (ScreenBackup*)lv_obj_get_user_data(target);
@@ -73,6 +86,10 @@ void ScreenBackup::createWidgets() {
     // GitHub Gist option
     btn = lv_list_add_button(provider_list_, LV_SYMBOL_FILE,
         Strings::getInstance().get("backup.gist"));
+    lv_obj_set_style_bg_color(btn, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
     lv_obj_add_event_cb(btn, [](lv_event_t* e) {
         lv_obj_t* target = lv_event_get_target_obj(e);
         ScreenBackup* screen = (ScreenBackup*)lv_obj_get_user_data(target);
@@ -103,6 +120,26 @@ void ScreenBackup::createWidgets() {
 
 void ScreenBackup::show() {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
+        const Theme::Colors& colors = Theme::getColors();
+        if (title_label_) lv_obj_set_style_text_color(title_label_, colors.text, 0);
+        if (description_label_) lv_obj_set_style_text_color(description_label_, colors.text, 0);
+        if (status_label_) lv_obj_set_style_text_color(status_label_, colors.text, 0);
+        if (provider_list_) {
+            lv_obj_set_style_bg_color(provider_list_, colors.fg, 0);
+            lv_obj_set_style_bg_opa(provider_list_, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_color(provider_list_, colors.border, 0);
+            lv_obj_set_style_border_width(provider_list_, 1, 0);
+            uint32_t child_count = lv_obj_get_child_cnt(provider_list_);
+            for (uint32_t i = 0; i < child_count; ++i) {
+                lv_obj_t* btn = lv_obj_get_child(provider_list_, i);
+                if (!btn) continue;
+                lv_obj_set_style_bg_color(btn, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+                lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+                lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+                lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
+            }
+        }
         lv_screen_load(screen_);
         updateUI();
     }
@@ -162,16 +199,18 @@ void TokenInputDialog::createDialog() {
     dialog_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(dialog_, LV_HOR_RES - 60, 280);
     lv_obj_center(dialog_);
+    const Theme::Colors& colors = Theme::getColors();
     lv_obj_set_style_bg_opa(dialog_, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(dialog_, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(dialog_, colors.fg, 0);
     lv_obj_set_style_border_width(dialog_, 2, 0);
-    lv_obj_set_style_border_color(dialog_, lv_color_black(), 0);
+    lv_obj_set_style_border_color(dialog_, colors.border, 0);
 
     // Title
     lv_obj_t* title = lv_label_create(dialog_);
     lv_label_set_text(title, Strings::getInstance().get("backup.title"));
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(title, colors.text, 0);
 
     // Instructions
     lv_obj_t* info = lv_label_create(dialog_);
@@ -183,6 +222,7 @@ void TokenInputDialog::createDialog() {
     lv_label_set_text(info, info_text.c_str());
     lv_obj_align(info, LV_ALIGN_TOP_MID, 0, 50);
     lv_obj_set_style_text_align(info, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(info, colors.text, 0);
 
     // Token input
     textarea_ = lv_textarea_create(dialog_);
@@ -192,6 +232,12 @@ void TokenInputDialog::createDialog() {
     lv_textarea_set_password_mode(textarea_, true);
     lv_textarea_set_one_line(textarea_, true);
     lv_obj_add_flag(textarea_, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_set_style_bg_color(textarea_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(textarea_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(textarea_, colors.border, 0);
+    lv_obj_set_style_border_width(textarea_, 1, 0);
+    lv_obj_set_style_text_color(textarea_, colors.text, 0);
+    lv_obj_set_style_text_color(textarea_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
 
     // Buttons container
     lv_obj_t* btn_cont = lv_obj_create(dialog_);
@@ -307,43 +353,60 @@ void RepoConfigDialog::createDialog() {
     dialog_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(dialog_, LV_HOR_RES - 60, 300);
     lv_obj_center(dialog_);
+    const Theme::Colors& colors = Theme::getColors();
     lv_obj_set_style_bg_opa(dialog_, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(dialog_, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(dialog_, colors.fg, 0);
     lv_obj_set_style_border_width(dialog_, 2, 0);
-    lv_obj_set_style_border_color(dialog_, lv_color_black(), 0);
+    lv_obj_set_style_border_color(dialog_, colors.border, 0);
 
     // Title
     lv_obj_t* title = lv_label_create(dialog_);
     lv_label_set_text(title, Strings::getInstance().get("backup.repo_title"));
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(title, colors.text, 0);
 
     // Owner input
     lv_obj_t* label = lv_label_create(dialog_);
     lv_label_set_text(label, Strings::getInstance().get("backup.repo_owner"));
     lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 60);
+    lv_obj_set_style_text_color(label, colors.text, 0);
 
     owner_input_ = lv_textarea_create(dialog_);
     lv_obj_set_size(owner_input_, 200, 40);
     lv_obj_align(owner_input_, LV_ALIGN_TOP_LEFT, 30, 80);
     lv_textarea_set_placeholder_text(owner_input_, Strings::getInstance().get("backup.repo_owner_placeholder"));
     lv_textarea_set_one_line(owner_input_, true);
+    lv_obj_set_style_bg_color(owner_input_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(owner_input_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(owner_input_, colors.border, 0);
+    lv_obj_set_style_border_width(owner_input_, 1, 0);
+    lv_obj_set_style_text_color(owner_input_, colors.text, 0);
+    lv_obj_set_style_text_color(owner_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
 
     // Repo input
     label = lv_label_create(dialog_);
     lv_label_set_text(label, Strings::getInstance().get("backup.repo_name"));
     lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 130);
+    lv_obj_set_style_text_color(label, colors.text, 0);
 
     repo_input_ = lv_textarea_create(dialog_);
     lv_obj_set_size(repo_input_, 200, 40);
     lv_obj_align(repo_input_, LV_ALIGN_TOP_LEFT, 30, 150);
     lv_textarea_set_placeholder_text(repo_input_, Strings::getInstance().get("backup.repo_name_placeholder"));
     lv_textarea_set_one_line(repo_input_, true);
+    lv_obj_set_style_bg_color(repo_input_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(repo_input_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(repo_input_, colors.border, 0);
+    lv_obj_set_style_border_width(repo_input_, 1, 0);
+    lv_obj_set_style_text_color(repo_input_, colors.text, 0);
+    lv_obj_set_style_text_color(repo_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
 
     // Branch input
     label = lv_label_create(dialog_);
     lv_label_set_text(label, Strings::getInstance().get("backup.repo_branch"));
     lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 200);
+    lv_obj_set_style_text_color(label, colors.text, 0);
 
     branch_input_ = lv_textarea_create(dialog_);
     lv_obj_set_size(branch_input_, 200, 40);
@@ -351,6 +414,12 @@ void RepoConfigDialog::createDialog() {
     lv_textarea_set_placeholder_text(branch_input_, Strings::getInstance().get("backup.repo_branch_placeholder"));
     lv_textarea_set_one_line(branch_input_, true);
     lv_textarea_set_text(branch_input_, "main");
+    lv_obj_set_style_bg_color(branch_input_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(branch_input_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(branch_input_, colors.border, 0);
+    lv_obj_set_style_border_width(branch_input_, 1, 0);
+    lv_obj_set_style_text_color(branch_input_, colors.text, 0);
+    lv_obj_set_style_text_color(branch_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
 
     // Buttons container
     lv_obj_t* btn_cont = lv_obj_create(dialog_);

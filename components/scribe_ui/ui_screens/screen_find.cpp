@@ -1,5 +1,6 @@
 #include "screen_find.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_FIND";
@@ -23,8 +24,9 @@ void ScreenFind::createWidgets() {
     overlay_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(overlay_, LV_HOR_RES, 80);
     lv_obj_align(overlay_, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_bg_color(overlay_, lv_color_white(), 0);
-    lv_obj_set_style_border_color(overlay_, lv_color_hex(0xCCCCCC), 0);
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(overlay_, colors.fg, 0);
+    lv_obj_set_style_border_color(overlay_, colors.border, 0);
     lv_obj_set_style_border_width(overlay_, 1, 0);
     lv_obj_add_flag(overlay_, LV_OBJ_FLAG_HIDDEN);
 
@@ -32,6 +34,7 @@ void ScreenFind::createWidgets() {
     label_ = lv_label_create(overlay_);
     lv_label_set_text(label_, Strings::getInstance().get("find.label"));
     lv_obj_align(label_, LV_ALIGN_LEFT_MID, 20, 0);
+    lv_obj_set_style_text_color(label_, colors.text, 0);
 
     // Search input
     search_input_ = lv_textarea_create(overlay_);
@@ -39,11 +42,18 @@ void ScreenFind::createWidgets() {
     lv_obj_align(search_input_, LV_ALIGN_LEFT_MID, 70, 0);
     lv_textarea_set_placeholder_text(search_input_, Strings::getInstance().get("find.placeholder"));
     lv_textarea_set_one_line(search_input_, true);
+    lv_obj_set_style_bg_color(search_input_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(search_input_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(search_input_, colors.border, 0);
+    lv_obj_set_style_border_width(search_input_, 1, 0);
+    lv_obj_set_style_text_color(search_input_, colors.text, 0);
+    lv_obj_set_style_text_color(search_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
 
     // Match count label
     match_label_ = lv_label_create(overlay_);
     lv_label_set_text(match_label_, "");
     lv_obj_align(match_label_, LV_ALIGN_RIGHT_MID, -100, 0);
+    lv_obj_set_style_text_color(match_label_, colors.text, 0);
 
     // Hint label
     hint_label_ = lv_label_create(overlay_);
@@ -54,10 +64,21 @@ void ScreenFind::createWidgets() {
     lv_label_set_text(hint_label_, hint.c_str());
     lv_obj_align(hint_label_, LV_ALIGN_RIGHT_MID, -20, 0);
     lv_obj_set_style_text_font(hint_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(hint_label_, colors.text_secondary, 0);
 }
 
 void ScreenFind::show() {
     if (overlay_) {
+        const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_style_bg_color(overlay_, colors.fg, 0);
+        lv_obj_set_style_border_color(overlay_, colors.border, 0);
+        if (label_) lv_obj_set_style_text_color(label_, colors.text, 0);
+        if (match_label_) lv_obj_set_style_text_color(match_label_, colors.text, 0);
+        if (hint_label_) lv_obj_set_style_text_color(hint_label_, colors.text_secondary, 0);
+        if (search_input_) {
+            lv_obj_set_style_text_color(search_input_, colors.text, 0);
+            lv_obj_set_style_text_color(search_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+        }
         lv_obj_clear_flag(overlay_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_state(search_input_, LV_STATE_FOCUSED);
     }

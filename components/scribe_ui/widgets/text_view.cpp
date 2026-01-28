@@ -1,4 +1,5 @@
 #include "text_view.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 #include <cstring>
 
@@ -30,11 +31,13 @@ void text_view_draw_cb(lv_event_t* e) {
     lv_area_t clip_area;
     lv_area_copy(&clip_area, &obj_coords);
 
+    const Theme::Colors& colors = Theme::getColors();
+
     // Draw background
     lv_draw_rect_dsc_t rect_dsc;
     lv_draw_rect_dsc_init(&rect_dsc);
     rect_dsc.base.layer = layer;
-    rect_dsc.bg_color = lv_color_white();
+    rect_dsc.bg_color = colors.bg;
     rect_dsc.border_width = 0;
     lv_draw_rect(layer, &rect_dsc, &obj_coords);
 
@@ -46,7 +49,7 @@ void text_view_draw_cb(lv_event_t* e) {
     lv_draw_label_dsc_init(&label_dsc);
     label_dsc.base.layer = layer;
     label_dsc.font = tv->font_;
-    label_dsc.color = lv_color_black();
+    label_dsc.color = colors.text;
     label_dsc.flag = LV_TEXT_FLAG_EXPAND;
 
     // Determine selection range
@@ -101,7 +104,7 @@ void text_view_draw_cb(lv_event_t* e) {
                 lv_draw_rect_dsc_t sel_dsc;
                 lv_draw_rect_dsc_init(&sel_dsc);
                 sel_dsc.base.layer = layer;
-                sel_dsc.bg_color = lv_palette_main(LV_PALETTE_LIGHT_BLUE);
+                sel_dsc.bg_color = colors.selection;
                 sel_dsc.bg_opa = LV_OPA_50;
                 sel_dsc.border_width = 0;
                 lv_draw_rect(layer, &sel_dsc, &sel_area);
@@ -162,7 +165,7 @@ void text_view_draw_cb(lv_event_t* e) {
         lv_draw_rect_dsc_t cursor_dsc;
         lv_draw_rect_dsc_init(&cursor_dsc);
         cursor_dsc.base.layer = layer;
-        cursor_dsc.bg_color = lv_color_black();
+        cursor_dsc.bg_color = colors.text;
         cursor_dsc.bg_opa = LV_OPA_COVER;
         cursor_dsc.border_width = 0;
         lv_draw_rect(layer, &cursor_dsc, &cursor_area);
@@ -184,7 +187,8 @@ TextView::TextView(lv_obj_t* parent) {
     lv_obj_set_size(obj_, LV_PCT(100), LV_PCT(100));
     lv_obj_set_pos(obj_, 0, 0);
     lv_obj_set_scrollbar_mode(obj_, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_set_style_bg_color(obj_, lv_color_white(), 0);
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(obj_, colors.bg, 0);
     lv_obj_set_style_bg_opa(obj_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(obj_, 0, 0);
     lv_obj_set_style_pad_all(obj_, 10, 0);
@@ -311,6 +315,16 @@ void TextView::setViewportSize(int width, int height) {
         visible_lines_ = 1;
     }
     updateLineCache();
+}
+
+void TextView::applyTheme() {
+    if (!obj_) {
+        return;
+    }
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(obj_, colors.bg, 0);
+    lv_obj_set_style_bg_opa(obj_, LV_OPA_COVER, 0);
+    invalidate();
 }
 
 size_t TextView::posToLine(size_t pos) const {

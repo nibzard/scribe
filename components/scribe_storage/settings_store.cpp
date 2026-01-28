@@ -6,6 +6,11 @@
 #include <errno.h>
 
 static const char* TAG = "SCRIBE_SETTINGS_STORE";
+namespace {
+constexpr int kFontSizeMin = 12;
+constexpr int kFontSizeMax = 28;
+constexpr int kLegacyFontSizes[] = {14, 16, 20};
+}  // namespace
 
 SettingsStore& SettingsStore::getInstance() {
     static SettingsStore instance;
@@ -50,14 +55,33 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
         settings_version = version->valueint;
     }
 
-    cJSON* dark = cJSON_GetObjectItem(root, "dark_theme");
-    if (cJSON_IsBool(dark)) {
-        settings.dark_theme = cJSON_IsTrue(dark);
+    cJSON* theme_id = cJSON_GetObjectItem(root, "theme_id");
+    if (cJSON_IsString(theme_id) && theme_id->valuestring) {
+        settings.theme_id = theme_id->valuestring;
+    } else {
+        cJSON* dark = cJSON_GetObjectItem(root, "dark_theme");
+        if (cJSON_IsBool(dark)) {
+            settings.theme_id = cJSON_IsTrue(dark) ? "scribe_dark" : "scribe_light";
+        }
+    }
+    if (settings.theme_id.empty()) {
+        settings.theme_id = "dracula";
     }
 
     cJSON* font = cJSON_GetObjectItem(root, "font_size");
     if (cJSON_IsNumber(font)) {
         settings.font_size = font->valueint;
+    }
+    if (settings_version < 4) {
+        if (settings.font_size >= 0 &&
+            settings.font_size < static_cast<int>(sizeof(kLegacyFontSizes) / sizeof(kLegacyFontSizes[0]))) {
+            settings.font_size = kLegacyFontSizes[settings.font_size];
+        }
+    }
+    if (settings.font_size < kFontSizeMin) {
+        settings.font_size = kFontSizeMin;
+    } else if (settings.font_size > kFontSizeMax) {
+        settings.font_size = kFontSizeMax;
     }
 
     cJSON* layout = cJSON_GetObjectItem(root, "keyboard_layout");
@@ -85,7 +109,7 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
             settings.display_orientation = value;
         }
     }
-    if (settings.display_orientation < 0 || settings.display_orientation > 2) {
+    if (settings.display_orientation < 0 || settings.display_orientation > 4) {
         settings.display_orientation = 0;
     }
 
@@ -101,7 +125,7 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
 
     cJSON_Delete(root);
     ESP_LOGI(TAG, "Settings loaded: theme=%s, font=%d, sleep=%d",
-             settings.dark_theme ? "dark" : "light",
+             settings.theme_id.c_str(),
              settings.font_size,
              settings.auto_sleep);
 
@@ -112,8 +136,9 @@ esp_err_t SettingsStore::save(const AppSettings& settings) {
     StorageManager::getInstance().ensureDirectories();
 
     cJSON* root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "version", 2);
-    cJSON_AddBoolToObject(root, "dark_theme", settings.dark_theme);
+    cJSON_AddNumberToObject(root, "version", 4);
+    const char* theme_id = settings.theme_id.empty() ? "dracula" : settings.theme_id.c_str();
+    cJSON_AddStringToObject(root, "theme_id", theme_id);
     cJSON_AddNumberToObject(root, "font_size", settings.font_size);
     cJSON_AddNumberToObject(root, "keyboard_layout", settings.keyboard_layout);
     cJSON_AddNumberToObject(root, "auto_sleep", settings.auto_sleep);

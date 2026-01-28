@@ -33,6 +33,6 @@ private:
     lv_timer_t* hide_timer_ = nullptr;
     HideCallback hide_callback_;
 
-    void createWidgets();
+    void applyTheme();
     void startHideTimer(uint32_t duration_ms);
 };

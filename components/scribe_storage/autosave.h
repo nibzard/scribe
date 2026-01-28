@@ -3,6 +3,7 @@
 #include <esp_err.h>
 #include <string>
 #include <functional>
+#include <cstdint>
 #include "piece_table.h"
 
 // Document snapshot for safe background saves
@@ -11,6 +12,7 @@ struct DocSnapshot {
     PieceTableSnapshot table;
     size_t word_count;
     uint64_t timestamp;
+    uint64_t revision;
 };
 
 // Callback type for save completion

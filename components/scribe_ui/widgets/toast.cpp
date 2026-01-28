@@ -1,14 +1,8 @@
 #include "toast.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_TOAST";
-
-// Toast colors
-#define TOAST_BG_COLOR    lv_color_hex(0x333333)
-#define TOAST_TEXT_COLOR  lv_color_white()
-#define TOAST_SUCCESS_COLOR lv_color_hex(0x4CAF50)
-#define TOAST_ERROR_COLOR   lv_color_hex(0xF44336)
-#define TOAST_WARN_COLOR    lv_color_hex(0xFFC107)
 
 Toast::Toast(lv_obj_t* parent) {
     // Create toast container on top layer
@@ -21,7 +15,7 @@ Toast::Toast(lv_obj_t* parent) {
     // Configure container
     lv_obj_set_size(container_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_pos(container_, LV_PCT(50), LV_PCT(85));  // Bottom center
-    lv_obj_set_style_bg_color(container_, TOAST_BG_COLOR, 0);
+    lv_obj_set_style_bg_color(container_, Theme::getColors().fg, 0);
     lv_obj_set_style_bg_opa(container_, LV_OPA_90, 0);
     lv_obj_set_style_border_width(container_, 0, 0);
     lv_obj_set_style_radius(container_, 8, 0);
@@ -36,10 +30,12 @@ Toast::Toast(lv_obj_t* parent) {
     // Create label
     label_ = lv_label_create(container_);
     lv_obj_set_style_text_font(label_, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(label_, TOAST_TEXT_COLOR, 0);
+    lv_obj_set_style_text_color(label_, Theme::getColors().text, 0);
     lv_label_set_long_mode(label_, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(label_, LV_PCT(80));  // Max width 80% of screen
     lv_label_set_text(label_, "");
+
+    applyTheme();
 
     ESP_LOGI(TAG, "Toast widget created");
 }
@@ -60,6 +56,7 @@ void Toast::show(const char* message, uint32_t duration_ms) {
         return;
     }
 
+    applyTheme();
     lv_label_set_text(label_, message);
     lv_obj_clear_flag(container_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(container_);
@@ -71,6 +68,17 @@ void Toast::show(const char* message, uint32_t duration_ms) {
     ESP_LOGD(TAG, "Toast shown: %s", message);
 
     startHideTimer(duration_ms);
+}
+
+void Toast::applyTheme() {
+    if (!container_ || !label_) {
+        return;
+    }
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(container_, colors.fg, 0);
+    lv_obj_set_style_border_color(container_, colors.border, 0);
+    lv_obj_set_style_border_width(container_, 1, 0);
+    lv_obj_set_style_text_color(label_, colors.text, 0);
 }
 
 void Toast::show(const std::string& message, uint32_t duration_ms) {

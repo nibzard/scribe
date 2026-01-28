@@ -19,6 +19,15 @@ $idf_exports=& $python "$idf_path\tools\activate.py" --export
 idf.py build
 ```
 
+- Alternate PowerShell pattern (also works on this machine) using `export.ps1`:
+
+```powershell
+$env:IDF_PATH="C:\esp\v5.5.2\esp-idf"
+$env:PATH="C:\Users\korisnik\.espressif\python_env\idf5.5_py3.11_env\Scripts;$env:PATH"
+& "$env:IDF_PATH\export.ps1"
+idf.py -p COM5 build flash
+```
+
 ## Flashing + Monitor
 - Use `idf.py flash monitor` from the repo root.
 - COM5 has been the correct port for the device here.
@@ -64,4 +73,7 @@ idf.py build
 - USB keyboard (host): requires adding `espressif/usb_host_hid` (>=1.0.3) and using its HID host callbacks; `usb_host_install` + `usb_host_lib_handle_events` must run. Do not include TinyUSB HID headers in the same translation unit as `usb/hid_host.h` to avoid `hid_report_type_t` conflicts.
 - USB keyboard debug: log HID VID/PID + subclass/proto on connect, accept HID keyboards even if not Boot subclass, and warn once on short (<8-byte) reports; handle `USB_HOST_LIB_EVENT_FLAGS_NO_CLIENTS/ALL_FREE` in the USB host event loop.
 - Menu navigation: HID arrow keys require mapping usages 0x4F-0x52 (right/left/down/up) plus home/end/page/insert; without this, ESC works but arrows don't. Menu list items also need LVGL click handlers on list buttons; otherwise touch taps on menu items do nothing.
+- UI ghosting lines: avoid semi-transparent screen backgrounds (for menu/new-project/dialog screens). Use `LV_OPA_COVER` unless LVGL screen transparency is explicitly enabled; otherwise faint horizontal banding can appear on Tab5.
+- Theme settings now use `theme_id` with a registry of named themes (Scribe, Dracula, Catppuccin, Solarized); settings load migrates legacy `dark_theme` to the closest match.
+- Default theme is Dracula, backlight defaults to 50%, and font sizing now uses pixel sizes (12-28 in 2px steps).
 

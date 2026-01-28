@@ -34,7 +34,8 @@ EditorSnapshot EditorCore::createSnapshot(const std::string& project_id) const {
         .project_id = project_id,
         .table = piece_table_.createSnapshot(),
         .word_count = word_count_,
-        .cursor_pos = cursor_.pos
+        .cursor_pos = cursor_.pos,
+        .revision = revision_
     };
 }
 

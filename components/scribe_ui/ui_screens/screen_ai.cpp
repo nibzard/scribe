@@ -2,6 +2,7 @@
 #include "../../scribe_utils/strings.h"
 #include "../scribe_services/ai_assist.h"
 #include "../scribe_secrets/secrets_nvs.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_AI";
@@ -20,17 +21,19 @@ void ScreenAI::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
 
 void ScreenAI::createWidgets() {
+    const Theme::Colors& colors = Theme::getColors();
     // Title
     title_label_ = lv_label_create(screen_);
     lv_label_set_text(title_label_, Strings::getInstance().get("ai.title"));
     lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 30);
     lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(title_label_, colors.text, 0);
 
     // Description
     description_label_ = lv_label_create(screen_);
@@ -39,6 +42,7 @@ void ScreenAI::createWidgets() {
     lv_label_set_text(description_label_, Strings::getInstance().get("ai.off_desc"));
     lv_obj_align(description_label_, LV_ALIGN_TOP_MID, 0, 70);
     lv_obj_set_style_text_align(description_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(description_label_, colors.text, 0);
 
     // API key label
     lv_obj_t* label = lv_label_create(screen_);
@@ -53,18 +57,26 @@ void ScreenAI::createWidgets() {
     lv_textarea_set_password_mode(api_key_input_, true);
     lv_textarea_set_one_line(api_key_input_, true);
     lv_obj_add_flag(api_key_input_, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_set_style_bg_color(api_key_input_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(api_key_input_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(api_key_input_, colors.border, 0);
+    lv_obj_set_style_border_width(api_key_input_, 1, 0);
+    lv_obj_set_style_text_color(api_key_input_, colors.text, 0);
+    lv_obj_set_style_text_color(api_key_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
 
     // Key hint
     hint_label_ = lv_label_create(screen_);
     lv_label_set_text(hint_label_, Strings::getInstance().get("ai.key_hint"));
     lv_obj_align(hint_label_, LV_ALIGN_TOP_MID, 0, 250);
     lv_obj_set_style_text_align(hint_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(hint_label_, colors.text_secondary, 0);
 
     // Status label
     status_label_ = lv_label_create(screen_);
     lv_obj_set_width(status_label_, 350);
     lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, 275);
     lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(status_label_, colors.text, 0);
 
     // Save button
     save_btn_ = lv_button_create(screen_);
@@ -105,6 +117,18 @@ void ScreenAI::createWidgets() {
 
 void ScreenAI::show() {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
+        const Theme::Colors& colors = Theme::getColors();
+        if (title_label_) lv_obj_set_style_text_color(title_label_, colors.text, 0);
+        if (description_label_) lv_obj_set_style_text_color(description_label_, colors.text, 0);
+        if (hint_label_) lv_obj_set_style_text_color(hint_label_, colors.text_secondary, 0);
+        if (status_label_) lv_obj_set_style_text_color(status_label_, colors.text, 0);
+        if (api_key_input_) {
+            lv_obj_set_style_bg_color(api_key_input_, colors.fg, 0);
+            lv_obj_set_style_border_color(api_key_input_, colors.border, 0);
+            lv_obj_set_style_text_color(api_key_input_, colors.text, 0);
+            lv_obj_set_style_text_color(api_key_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+        }
         lv_screen_load(screen_);
 
         // Load existing API key

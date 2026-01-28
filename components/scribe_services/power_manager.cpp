@@ -72,7 +72,7 @@ esp_err_t PowerManager::resumeFromSleep() {
 
     // Wake display and restore backlight
     MIPIDSI::sleep(false);
-    MIPIDSI::setBacklight(100);  // Full brightness on wake
+    MIPIDSI::setBacklight(50);  // Default brightness on wake
 
     // TODO: Restart USB host
     // TODO: Restore CPU frequency

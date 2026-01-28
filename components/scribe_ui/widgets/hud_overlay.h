@@ -40,7 +40,9 @@ private:
     lv_obj_t* save_label_ = nullptr;
     lv_obj_t* backup_label_ = nullptr;
     lv_obj_t* ai_label_ = nullptr;
+    lv_obj_t* separator_ = nullptr;
 
     void createWidgets();
     void updateLayout();
+    void applyTheme();
 };

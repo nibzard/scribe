@@ -2,6 +2,7 @@
 #include "../../scribe_utils/strings.h"
 #include "../scribe_services/ai_assist.h"
 #include "../scribe_services/wifi_manager.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_MAGIC_BAR";
@@ -22,20 +23,25 @@ void ScreenMagicBar::init() {
 }
 
 void ScreenMagicBar::createWidgets() {
+    const Theme::Colors& colors = Theme::getColors();
     // Create floating bar positioned at bottom
     bar_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(bar_, LV_HOR_RES - 40, 180);
     lv_obj_align(bar_, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_set_style_bg_opa(bar_, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(bar_, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(bar_, colors.fg, 0);
     lv_obj_set_style_border_width(bar_, 2, 0);
-    lv_obj_set_style_border_color(bar_, lv_color_black(), 0);
+    lv_obj_set_style_border_color(bar_, colors.border, 0);
     lv_obj_set_style_radius(bar_, 10, 0);
 
     // Style selector at top
     style_selector_ = lv_list_create(bar_);
     lv_obj_set_size(style_selector_, 300, 50);
     lv_obj_align(style_selector_, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_style_bg_color(style_selector_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(style_selector_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(style_selector_, colors.border, 0);
+    lv_obj_set_style_border_width(style_selector_, 1, 0);
 
     const AIStyle styles[] = {
         AIStyle::CONTINUE,
@@ -71,6 +77,7 @@ void ScreenMagicBar::createWidgets() {
     lv_obj_set_width(status_label_, LV_HOR_RES - 80);
     lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, 70);
     lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(status_label_, colors.text_secondary, 0);
     updateStatus(Strings::getInstance().get("ai.status_idle"));
 
     // Preview text area
@@ -80,6 +87,12 @@ void ScreenMagicBar::createWidgets() {
     lv_textarea_set_placeholder_text(preview_text_, Strings::getInstance().get("ai.magic_bar_placeholder"));
     lv_textarea_set_text(preview_text_, "");
     lv_obj_add_flag(preview_text_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_color(preview_text_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(preview_text_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(preview_text_, colors.border, 0);
+    lv_obj_set_style_border_width(preview_text_, 1, 0);
+    lv_obj_set_style_text_color(preview_text_, colors.text, 0);
+    lv_obj_set_style_text_color(preview_text_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
 
     // Action buttons
     lv_obj_t* btn_cont = lv_obj_create(bar_);
@@ -130,6 +143,22 @@ void ScreenMagicBar::createWidgets() {
 
 void ScreenMagicBar::show() {
     if (bar_) {
+        const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_style_bg_color(bar_, colors.fg, 0);
+        lv_obj_set_style_border_color(bar_, colors.border, 0);
+        if (style_selector_) {
+            lv_obj_set_style_bg_color(style_selector_, colors.fg, 0);
+            lv_obj_set_style_border_color(style_selector_, colors.border, 0);
+        }
+        if (preview_text_) {
+            lv_obj_set_style_bg_color(preview_text_, colors.fg, 0);
+            lv_obj_set_style_border_color(preview_text_, colors.border, 0);
+            lv_obj_set_style_text_color(preview_text_, colors.text, 0);
+            lv_obj_set_style_text_color(preview_text_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+        }
+        if (status_label_) {
+            lv_obj_set_style_text_color(status_label_, colors.text_secondary, 0);
+        }
         lv_obj_clear_flag(bar_, LV_OBJ_FLAG_HIDDEN);
         visible_ = true;
 

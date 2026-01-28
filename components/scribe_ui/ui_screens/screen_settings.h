@@ -53,4 +53,5 @@ private:
     void rebuildList();
     void updateSelection();
     void updateCurrentValue();
+    void applyTheme();
 };

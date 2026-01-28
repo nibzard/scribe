@@ -1,5 +1,6 @@
 #include "screen_editor.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_EDITOR";
@@ -23,7 +24,7 @@ void ScreenEditor::init() {
     // Create new screen
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
@@ -46,6 +47,7 @@ void ScreenEditor::createWidgets() {
     lv_obj_set_size(hud_panel_, 240, 180);
     lv_obj_align(hud_panel_, LV_ALIGN_TOP_RIGHT, -10, 10);
     lv_obj_add_flag(hud_panel_, LV_OBJ_FLAG_HIDDEN);
+    applyTheme();
 
     // HUD labels (left) and values (right)
     int y = 10;
@@ -102,6 +104,7 @@ void ScreenEditor::createWidgets() {
 
 void ScreenEditor::show() {
     if (screen_) {
+        applyTheme();
         lv_screen_load(screen_);
     }
 }
@@ -198,5 +201,42 @@ void ScreenEditor::setHUDAIState(const std::string& status) {
 }
 
 void ScreenEditor::updateHUD() {
-    if (!editor_ || !hud_panel_) return;
+    const Theme::Colors& colors = Theme::getColors();
+    if (hud_panel_) {
+        lv_obj_set_style_bg_color(hud_panel_, colors.fg, 0);
+        lv_obj_set_style_bg_opa(hud_panel_, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_color(hud_panel_, colors.border, 0);
+        lv_obj_set_style_border_width(hud_panel_, 1, 0);
+    }
+    if (hud_project_label_) lv_obj_set_style_text_color(hud_project_label_, colors.text_secondary, 0);
+    if (hud_project_value_) lv_obj_set_style_text_color(hud_project_value_, colors.text, 0);
+    if (hud_today_label_) lv_obj_set_style_text_color(hud_today_label_, colors.text_secondary, 0);
+    if (hud_today_value_) lv_obj_set_style_text_color(hud_today_value_, colors.text, 0);
+    if (hud_total_label_) lv_obj_set_style_text_color(hud_total_label_, colors.text_secondary, 0);
+    if (hud_total_value_) lv_obj_set_style_text_color(hud_total_value_, colors.text, 0);
+    if (hud_battery_label_) lv_obj_set_style_text_color(hud_battery_label_, colors.text_secondary, 0);
+    if (hud_battery_value_) lv_obj_set_style_text_color(hud_battery_value_, colors.text, 0);
+    if (hud_save_label_) lv_obj_set_style_text_color(hud_save_label_, colors.text, 0);
+    if (hud_backup_label_) lv_obj_set_style_text_color(hud_backup_label_, colors.text, 0);
+    if (hud_ai_label_) lv_obj_set_style_text_color(hud_ai_label_, colors.text, 0);
+}
+
+void ScreenEditor::setEditorFont(const lv_font_t* font) {
+    if (text_view_ && font) {
+        text_view_->setFont(font);
+    }
+}
+
+void ScreenEditor::applyTheme() {
+    Theme::applyScreenStyle(screen_);
+    if (text_view_) {
+        text_view_->applyTheme();
+    }
+    if (hud_panel_) {
+        const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_style_bg_color(hud_panel_, colors.fg, 0);
+        lv_obj_set_style_bg_opa(hud_panel_, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_color(hud_panel_, colors.border, 0);
+        lv_obj_set_style_border_width(hud_panel_, 1, 0);
+    }
 }

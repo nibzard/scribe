@@ -2,6 +2,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <cstdint>
 #include "key_event.h"
 
 // Event types for inter-task communication
@@ -32,6 +33,7 @@ struct Event {
     KeyEvent key_event{};
     void* data = nullptr;
     int int_param = 0;
+    uint64_t u64_param = 0;
 };
 
 // Global queue handle (set in app_main)

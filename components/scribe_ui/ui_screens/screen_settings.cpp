@@ -1,22 +1,21 @@
 #include "screen_settings.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
+#include <cstdio>
 
 static const char* TAG = "SCRIBE_SCREEN_SETTINGS";
 
-static const char* themeLabel(bool dark) {
+static const char* themeLabel(const std::string& theme_id) {
     Strings& strings = Strings::getInstance();
-    return dark ? strings.get("settings.theme_dark") : strings.get("settings.theme_light");
+    const char* key = Theme::getThemeLabelKey(theme_id.c_str());
+    return strings.get(key);
 }
 
-static const char* fontSizeLabel(int size) {
-    Strings& strings = Strings::getInstance();
-    switch (size) {
-        case 0: return strings.get("settings.font_small");
-        case 1: return strings.get("settings.font_medium");
-        case 2: return strings.get("settings.font_large");
-        default: return strings.get("settings.font_medium");
-    }
+static std::string fontSizeLabel(int size) {
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d px", size);
+    return std::string(buf);
 }
 
 static const char* autoSleepLabel(int value) {
@@ -36,6 +35,8 @@ static const char* orientationLabel(int value) {
         case 0: return strings.get("settings.orientation_auto");
         case 1: return strings.get("settings.orientation_landscape");
         case 2: return strings.get("settings.orientation_portrait");
+        case 3: return strings.get("settings.orientation_landscape_inverted");
+        case 4: return strings.get("settings.orientation_portrait_inverted");
         default: return strings.get("settings.orientation_auto");
     }
 }
@@ -65,7 +66,7 @@ void ScreenSettings::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
@@ -96,8 +97,14 @@ void ScreenSettings::rebuildList() {
     value_labels_.clear();
     item_keys_.clear();
 
-    auto addItem = [&](const char* label, const char* value, const char* key, const char* symbol) {
+    applyTheme();
+    const Theme::Colors& colors = Theme::getColors();
+    auto addItem = [&](const char* label, const char* value, const char* key, const char* symbol) -> lv_obj_t* {
         lv_obj_t* btn = lv_list_add_button(settings_list_, symbol, label);
+        lv_obj_set_style_bg_color(btn, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
         buttons_.push_back(btn);
         item_keys_.push_back(key);
 
@@ -108,13 +115,41 @@ void ScreenSettings::rebuildList() {
             lv_obj_align(value_label, LV_ALIGN_RIGHT_MID, -10, 0);
         }
         value_labels_.push_back(value_label);
+        return btn;
     };
 
     Strings& strings = Strings::getInstance();
-    addItem(strings.get("settings.theme"), themeLabel(settings_.dark_theme), "theme", LV_SYMBOL_IMAGE);
+    lv_obj_t* theme_btn = addItem(strings.get("settings.theme"), themeLabel(settings_.theme_id),
+                                  "theme", LV_SYMBOL_IMAGE);
+    if (theme_btn) {
+        lv_obj_t* value_label = value_labels_.empty() ? nullptr : value_labels_.back();
+        if (value_label) {
+            lv_obj_align(value_label, LV_ALIGN_RIGHT_MID, -90, 0);
+        }
+
+        lv_obj_t* swatch_row = lv_obj_create(theme_btn);
+        lv_obj_set_size(swatch_row, 70, 14);
+        lv_obj_clear_flag(swatch_row, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_bg_opa(swatch_row, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(swatch_row, 0, 0);
+        lv_obj_align(swatch_row, LV_ALIGN_RIGHT_MID, -10, 0);
+
+        const lv_color_t swatches[] = {colors.bg, colors.fg, colors.accent, colors.selection};
+        for (size_t i = 0; i < sizeof(swatches) / sizeof(swatches[0]); ++i) {
+            lv_obj_t* swatch = lv_obj_create(swatch_row);
+            lv_obj_set_size(swatch, 12, 12);
+            lv_obj_clear_flag(swatch, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_style_bg_color(swatch, swatches[i], 0);
+            lv_obj_set_style_bg_opa(swatch, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_color(swatch, colors.border, 0);
+            lv_obj_set_style_border_width(swatch, 1, 0);
+            lv_obj_align(swatch, LV_ALIGN_LEFT_MID, static_cast<int>(i) * 16, 0);
+        }
+    }
     addItem(strings.get("settings.orientation"), orientationLabel(settings_.display_orientation),
             "display_orientation", LV_SYMBOL_LOOP);
-    addItem(strings.get("settings.font_size"), fontSizeLabel(settings_.font_size), "font_size", LV_SYMBOL_EDIT);
+    std::string font_label = fontSizeLabel(settings_.font_size);
+    addItem(strings.get("settings.font_size"), font_label.c_str(), "font_size", LV_SYMBOL_EDIT);
     addItem(strings.get("settings.keyboard_layout"), keyboardLayoutLabel(settings_.keyboard_layout), "keyboard_layout", LV_SYMBOL_KEYBOARD);
     addItem(strings.get("settings.auto_sleep"), autoSleepLabel(settings_.auto_sleep), "auto_sleep", LV_SYMBOL_GPS);
     addItem(strings.get("settings.advanced"), nullptr, "advanced", LV_SYMBOL_SETTINGS);
@@ -128,6 +163,7 @@ void ScreenSettings::rebuildList() {
 
 void ScreenSettings::show() {
     if (screen_) {
+        applyTheme();
         lv_screen_load(screen_);
         updateSelection();
     }
@@ -207,4 +243,20 @@ void ScreenSettings::updateSelection() {
 
 void ScreenSettings::updateCurrentValue() {
     rebuildList();
+}
+
+void ScreenSettings::applyTheme() {
+    const Theme::Colors& colors = Theme::getColors();
+    if (screen_) {
+        Theme::applyScreenStyle(screen_);
+    }
+    if (settings_list_) {
+        lv_obj_set_style_bg_color(settings_list_, colors.fg, 0);
+        lv_obj_set_style_bg_opa(settings_list_, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_color(settings_list_, colors.border, 0);
+        lv_obj_set_style_border_width(settings_list_, 1, 0);
+    }
+    if (title_label_) {
+        lv_obj_set_style_text_color(title_label_, colors.text, 0);
+    }
 }

@@ -19,8 +19,7 @@ void ScreenMenu::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
-    lv_obj_set_style_bg_opa(screen_, LV_OPA_90, 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
@@ -36,6 +35,11 @@ void ScreenMenu::createWidgets() {
     list_ = lv_list_create(screen_);
     lv_obj_set_size(list_, 300, 400);
     lv_obj_center(list_);
+    const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_style_bg_color(list_, colors.fg, 0);
+    lv_obj_set_style_bg_opa(list_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(list_, colors.border, 0);
+    lv_obj_set_style_border_width(list_, 1, 0);
 }
 
 void ScreenMenu::setItems(const MenuItem* items, size_t count) {
@@ -55,7 +59,8 @@ void ScreenMenu::setItems(const MenuItem* items, size_t count) {
         lv_obj_t* btn = lv_list_add_button(list_, LV_SYMBOL_LIST, items[i].label);
         lv_obj_set_style_bg_color(btn, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
-        lv_obj_set_style_text_color(btn, lv_color_white(), LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+        lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
         buttons_.push_back(btn);
 
         button_data_.push_back({this, static_cast<int>(i)});
@@ -78,6 +83,21 @@ void ScreenMenu::setItems(const MenuItem* items, size_t count) {
 
 void ScreenMenu::show() {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
+        const Theme::Colors& colors = Theme::getColors();
+        if (list_) {
+            lv_obj_set_style_bg_color(list_, colors.fg, 0);
+            lv_obj_set_style_bg_opa(list_, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_color(list_, colors.border, 0);
+            lv_obj_set_style_border_width(list_, 1, 0);
+        }
+        for (auto* btn : buttons_) {
+            if (!btn) continue;
+            lv_obj_set_style_bg_color(btn, colors.selection, LV_PART_MAIN | LV_STATE_CHECKED);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+            lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
+            lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
+        }
         lv_screen_load(screen_);
         selected_index_ = 0;
         updateSelection();

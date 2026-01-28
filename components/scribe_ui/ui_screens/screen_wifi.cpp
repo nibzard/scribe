@@ -1,5 +1,6 @@
 #include "screen_wifi.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_WIFI";
@@ -18,22 +19,25 @@ void ScreenWiFi::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
 
 void ScreenWiFi::createWidgets() {
+    const Theme::Colors& colors = Theme::getColors();
     // Title
     title_label_ = lv_label_create(screen_);
     lv_label_set_text(title_label_, Strings::getInstance().get("settings.wifi"));
     lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 40);
     lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(title_label_, colors.text, 0);
 
     // Status label
     status_label_ = lv_label_create(screen_);
     lv_label_set_text(status_label_, Strings::getInstance().get("settings.wifi_off"));
     lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, 80);
+    lv_obj_set_style_text_color(status_label_, colors.text, 0);
 
     // WiFi switch
     wifi_switch_ = lv_switch_create(screen_);
@@ -72,6 +76,10 @@ void ScreenWiFi::createWidgets() {
 
 void ScreenWiFi::show() {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
+        const Theme::Colors& colors = Theme::getColors();
+        if (title_label_) lv_obj_set_style_text_color(title_label_, colors.text, 0);
+        if (status_label_) lv_obj_set_style_text_color(status_label_, colors.text, 0);
         lv_screen_load(screen_);
         updateStatus(wifi_enabled_, wifi_connected_);
     }

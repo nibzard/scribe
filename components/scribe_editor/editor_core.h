@@ -5,6 +5,7 @@
 #include "selection.h"
 #include <string>
 #include <functional>
+#include <cstdint>
 
 // Cursor position
 struct Cursor {
@@ -22,6 +23,7 @@ struct EditorSnapshot {
     PieceTableSnapshot table;
     size_t word_count;
     size_t cursor_pos;
+    uint64_t revision;
 };
 
 // Editor mode

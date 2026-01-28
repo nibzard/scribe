@@ -1,5 +1,6 @@
 #include "screen_first_run.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_FIRST_RUN";
@@ -18,12 +19,13 @@ void ScreenFirstRun::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
 
 void ScreenFirstRun::createWidgets() {
+    const Theme::Colors& colors = Theme::getColors();
     // Welcome title
     lv_obj_t* title = lv_label_create(screen_);
     lv_label_set_text(title, Strings::getInstance().get("app.name"));
@@ -40,6 +42,10 @@ void ScreenFirstRun::createWidgets() {
     lv_obj_t* content = lv_obj_create(screen_);
     lv_obj_set_size(content, LV_HOR_RES - 60, 250);
     lv_obj_align(content, LV_ALIGN_TOP_MID, 0, 120);
+    lv_obj_set_style_bg_color(content, colors.fg, 0);
+    lv_obj_set_style_bg_opa(content, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(content, colors.border, 0);
+    lv_obj_set_style_border_width(content, 1, 0);
 
     lv_obj_t* label = lv_label_create(content);
     lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
@@ -56,6 +62,7 @@ void ScreenFirstRun::createWidgets() {
 
 void ScreenFirstRun::show() {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
         lv_screen_load(screen_);
     }
 }

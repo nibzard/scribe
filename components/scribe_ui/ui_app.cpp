@@ -59,6 +59,8 @@ static const char* TAG = "SCRIBE_UI";
 namespace {
 constexpr float kImuOrientationMinTiltG = 0.35f;
 constexpr float kImuOrientationMinDeltaG = 0.15f;
+constexpr bool kImuPortraitPositiveIsUpright = true;
+constexpr bool kImuLandscapePositiveIsUpright = false;
 
 bool getImuOrientation(MIPIDSI::Orientation& orientation) {
     ImuManager& imu = ImuManager::getInstance();
@@ -67,8 +69,10 @@ bool getImuOrientation(MIPIDSI::Orientation& orientation) {
     }
 
     ImuSample sample = imu.getSample();
-    float abs_x = std::fabs(sample.accel_x);
-    float abs_y = std::fabs(sample.accel_y);
+    float ax = sample.accel_x;
+    float ay = sample.accel_y;
+    float abs_x = std::fabs(ax);
+    float abs_y = std::fabs(ay);
 
     if (abs_x < kImuOrientationMinTiltG && abs_y < kImuOrientationMinTiltG) {
         return false;
@@ -79,8 +83,21 @@ bool getImuOrientation(MIPIDSI::Orientation& orientation) {
 
     // Map IMU tilt to display orientation (Tab5 axes are rotated).
     // DO NOT revert to abs_x>abs_y => LANDSCAPE; that is wrong on this device.
-    orientation = abs_x > abs_y ? MIPIDSI::Orientation::PORTRAIT
-                                : MIPIDSI::Orientation::LANDSCAPE;
+    if (abs_x > abs_y) {
+        bool upright = ax >= 0.0f;
+        if (!kImuPortraitPositiveIsUpright) {
+            upright = !upright;
+        }
+        orientation = upright ? MIPIDSI::Orientation::PORTRAIT
+                              : MIPIDSI::Orientation::PORTRAIT_INVERTED;
+    } else {
+        bool upright = ay >= 0.0f;
+        if (!kImuLandscapePositiveIsUpright) {
+            upright = !upright;
+        }
+        orientation = upright ? MIPIDSI::Orientation::LANDSCAPE
+                              : MIPIDSI::Orientation::LANDSCAPE_INVERTED;
+    }
     return true;
 }
 }  // namespace
@@ -151,7 +168,7 @@ esp_err_t UIApp::init() {
         if (lvgl_port_enabled_) {
             lvgl_ready_ = true;
         }
-        MIPIDSI::setBacklight(100);
+        MIPIDSI::setBacklight(50);
 
 #if !defined(CONFIG_SCRIBE_WOKWI_SIM) || !CONFIG_SCRIBE_WOKWI_SIM
         auto attach_touch = [&](lv_indev_read_cb_t read_cb) {
@@ -217,7 +234,7 @@ esp_err_t UIApp::init() {
         lvgl_locked = lvgl_port_lock(0);
     }
     applyDisplayOrientation();
-    Theme::applyTheme(settings_.dark_theme);
+    Theme::applyTheme(settings_.theme_id.c_str());
 
     // Apply keyboard layout from settings
     setKeyboardLayout(intToLayout(settings_.keyboard_layout));
@@ -312,7 +329,11 @@ esp_err_t UIApp::init() {
 
     projects_screen_->setCloseCallback([this]() { showMenu(); });
     projects_screen_->setOpenCallback([this](const std::string& id) {
-        openProject(id);
+        if (project_open_request_cb_) {
+            project_open_request_cb_(id);
+        } else {
+            openProject(id);
+        }
     });
     projects_screen_->setArchiveCallback([this](const std::string& id) {
         ProjectLibrary& lib = ProjectLibrary::getInstance();
@@ -342,15 +363,18 @@ esp_err_t UIApp::init() {
     settings_screen_->setCloseCallback([this]() { showEditor(); });
     settings_screen_->setSettingChangeCallback([this](const std::string& setting, int delta) {
         if (setting == "theme") {
-            settings_.dark_theme = !settings_.dark_theme;
+            settings_.theme_id = Theme::getNextThemeId(settings_.theme_id.c_str(), delta);
         } else if (setting == "font_size") {
-            settings_.font_size = std::max(0, std::min(2, settings_.font_size + delta));
+            int next = settings_.font_size + (delta * Theme::FONT_SIZE_STEP);
+            if (next < Theme::FONT_SIZE_MIN) next = Theme::FONT_SIZE_MIN;
+            if (next > Theme::FONT_SIZE_MAX) next = Theme::FONT_SIZE_MAX;
+            settings_.font_size = next;
         } else if (setting == "keyboard_layout") {
             settings_.keyboard_layout = (settings_.keyboard_layout + delta + 4) % 4;
         } else if (setting == "auto_sleep") {
             settings_.auto_sleep = std::max(0, std::min(3, settings_.auto_sleep + delta));
         } else if (setting == "display_orientation") {
-            settings_.display_orientation = (settings_.display_orientation + delta + 3) % 3;
+            settings_.display_orientation = (settings_.display_orientation + delta + 5) % 5;
         }
         SettingsStore::getInstance().save(settings_);
         applySettings();
@@ -1471,20 +1495,21 @@ void UIApp::jumpToFindMatch(int direction) {
 }
 
 void UIApp::showToastInternal(const char* message, uint32_t duration_ms) {
+    const Theme::Colors& colors = Theme::getColors();
     if (!toast_) {
         toast_ = lv_obj_create(lv_layer_top());
         lv_obj_set_size(toast_, LV_HOR_RES - 60, 50);
         lv_obj_align(toast_, LV_ALIGN_BOTTOM_MID, 0, -20);
-        lv_obj_set_style_bg_color(toast_, lv_color_hex(0x000000), 0);
         lv_obj_set_style_bg_opa(toast_, LV_OPA_80, 0);
         lv_obj_set_style_border_width(toast_, 0, 0);
         lv_obj_add_flag(toast_, LV_OBJ_FLAG_HIDDEN);
 
         toast_label_ = lv_label_create(toast_);
-        lv_obj_set_style_text_color(toast_label_, lv_color_white(), 0);
         lv_obj_center(toast_label_);
     }
 
+    lv_obj_set_style_bg_color(toast_, colors.fg, 0);
+    lv_obj_set_style_text_color(toast_label_, colors.text, 0);
     lv_label_set_text(toast_label_, message);
     lv_obj_clear_flag(toast_, LV_OBJ_FLAG_HIDDEN);
 
@@ -1504,16 +1529,13 @@ void UIApp::showToastInternal(const char* message, uint32_t duration_ms) {
 void UIApp::applySettings() {
     if (current_orientation_ != settings_.display_orientation) {
         current_orientation_ = settings_.display_orientation;
-        if (running_) {
-            showToast(Strings::getInstance().get("settings.orientation_restart"));
-            vTaskDelay(pdMS_TO_TICKS(300));
-            esp_restart();
-            return;
-        }
         applyDisplayOrientation();
     }
 
-    Theme::applyTheme(settings_.dark_theme);
+    Theme::applyTheme(settings_.theme_id.c_str());
+    if (editor_screen_) {
+        editor_screen_->setEditorFont(Theme::getFont(settings_.font_size));
+    }
     setKeyboardLayout(intToLayout(settings_.keyboard_layout));
     WiFiManager::getInstance().setEnabled(settings_.wifi_enabled);
 
@@ -1552,9 +1574,13 @@ void UIApp::applyDisplayOrientation() {
     }
     MIPIDSI::Orientation orientation = MIPIDSI::Orientation::LANDSCAPE;
     if (settings_.display_orientation == 1) {
-        orientation = MIPIDSI::Orientation::LANDSCAPE;
+        orientation = MIPIDSI::Orientation::LANDSCAPE_INVERTED;
     } else if (settings_.display_orientation == 2) {
         orientation = MIPIDSI::Orientation::PORTRAIT;
+    } else if (settings_.display_orientation == 3) {
+        orientation = MIPIDSI::Orientation::LANDSCAPE;
+    } else if (settings_.display_orientation == 4) {
+        orientation = MIPIDSI::Orientation::PORTRAIT_INVERTED;
     } else {
         MIPIDSI::Orientation imu_orientation = MIPIDSI::Orientation::LANDSCAPE;
         if (getImuOrientation(imu_orientation)) {

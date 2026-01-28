@@ -38,6 +38,7 @@ public:
     void setHUDSaveState(const std::string& status);
     void setHUDBackupState(const std::string& status);
     void setHUDAIState(const std::string& status);
+    void setEditorFont(const lv_font_t* font);
 
 private:
     lv_obj_t* screen_;
@@ -61,4 +62,5 @@ private:
 
     void createWidgets();
     void updateHUD();
+    void applyTheme();
 };

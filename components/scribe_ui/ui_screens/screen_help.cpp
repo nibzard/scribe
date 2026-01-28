@@ -1,5 +1,6 @@
 #include "screen_help.h"
 #include "../../scribe_utils/strings.h"
+#include "../theme/theme.h"
 #include <esp_log.h>
 
 static const char* TAG = "SCRIBE_SCREEN_HELP";
@@ -18,7 +19,7 @@ void ScreenHelp::init() {
 
     screen_ = lv_obj_create(nullptr);
     lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_bg_color(screen_, lv_color_white(), 0);
+    Theme::applyScreenStyle(screen_);
 
     createWidgets();
 }
@@ -89,6 +90,7 @@ void ScreenHelp::createWidgets() {
 
 void ScreenHelp::show() {
     if (screen_) {
+        Theme::applyScreenStyle(screen_);
         lv_screen_load(screen_);
     }
 }
