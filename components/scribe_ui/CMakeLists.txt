@@ -36,6 +36,8 @@ idf_component_register(SRCS
         esp_lcd
         esp_lcd_touch_gt911
         esp_lcd_touch_st7123
+        esp_lvgl_port
+        m5stack-tab5
         scribe_input
         scribe_editor
         scribe_storage

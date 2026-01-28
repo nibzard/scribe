@@ -2,7 +2,7 @@
 #include "usb_hid_device.h"
 #include "sdkconfig.h"
 #include "../scribe_input/keymap.h"
-#include "keyboard_host.h"
+#include "../scribe_input/keyboard_host_control.h"
 #include <esp_log.h>
 #include <cstring>
 
@@ -62,9 +62,8 @@ esp_err_t SendToComputer::switchToDeviceMode() {
     // User may need to unplug keyboard or use dual-port configuration
 
 #if SCRIBE_TINYUSB_HID
-    KeyboardHost& keyboard = KeyboardHost::getInstance();
-    if (keyboard.isRunning()) {
-        keyboard.stop();
+    if (keyboard_host_is_running()) {
+        keyboard_host_stop();
         keyboard_was_running_.store(true);
         vTaskDelay(pdMS_TO_TICKS(50));
     } else {
@@ -89,7 +88,7 @@ esp_err_t SendToComputer::switchToHostMode() {
 
     // Reinitialize keyboard host if it was active before switching
     if (keyboard_was_running_.load()) {
-        KeyboardHost::getInstance().start();
+        keyboard_host_start();
         keyboard_was_running_.store(false);
     }
 

@@ -13,12 +13,13 @@ I2CBus& I2CBus::getInstance() {
 }
 
 esp_err_t I2CBus::init(gpio_num_t sda, gpio_num_t scl) {
-    if (initialized_) {
+    if (initialized_ || bus_ != nullptr) {
+        initialized_ = true;
         return ESP_OK;
     }
 
     i2c_master_bus_config_t bus_config = {};
-    bus_config.i2c_port = I2C_NUM_1;
+    bus_config.i2c_port = I2C_NUM_0;
     bus_config.sda_io_num = sda;
     bus_config.scl_io_num = scl;
     bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
@@ -33,6 +34,18 @@ esp_err_t I2CBus::init(gpio_num_t sda, gpio_num_t scl) {
         initialized_ = true;
     }
     return ret;
+}
+
+esp_err_t I2CBus::adopt(i2c_master_bus_handle_t bus) {
+    if (!bus) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (initialized_) {
+        return (bus_ == bus) ? ESP_OK : ESP_ERR_INVALID_STATE;
+    }
+    bus_ = bus;
+    initialized_ = true;
+    return ESP_OK;
 }
 
 esp_err_t I2CDevice::init(uint8_t address, uint32_t freq_hz) {

@@ -3,6 +3,7 @@
 #include "../scribe_hw/tab5_io_expander.h"
 #include "mipi_dsi_display.h"
 #include <driver/gpio.h>
+#include <esp_log.h>
 #include <esp_lcd_io_i2c.h>
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_touch_st7123.h>
@@ -53,10 +54,12 @@ esp_err_t TouchST7123::init(int width, int height) {
     width_ = width;
     height_ = height;
 
+    gpio_reset_pin(kTouchIntPin);
     tab5::IOExpander::getInstance().init();
     tab5::IOExpander::getInstance().setTouchReset(false);
-    vTaskDelay(pdMS_TO_TICKS(5));
+    vTaskDelay(pdMS_TO_TICKS(100));
     tab5::IOExpander::getInstance().setTouchReset(true);
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     gpio_config_t io_conf = {};
     io_conf.pin_bit_mask = (1ULL << kTouchIntPin);
@@ -76,6 +79,7 @@ esp_err_t TouchST7123::init(int width, int height) {
     }
     ret = i2c_master_probe(bus.handle(), kTouchI2cAddr, kProbeTimeoutMs);
     if (ret != ESP_OK) {
+        ESP_LOGW("SCRIBE_TOUCH_ST7123", "ST7123 touch probe failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -108,10 +112,15 @@ esp_err_t TouchST7123::init(int width, int height) {
             .mirror_x = 0,
             .mirror_y = 0,
         },
+        .process_coordinates = nullptr,
+        .interrupt_callback = nullptr,
+        .user_data = nullptr,
+        .driver_data = nullptr,
     };
 
     ret = esp_lcd_touch_new_i2c_st7123(io_handle, &tp_cfg, &touch_);
     if (ret != ESP_OK) {
+        ESP_LOGW("SCRIBE_TOUCH_ST7123", "ST7123 touch init failed: %s", esp_err_to_name(ret));
         return ret;
     }
 

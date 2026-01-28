@@ -1,0 +1,24 @@
+dependencies:
+  espp/base_peripheral: '>=1.0'
+  idf:
+    version: '>=5.0'
+description: GT911 Touch Controller component for ESP-IDF
+documentation: https://esp-cpp.github.io/espp/input/gt911.html
+license: MIT
+maintainers:
+- William Emfinger <waemfinger@gmail.com>
+repository: git://github.com/esp-cpp/espp.git
+repository_info:
+  commit_sha: 4ed418ef029caf4885182c12a0fbbee3b23d4497
+  path: components/gt911
+tags:
+- cpp
+- Component
+- GT911
+- Touch
+- Touchscreen
+- Input
+- I2C
+- Peripheral
+url: https://github.com/esp-cpp/espp/tree/main/components/gt911
+version: 1.0.34

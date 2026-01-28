@@ -6,6 +6,9 @@
 
 static const char* TAG = "SCRIBE_STRINGS";
 
+extern const char _binary_en_json_start[];
+extern const char _binary_en_json_end[];
+
 Strings& Strings::getInstance() {
     static Strings instance;
     return instance;
@@ -20,6 +23,12 @@ esp_err_t Strings::init(const char* primary_path, const char* fallback_path) {
     if (fallback_path && loadFromFile(fallback_path) == ESP_OK) {
         loaded_ = true;
         ESP_LOGI(TAG, "Loaded strings from %s", fallback_path);
+        return ESP_OK;
+    }
+    size_t embedded_len = static_cast<size_t>(_binary_en_json_end - _binary_en_json_start);
+    if (embedded_len > 0 && loadFromBuffer(_binary_en_json_start, embedded_len) == ESP_OK) {
+        loaded_ = true;
+        ESP_LOGI(TAG, "Loaded strings from embedded en.json");
         return ESP_OK;
     }
 
@@ -85,16 +94,23 @@ esp_err_t Strings::loadFromFile(const char* path) {
         ESP_LOGW(TAG, "Short read for %s", path);
     }
 
-    cJSON* root = cJSON_Parse(content.c_str());
+    return loadFromBuffer(content.c_str(), content.size());
+}
+
+esp_err_t Strings::loadFromBuffer(const char* data, size_t size) {
+    if (!data || size == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cJSON* root = cJSON_Parse(data);
     if (!root) {
-        ESP_LOGE(TAG, "Failed to parse strings JSON: %s", path);
+        ESP_LOGE(TAG, "Failed to parse strings JSON from buffer");
         return ESP_FAIL;
     }
 
     strings_.clear();
     flattenJson(root, "");
     cJSON_Delete(root);
-
     return ESP_OK;
 }
 

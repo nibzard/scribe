@@ -44,6 +44,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
+#include "esp_lvgl_port.h"
 #include <lvgl.h>
 #include <algorithm>
 #include <cctype>
@@ -76,8 +77,10 @@ bool getImuOrientation(MIPIDSI::Orientation& orientation) {
         return false;
     }
 
-    orientation = abs_x > abs_y ? MIPIDSI::Orientation::LANDSCAPE
-                                : MIPIDSI::Orientation::PORTRAIT;
+    // Map IMU tilt to display orientation (Tab5 axes are rotated).
+    // DO NOT revert to abs_x>abs_y => LANDSCAPE; that is wrong on this device.
+    orientation = abs_x > abs_y ? MIPIDSI::Orientation::PORTRAIT
+                                : MIPIDSI::Orientation::LANDSCAPE;
     return true;
 }
 }  // namespace
@@ -98,8 +101,11 @@ UIApp& UIApp::getInstance() {
 esp_err_t UIApp::init() {
     ESP_LOGI(TAG, "Initializing UI...");
 
-    // Initialize LVGL
+    lvgl_ready_ = false;
+#if defined(CONFIG_SCRIBE_WOKWI_SIM) && CONFIG_SCRIBE_WOKWI_SIM
     lv_init();
+    lvgl_ready_ = true;
+#endif
 
     ai_event_queue_ = xQueueCreate(16, sizeof(AIEvent*));
     if (!ai_event_queue_) {
@@ -141,10 +147,9 @@ esp_err_t UIApp::init() {
     esp_err_t ret = MIPIDSI::init(dsi_config);
     if (ret == ESP_OK) {
         ESP_LOGI(TAG, "MIPI-DSI display initialized successfully");
-        if (dsi_config.width != dsi_config.height) {
-            MIPIDSI::setOrientation(dsi_config.width > dsi_config.height
-                ? MIPIDSI::Orientation::LANDSCAPE
-                : MIPIDSI::Orientation::PORTRAIT);
+        lvgl_port_enabled_ = MIPIDSI::usesLvglPort();
+        if (lvgl_port_enabled_) {
+            lvgl_ready_ = true;
         }
         MIPIDSI::setBacklight(100);
 
@@ -178,6 +183,10 @@ esp_err_t UIApp::init() {
     } else {
         ESP_LOGW(TAG, "MIPI-DSI display init failed: %s", esp_err_to_name(ret));
         ESP_LOGI(TAG, "Falling back to generic display driver");
+        if (!lvgl_ready_) {
+            lv_init();
+            lvgl_ready_ = true;
+        }
 
         // Fallback to generic display driver (for simulation/testing)
         DisplayDriver::DisplayConfig disp_config = {
@@ -202,6 +211,11 @@ esp_err_t UIApp::init() {
     SettingsStore& settings_store = SettingsStore::getInstance();
     settings_store.init();
     settings_store.load(settings_);
+
+    bool lvgl_locked = false;
+    if (lvgl_port_enabled_) {
+        lvgl_locked = lvgl_port_lock(0);
+    }
     applyDisplayOrientation();
     Theme::applyTheme(settings_.dark_theme);
 
@@ -477,6 +491,10 @@ esp_err_t UIApp::init() {
 
     applySettings();
 
+    if (lvgl_locked) {
+        lvgl_port_unlock();
+    }
+
     ESP_LOGI(TAG, "UI initialized");
     return ESP_OK;
 }
@@ -487,7 +505,9 @@ esp_err_t UIApp::start() {
     running_ = true;
 
     // Start LVGL task
-    xTaskCreate(lvgl_tick_task, "lvgl_tick", 16384, nullptr, 5, nullptr);
+    if (lvgl_ready_ && !lvgl_port_enabled_) {
+        xTaskCreate(lvgl_tick_task, "lvgl_tick", 16384, nullptr, 5, nullptr);
+    }
 
     ESP_LOGI(TAG, "UI started");
     return ESP_OK;
@@ -782,6 +802,12 @@ void UIApp::updateEditor() {
 
 void UIApp::ensureProjectOpen() {
     if (!current_project_id_.empty()) {
+        return;
+    }
+
+    StorageManager& storage = StorageManager::getInstance();
+    if (!storage.isMounted()) {
+        ESP_LOGE(TAG, "Storage not mounted; skipping auto-create project");
         return;
     }
 
@@ -1537,6 +1563,26 @@ void UIApp::applyDisplayOrientation() {
     }
     MIPIDSI::setOrientation(orientation);
     current_orientation_ = settings_.display_orientation;
+}
+
+void UIApp::updateAutoOrientation() {
+    if (settings_.display_orientation != 0) {
+        return;
+    }
+    if (!MIPIDSI::getLVGLDisplay()) {
+        return;
+    }
+
+    MIPIDSI::Orientation imu_orientation = MIPIDSI::Orientation::LANDSCAPE;
+    if (!getImuOrientation(imu_orientation)) {
+        return;
+    }
+
+    if (imu_orientation == MIPIDSI::getOrientation()) {
+        return;
+    }
+
+    MIPIDSI::setOrientation(imu_orientation);
 }
 
 void UIApp::handlePowerOffConfirm() {

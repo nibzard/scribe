@@ -126,6 +126,8 @@ public:
     const std::string& getCurrentProjectId() const { return current_project_id_; }
     const std::string& getCurrentProjectPath() const { return current_project_path_; }
     const std::string& getCurrentProjectName() const { return current_project_name_; }
+    bool usesLvglPort() const { return lvgl_port_enabled_; }
+    void updateAutoOrientation();
     void setRecoveredContent(const std::string& project_id, const std::string& content);
     void setSaving(bool saving) { saving_ = saving; }
     bool isSaving() const { return saving_; }
@@ -144,6 +146,8 @@ private:
 
     bool running_;
     bool hud_visible_;
+    bool lvgl_ready_ = false;
+    bool lvgl_port_enabled_ = false;
     bool export_in_progress_ = false;
     bool recovery_select_restore_ = true;
     bool saving_ = false;

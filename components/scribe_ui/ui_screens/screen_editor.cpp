@@ -34,6 +34,11 @@ void ScreenEditor::createWidgets() {
     if (text_view_) {
         lv_obj_set_size(text_view_->obj(), LV_HOR_RES, LV_VER_RES);
         lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
+        lv_obj_update_layout(text_view_->obj());
+        lv_area_t coords;
+        lv_obj_get_coords(text_view_->obj(), &coords);
+        text_view_->setViewportSize(lv_area_get_width(&coords) - 20,
+                                    lv_area_get_height(&coords) - 20);
     }
 
     // HUD panel (hidden by default)

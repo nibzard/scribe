@@ -15,6 +15,10 @@ public:
     esp_err_t init(gpio_num_t sda = GPIO_NUM_31,
                    gpio_num_t scl = GPIO_NUM_32);
 
+    esp_err_t adopt(i2c_master_bus_handle_t bus);
+
+    bool isInitialized() const { return initialized_; }
+
     i2c_master_bus_handle_t handle() const { return bus_; }
 
 private:

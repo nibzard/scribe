@@ -193,11 +193,17 @@ TextView::TextView(lv_obj_t* parent) {
     lv_obj_add_event_cb(obj_, text_view_draw_cb, LV_EVENT_DRAW_MAIN, nullptr);
 
     // Get initial viewport size
+    lv_obj_update_layout(obj_);
     lv_area_t coords;
     lv_obj_get_coords(obj_, &coords);
-    viewport_width_ = lv_area_get_width(&coords) - 20;  // Account for padding
-    viewport_height_ = lv_area_get_height(&coords) - 20;
+    int width = lv_area_get_width(&coords);
+    int height = lv_area_get_height(&coords);
+    viewport_width_ = width > 20 ? (width - 20) : 1;  // Account for padding
+    viewport_height_ = height > 20 ? (height - 20) : 1;
     visible_lines_ = viewport_height_ / line_height_;
+    if (visible_lines_ < 1) {
+        visible_lines_ = 1;
+    }
 
     ESP_LOGI(TAG, "TextView created: viewport %dx%d, %d lines",
              viewport_width_, viewport_height_, visible_lines_);
@@ -279,6 +285,9 @@ void TextView::setFont(const lv_font_t* font) {
         if (char_width_ <= 0) char_width_ = 10;
         line_height_ = font_->line_height;
         visible_lines_ = viewport_height_ / line_height_;
+        if (visible_lines_ < 1) {
+            visible_lines_ = 1;
+        }
         updateLineCache();
         invalidate();
     }
@@ -287,14 +296,20 @@ void TextView::setFont(const lv_font_t* font) {
 void TextView::setLineHeight(int height) {
     line_height_ = height;
     visible_lines_ = viewport_height_ / line_height_;
+    if (visible_lines_ < 1) {
+        visible_lines_ = 1;
+    }
     updateLineCache();
     invalidate();
 }
 
 void TextView::setViewportSize(int width, int height) {
-    viewport_width_ = width;
-    viewport_height_ = height;
-    visible_lines_ = height / line_height_;
+    viewport_width_ = width > 0 ? width : 1;
+    viewport_height_ = height > 0 ? height : 1;
+    visible_lines_ = viewport_height_ / line_height_;
+    if (visible_lines_ < 1) {
+        visible_lines_ = 1;
+    }
     updateLineCache();
 }
 

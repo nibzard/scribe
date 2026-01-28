@@ -144,7 +144,7 @@ esp_err_t AudioManager::init() {
 
     if (!s_play_dev) {
         audio_codec_i2c_cfg_t i2c_cfg = {
-            .port = I2C_NUM_1,
+            .port = I2C_NUM_0,
             .addr = ES8388_CODEC_DEFAULT_ADDR,
             .bus_handle = bus.handle(),
         };
@@ -180,7 +180,7 @@ esp_err_t AudioManager::init() {
 
     if (!s_record_dev) {
         audio_codec_i2c_cfg_t i2c_cfg = {
-            .port = I2C_NUM_1,
+            .port = I2C_NUM_0,
             .addr = ES7210_CODEC_DEFAULT_ADDR,
             .bus_handle = bus.handle(),
         };

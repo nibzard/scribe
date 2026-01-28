@@ -53,7 +53,10 @@ void initTimeSync() {
     } else {
         set_default_time();
     }
+}
 
+void startSNTP() {
+    ESP_LOGI(TAG, "Starting SNTP...");
     esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");
     esp_sntp_set_time_sync_notification_cb(time_sync_notification);

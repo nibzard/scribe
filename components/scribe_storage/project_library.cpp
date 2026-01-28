@@ -5,6 +5,7 @@
 #include <cJSON.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <errno.h>
 #include <ctime>
 #include <algorithm>
 #include <cctype>
@@ -110,6 +111,8 @@ esp_err_t ProjectLibrary::load() {
 }
 
 esp_err_t ProjectLibrary::save() {
+    StorageManager::getInstance().ensureDirectories();
+
     sortProjects();
     cJSON* root = cJSON_CreateObject();
     cJSON_AddNumberToObject(root, "version", library_.version);
@@ -131,7 +134,7 @@ esp_err_t ProjectLibrary::save() {
 
     FILE* f = fopen(filepath_.c_str(), "w");
     if (!f) {
-        ESP_LOGE(TAG, "Failed to open library.json for writing");
+        ESP_LOGE(TAG, "Failed to open library.json for writing: %s", strerror(errno));
         cJSON_Delete(root);
         free(json_str);
         return ESP_FAIL;
@@ -238,6 +241,8 @@ esp_err_t ProjectLibrary::updateProjectSavedState(const std::string& id, size_t 
 }
 
 esp_err_t ProjectLibrary::createProject(const std::string& name, std::string& out_id) {
+    StorageManager::getInstance().ensureDirectories();
+
     std::string trimmed = trim(name);
     if (trimmed.empty()) {
         return ESP_ERR_INVALID_ARG;
@@ -260,9 +265,18 @@ esp_err_t ProjectLibrary::createProject(const std::string& name, std::string& ou
     strftime(time_buf, sizeof(time_buf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
 
     // Create project directory
-    mkdir(path.c_str(), 0755);
-    mkdir((path + "/journal").c_str(), 0755);
-    mkdir((path + "/snapshots").c_str(), 0755);
+    if (mkdir(path.c_str(), 0755) != 0 && errno != EEXIST) {
+        ESP_LOGE(TAG, "Failed to create project directory %s: %s", path.c_str(), strerror(errno));
+        return ESP_FAIL;
+    }
+    if (mkdir((path + "/journal").c_str(), 0755) != 0 && errno != EEXIST) {
+        ESP_LOGE(TAG, "Failed to create journal directory %s: %s", path.c_str(), strerror(errno));
+        return ESP_FAIL;
+    }
+    if (mkdir((path + "/snapshots").c_str(), 0755) != 0 && errno != EEXIST) {
+        ESP_LOGE(TAG, "Failed to create snapshots directory %s: %s", path.c_str(), strerror(errno));
+        return ESP_FAIL;
+    }
 
     // Create project.json
     cJSON* proj_json = cJSON_CreateObject();
@@ -286,6 +300,12 @@ esp_err_t ProjectLibrary::createProject(const std::string& name, std::string& ou
 
     std::string proj_file = path + "/project.json";
     FILE* f = fopen(proj_file.c_str(), "w");
+    if (!f) {
+        ESP_LOGE(TAG, "Failed to open %s for writing", proj_file.c_str());
+        cJSON_Delete(proj_json);
+        free(json_str);
+        return ESP_FAIL;
+    }
     fwrite(json_str, 1, strlen(json_str), f);
     fclose(f);
 
@@ -295,6 +315,10 @@ esp_err_t ProjectLibrary::createProject(const std::string& name, std::string& ou
     // Create empty manuscript.md
     std::string manuscript = path + "/manuscript.md";
     f = fopen(manuscript.c_str(), "w");
+    if (!f) {
+        ESP_LOGE(TAG, "Failed to open %s for writing", manuscript.c_str());
+        return ESP_FAIL;
+    }
     fclose(f);
 
     // Add to library
@@ -307,7 +331,10 @@ esp_err_t ProjectLibrary::createProject(const std::string& name, std::string& ou
 
     library_.projects.push_back(info);
     library_.last_open_project_id = id;
-    save();
+    esp_err_t save_ret = save();
+    if (save_ret != ESP_OK) {
+        return save_ret;
+    }
 
     out_id = id;
     ESP_LOGI(TAG, "Created project '%s' with ID %s", name.c_str(), id.c_str());

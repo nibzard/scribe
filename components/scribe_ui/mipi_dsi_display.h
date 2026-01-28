@@ -78,6 +78,9 @@ lv_display_t* getLVGLDisplay();
 // Get current configuration
 const DisplayConfig& getConfig();
 
+// Whether LVGL is managed by esp_lvgl_port
+bool usesLvglPort();
+
 // Clean up
 void deinit();
 

@@ -1,0 +1,677 @@
+I (149) esp_image: segment 1: paddr=0006b848 vaddr=30100000 sizeESP-ROM:esp32p4-eco2-20240710
+Build:Jul 10 2024
+rst:0x17 (CHIP_USB_UART_RESET),boot:0x20c (SPI_FAST_FLASH_BOOT)
+Core0 Saved PC:0x4000decc
+Core1 Saved PC:0x4fc012cc
+SPI mode:DIO, clock div:1
+load:0x4ff33ce0,len:0x164c
+load:0x4ff29ed0,len:0xe08
+load:0x4ff2cbd0,len:0x3588
+entry 0x4ff29eda
+I (28) boot: ESP-IDF -128-NOTFOUND 2nd stage bootloader
+I (28) boot: compile time Jan 28 2026 13:01:37
+I (29) boot: Multicore bootloader
+I (30) boot: chip revision: v1.3
+I (31) boot: efuse block revision: v0.3
+I (35) boot.esp32p4: SPI Speed      : 80MHz
+I (39) boot.esp32p4: SPI Mode       : DIO
+I (43) boot.esp32p4: SPI Flash Size : 16MB
+I (46) boot: Enabling RNG early entropy source...
+I (51) boot: Partition Table:
+I (54) boot: ## Label            Usage          Type ST Offset   Length
+I (60) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (66) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (73) boot:  2 factory          factory app      00 00 00010000 00c00000
+I (79) boot:  3 storage          Unknown data     01 82 00c10000 00300000
+I (87) boot: End of partition table
+I (89) esp_image: segment 0: paddr=00010020 vaddr=40170020 size=5b820h (374816) map
+I (150) esp_image: segment 1: paddr=0006b848 vaddr=30100000 size=00388h (   904) load
+I (151) esp_image: segment 2: paddr=0006bbd8 vaddr=4ff00000 size=04440h ( 17472) load
+I (157) esp_image: segment 3: paddr=00070020 vaddr=40000020 size=1619b0h (1448368) map
+I (363) esp_image: segment 4: paddr=001d19d8 vaddr=4ff04440 size=16548h ( 91464) load
+I (380) esp_image: segment 5: paddr=001e7f28 vaddr=4ff1aa00 size=038a8h ( 14504) load
+I (384) esp_image: segment 6: paddr=001eb7d8 vaddr=50108080 size=00020h (    32) load
+I (391) boot: Loaded app from partition at offset 0x10000
+I (392) boot: Disabling RNG early entropy source...
+I (408) hex_psram: vendor id    : 0x0d (AP)
+I (409) hex_psram: Latency      : 0x01 (Fixed)
+I (409) hex_psram: DriveStr.    : 0x00 (25 Ohm)
+I (410) hex_psram: dev id       : 0x03 (generation 4)
+I (414) hex_psram: density      : 0x07 (256 Mbit)
+I (419) hex_psram: good-die     : 0x06 (Pass)
+I (423) hex_psram: SRF          : 0x02 (Slow Refresh)
+I (428) hex_psram: BurstType    : 0x00 ( Wrap)
+I (432) hex_psram: BurstLen     : 0x03 (2048 Byte)
+I (436) hex_psram: BitMode      : 0x01 (X16 Mode)
+I (441) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)
+I (446) hex_psram: DriveStrength: 0x00 (1/1)
+I (450) MSPI Timing: Enter psram timing tuning
+I (627) esp_psram: Found 32MB PSRAM device
+I (627) esp_psram: Speed: 200MHz
+I (628) hex_psram: psram CS IO is dedicated
+I (629) cpu_start: Multicore app
+I (1580) esp_psram: SPI SRAM memory test OK
+I (1589) cpu_start: GPIO 38 and 37 are used as console UART I/O pins
+I (1590) cpu_start: Pro cpu start user code
+I (1590) cpu_start: cpu freq: 360000000 Hz
+I (1592) app_init: Application information:
+I (1596) app_init: Project name:     scribe
+I (1599) app_init: App version:      0.1.0
+I (1603) app_init: Compile time:     Jan 28 2026 13:02:15
+I (1608) app_init: ELF file SHA256:  7e08f34e5...
+I (1613) app_init: ESP-IDF:          -128-NOTFOUND
+I (1617) efuse_init: Min chip rev:     v0.1
+I (1621) efuse_init: Max chip rev:     v1.99 
+I (1625) efuse_init: Chip rev:         v1.3
+I (1629) heap_init: Initializing. RAM available for dynamic allocation:
+I (1636) heap_init: At 4FF20350 len 0001AC70 (107 KiB): RETENT_RAM
+I (1641) heap_init: At 4FF3AFC0 len 00004BF0 (18 KiB): RAM
+I (1647) heap_init: At 4FF53530 len 0004CAD0 (306 KiB): RAM
+I (1652) heap_init: At 501080A0 len 00007F60 (31 KiB): RTCRAM
+I (1657) heap_init: At 30100388 len 00001C78 (7 KiB): TCM
+I (1663) esp_psram: Adding pool of 32768K of PSRAM memory to heap allocator
+I (1670) spi_flash: detected chip: generic
+I (1673) spi_flash: flash io: dio
+I (1716) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (1722) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (1729) main_task: Started on CPU0
+I (1739) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+I (1739) main_task: Calling app_main()
+I (1739) SCRIBE_MAIN: Scribe v0.1.0 starting...
+I (1749) SCRIBE_MAIN: Open. Type. Your words are safe.
+I (1759) SCRIBE_STORAGE: Initializing SD card...
+W (1759) ldo: The voltage value 0 is out of the recommended range [500, 2700]
+I (1759) sdmmc_periph: sdmmc_host_init: SDMMC host already initialized, skipping init flow
+Name: USD  
+Type: SDHC
+Speed: 40.00 MHz (limit: 40.00 MHz)
+Size: 30191MB
+CSD: ver=2, sector_size=512, capacity=61831168 read_bl_len=9
+SSR: bus_width=4
+I (1819) SCRIBE_STORAGE: SD card mounted at /sdcard
+I (1819) SCRIBE_AUTOSAVE: Autosave manager initialized
+I (1819) SCRIBE_SESSION_STATE: Initializing session state storage
+W (1829) SCRIBE_LIBRARY: library.json not found, creating new
+E (1829) SCRIBE_LIBRARY: Failed to open library.json for writing
+W (1839) SCRIBE_MAIN: Failed to load library, will create new
+I (1839) SCRIBE_BATTERY: Initializing battery monitor...
+W (1849) SCRIBE_BATTERY: INA226 not detected; battery readings will be estimated
+I (1849) SCRIBE_BATTERY: Battery monitor initialized
+I (1859) SCRIBE_POWER: Initializing power management...
+I (1859) SCRIBE_AUDIO: Initializing audio codec...
+I (1879) ES7210: Work in Slave mode
+I (1889) ES7210: Enable ES7210_INPUT_MIC1
+I (1889) ES7210: Enable ES7210_INPUT_MIC2
+I (1899) ES7210: Enable ES7210_INPUT_MIC3
+I (1899) ES7210: Enable ES7210_INPUT_MIC4
+I (1899) ES7210: Enable TDM mode
+I (1909) I2S_IF: channel mode 0 bits:16/16 channel:2 mask:3
+I (1909) I2S_IF: STD Mode 1 bits:16/16 channel:2 sample_rate:48000 mask:3
+I (1909) ES8388: Start on mode:2
+I (1919) Adev_Codec: Open codec device OK
+I (1919) I2S_IF: Mode 1 need extend bits 32 to 64
+I (1919) I2S_IF: channel mode 2 bits:16/16 channel:4 mask:f
+I (1929) I2S_IF: TDM Mode 0 bits:16/16 channel:4 sample_rate:48000 mask:f
+I (1929) I2S_IF: channel mode 0 bits:16/32 channel:2 mask:3
+I (1939) I2S_IF: STD Mode 1 bits:16/32 channel:2 sample_rate:48000 mask:3
+I (1939) ES7210: Bits 16
+I (1949) ES7210: Enable ES7210_INPUT_MIC1
+I (1959) ES7210: Enable ES7210_INPUT_MIC2
+I (1959) ES7210: Enable ES7210_INPUT_MIC3
+I (1959) ES7210: Enable ES7210_INPUT_MIC4
+I (1959) ES7210: Enable TDM mode
+I (1969) ES7210: Unmuted
+I (1969) Adev_Codec: Open codec device OK
+I (1969) SCRIBE_AUDIO: Audio codec initialized
+I (2259) bmi270: Set sensors odr and range
+I (2259) bmi270: Enable the selected sensors
+I (2269) SCRIBE_IMU: IMU initialized
+I (2269) SCRIBE_TIME: Initializing time sync...
+I (2269) SCRIBE_AI: Initializing AI assistance service
+I (2269) SCRIBE_SECRETS: Initializing secrets storage...
+I (2269) SCRIBE_AI: No API key configured - AI features disabled
+I (2279) SCRIBE_UI: Initializing UI...
+I (2279) SCRIBE_MIPI_DSI: Initializing display: 720x1280, panel=0
+I (2289) SCRIBE_MIPI_DSI: Using M5Stack Tab5 BSP for MIPI-DSI init (hardware only)
+[32m[Pi4ioe5v/I][2.299]: Initializing PI4IOE5V with address 0x43
+[0m[32m[Pi4ioe5v/I][2.299]: Performing software reset
+[0m[32m[Pi4ioe5v/I][2.309]: PI4IOE5V Chip ID: 0xa2
+[0m[32m[Pi4ioe5v/I][2.309]: Setting initial output value to  0b1110110
+[0m[32m[Pi4ioe5v/I][2.319]: Setting output high impedance to        0b0
+[0m[32m[Pi4ioe5v/I][2.319]: Enabling pull-up/down for pin  0b1110110
+[0m[32m[Pi4ioe5v/I][2.329]: Setting pull-up for pin  0b1110110
+[0m[32m[Pi4ioe5v/I][2.339]: Enabling pull-up/down for pin        0b0
+[0m[32m[Pi4ioe5v/I][2.339]: Setting pull-down for pin        0b0
+[0m[32m[Pi4ioe5v/I][2.349]: Setting direction (1=output) to  0b1110110
+[0m[32m[Pi4ioe5v/I][2.349]: Setting input default to        0b0
+[0m[32m[Pi4ioe5v/I][2.359]: Setting interrupt mask (1=disabled) to        0b0
+[0m[32m[Pi4ioe5v/I][2.369]: Initializing PI4IOE5V with address 0x44
+[0m[32m[Pi4ioe5v/I][2.369]: Performing software reset
+[0m[32m[Pi4ioe5v/I][2.379]: PI4IOE5V Chip ID: 0xa2
+[0m[32m[Pi4ioe5v/I][2.379]: Setting initial output value to     0b1001
+[0m[32m[Pi4ioe5v/I][2.389]: Setting output high impedance to      0b110
+[0m[32m[Pi4ioe5v/I][2.399]: Enabling pull-up/down for pin 0b10111001
+[0m[32m[Pi4ioe5v/I][2.399]: Setting pull-up for pin 0b10111001
+[0m[32m[Pi4ioe5v/I][2.409]: Enabling pull-up/down for pin  0b1000000
+[0m[32m[Pi4ioe5v/I][2.409]: Setting pull-down for pin  0b1000000
+[0m[32m[Pi4ioe5v/I][2.419]: Setting direction (1=output) to 0b10111001
+[0m[32m[Pi4ioe5v/I][2.429]: Setting input default to        0b0
+[0m[32m[Pi4ioe5v/I][2.429]: Setting interrupt mask (1=disabled) to        0b0
+[0m[33m[I2cMasterBus/W][2.589]: Device 0x14 not found on bus 0: ESP_ERR_NOT_FOUND
+[0mI (2959) LVGL: Starting LVGL task
+E (2959) LVGL: lvgl_port_add_disp_priv(418): Not enough memory for LVGL buffer (rotation buffer) allocation!
+I (2959) SCRIBE_MIPI_DSI: LVGL port buf: 0x4ff40ff4 data=0x4ff58780 size=184320
+E (2969) cache: esp_cache_msync(103): invalid addr or null pointer
+
+assert failed: xQueueSemaphoreTake queue.c:1709 (( pxQueue ))
+Core  0 register dump:
+MEPC    : 0x4ff0d84c  RA      : 0x4ff0d7fe  SP      : 0x4ff584c0  GP      : 0x4ff1b200  
+TP      : 0x4ff58740  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x0000008a  S1      : 0x00000001  A0      : 0x4ff584fc  A1      : 0x4ff1d2ed  
+A2      : 0x00000001  A3      : 0x00000029  A4      : 0x00000001  A5      : 0x4ff53000  
+A6      : 0x0000000c  A7      : 0x76757473  S2      : 0x00000009  S3      : 0x4ff5860d  
+S4      : 0x4ff1d2ec  S5      : 0x000002cf  S6      : 0x000004ff  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00011880  MTVEC   : 0x4ff00003  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+Stack memory:
+4ff584c0: 0x0000012a 0xffffffc9 0x4019e8c8 0x4ff1834c 0x4ff1d35c 0x4019e8c8 0x4ff1d340 0x4017286a
+4ff584e0: 0x4ff1d36c 0x4ff584f4 0x4ff1d370 0x40172ac8 0x4ff1d2ec 0x39303731 0xffffff00 0x65737361
+4ff58500: 0x66207472 0x656c6961 0x78203a64 0x75657551 0x6d655365 0x6f687061 0x61546572 0x7120656b
+4ff58520: 0x65756575 0x313a632e 0x20393037 0x70202828 0x65755178 0x29206575 0x481c0029 0x4ff53c20
+4ff58540: 0x00000001 0x481ca884 0x4ff1b208 0x4015acc6 0x00000000 0x000002d0 0x00000000 0x481ca8ec
+4ff58560: 0x00000001 0x481ca974 0x00000000 0x00000040 0x4ff585bc 0x4ff56040 0x4ff560c0 0x00000010
+4ff58580: 0x000004ff 0x000002d0 0x00000000 0x4ff58780 0x00000000 0x00000500 0x4ff39184 0x40053398
+4ff585a0: 0x00000000 0x00000500 0x4ff55f98 0x4015e146 0x4ff585e8 0x00000062 0x0002d000 0x4ff58780
+4ff585c0: 0x48008880 0x00000000 0x00000000 0x00000000 0x00000500 0x00000000 0x00000480 0x4ff55f98
+4ff585e0: 0x4ff40d74 0x000002d0 0x00000000 0x4ff0e992 0x00000000 0x00000000 0x00000000 0x00000000
+4ff58600: 0x000004ff 0x000002cf 0x00000480 0x4ff55f98 0x4ff40d74 0x000002d0 0x4ff565bc 0x4ff55f98
+4ff58620: 0x4ff40d74 0x000002d0 0x4ff565bc 0x40051838 0x00000000 0x00000001 0x4ff586a0 0x4ff58780
+4ff58640: 0x00000080 0x000004ff 0x4ff586a0 0x00000500 0x4ff58780 0x4ff410ac 0x4ff40d74 0x40063922
+4ff58660: 0x00000000 0x00000480 0x000002cf 0x000004ff 0x00000001 0x4ff410ac 0x4ff40d74 0x40063d92
+4ff58680: 0x00000500 0x00000000 0x00000000 0x40064d5c 0x00000000 0x00000000 0x000002cf 0x000004ff
+4ff586a0: 0x00000000 0x00000480 0x000002cf 0x000004ff 0x00000000 0x00000000 0x00000000 0x00000000
+4ff586c0: 0x00000005 0xffffffff 0x4ff20150 0x40064f12 0x00000000 0xffffffff 0x4ff41104 0x40072e3c
+4ff586e0: 0x00000000 0x4ff40c74 0x4ff41104 0x40072ef6 0x00000000 0x00000000 0x00000000 0x4005089c
+4ff58700: 0x00000000 0x00000000 0x00000000 0x4ff0ed04 0x00000000 0x00000000 0x00000000 0x00000000
+4ff58720: 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0xa5a5a5a5 0xa5a5a5a5 0xa5a5a5a5
+4ff58740: 0x00000000 0x4ff56b68 0x4ff56b68 0x00000000 0x00000000 0x00000000 0xa5a5a5a5 0xa5a5a5a5
+4ff58760: 0xa5a5a5a5 0xa5a5a5a5 0x00047891 0x4ff53544 0x4ff53544 0x143b0eef 0x4ff58764 0x0002d003
+4ff58780: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587a0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587c0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587e0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58800: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58820: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58840: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58860: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58880: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff588a0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+
+
+
+ELF file SHA256: 7e08f34e5
+
+Rebooting...
+ESP-ROM:esp32p4-eco2-20240710
+Build:Jul 10 2024
+rst:0xc (SW_CPU_RESET),boot:0x20c (SPI_FAST_FLASH_BOOT)
+Core0 Saved PC:0x4ff064e2
+Core1 Saved PC:0x4ff0662a
+SPI mode:DIO, clock div:1
+load:0x4ff33ce0,len:0x164c
+load:0x4ff29ed0,len:0xe08
+load:0x4ff2cbd0,len:0x3588
+entry 0x4ff29eda
+I (28) boot: ESP-IDF -128-NOTFOUND 2nd stage bootloader
+I (28) boot: compile time Jan 28 2026 13:01:37
+I (29) boot: Multicore bootloader
+I (30) boot: chip revision: v1.3
+I (32) boot: efuse block revision: v0.3
+I (35) boot.esp32p4: SPI Speed      : 80MHz
+I (39) boot.esp32p4: SPI Mode       : DIO
+I (43) boot.esp32p4: SPI Flash Size : 16MB
+I (47) boot: Enabling RNG early entropy source...
+I (51) boot: Partition Table:
+I (54) boot: ## Label            Usage          Type ST Offset   Length
+I (60) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (67) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (73) boot:  2 factory          factory app      00 00 00010000 00c00000
+I (80) boot:  3 storage          Unknown data     01 82 00c10000 00300000
+I (87) boot: End of partition table
+I (90) esp_image: segment 0: paddr=00010020 vaddr=40170020 size=5b820h (374816) map
+I (150) esp_image: segment 1: paddr=0006b848 vaddr=30100000 size=00388h (   904) load
+I (152) esp_image: segment 2: paddr=0006bbd8 vaddr=4ff00000 size=04440h ( 17472) load
+I (158) esp_image: segment 3: paddr=00070020 vaddr=40000020 size=1619b0h (1448368) map
+I (364) esp_image: segment 4: paddr=001d19d8 vaddr=4ff04440 size=16548h ( 91464) load
+I (380) esp_image: segment 5: paddr=001e7f28 vaddr=4ff1aa00 size=038a8h ( 14504) load
+I (384) esp_image: segment 6: paddr=001eb7d8 vaddr=50108080 size=00020h (    32) load
+I (391) boot: Loaded app from partition at offset 0x10000
+I (391) boot: Disabling RNG early entropy source...
+I (408) hex_psram: vendor id    : 0x0d (AP)
+I (409) hex_psram: Latency      : 0x01 (Fixed)
+I (409) hex_psram: DriveStr.    : 0x00 (25 Ohm)
+I (410) hex_psram: dev id       : 0x03 (generation 4)
+I (414) hex_psram: density      : 0x07 (256 Mbit)
+I (419) hex_psram: good-die     : 0x06 (Pass)
+I (423) hex_psram: SRF          : 0x02 (Slow Refresh)
+I (428) hex_psram: BurstType    : 0x00 ( Wrap)
+I (432) hex_psram: BurstLen     : 0x03 (2048 Byte)
+I (436) hex_psram: BitMode      : 0x01 (X16 Mode)
+I (441) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)
+I (446) hex_psram: DriveStrength: 0x00 (1/1)
+I (450) MSPI Timing: Enter psram timing tuning
+I (627) esp_psram: Found 32MB PSRAM device
+I (628) esp_psram: Speed: 200MHz
+I (628) hex_psram: psram CS IO is dedicated
+I (629) cpu_start: Multicore app
+I (1579) esp_psram: SPI SRAM memory test OK
+I (1588) cpu_start: GPIO 38 and 37 are used as console UART I/O pins
+I (1589) cpu_start: Pro cpu start user code
+I (1589) cpu_start: cpu freq: 360000000 Hz
+I (1591) app_init: Application information:
+I (1594) app_init: Project name:     scribe
+I (1598) app_init: App version:      0.1.0
+I (1602) app_init: Compile time:     Jan 28 2026 13:02:15
+I (1607) app_init: ELF file SHA256:  7e08f34e5...
+I (1612) app_init: ESP-IDF:          -128-NOTFOUND
+I (1616) efuse_init: Min chip rev:     v0.1
+I (1620) efuse_init: Max chip rev:     v1.99 
+I (1624) efuse_init: Chip rev:         v1.3
+I (1628) heap_init: Initializing. RAM available for dynamic allocation:
+I (1635) heap_init: At 4FF20350 len 0001AC70 (107 KiB): RETENT_RAM
+I (1640) heap_init: At 4FF3AFC0 len 00004BF0 (18 KiB): RAM
+I (1646) heap_init: At 4FF53530 len 0004CAD0 (306 KiB): RAM
+I (1651) heap_init: At 501080A0 len 00007F60 (31 KiB): RTCRAM
+I (1656) heap_init: At 30100388 len 00001C78 (7 KiB): TCM
+I (1662) esp_psram: Adding pool of 32768K of PSRAM memory to heap allocator
+I (1669) spi_flash: detected chip: generic
+I (1672) spi_flash: flash io: dio
+I (1715) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (1721) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (1728) main_task: Started on CPU0
+I (1738) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+I (1738) main_task: Calling app_main()
+I (1738) SCRIBE_MAIN: Scribe v0.1.0 starting...
+I (1748) SCRIBE_MAIN: Open. Type. Your words are safe.
+I (1758) SCRIBE_STORAGE: Initializing SD card...
+W (1758) ldo: The voltage value 0 is out of the recommended range [500, 2700]
+I (1758) sdmmc_periph: sdmmc_host_init: SDMMC host already initialized, skipping init flow
+Name: USD  
+Type: SDHC
+Speed: 40.00 MHz (limit: 40.00 MHz)
+Size: 30191MB
+CSD: ver=2, sector_size=512, capacity=61831168 read_bl_len=9
+SSR: bus_width=4
+I (1818) SCRIBE_STORAGE: SD card mounted at /sdcard
+I (1818) SCRIBE_AUTOSAVE: Autosave manager initialized
+I (1818) SCRIBE_SESSION_STATE: Initializing session state storage
+W (1828) SCRIBE_LIBRARY: library.json not found, creating new
+E (1828) SCRIBE_LIBRARY: Failed to open library.json for writing
+W (1838) SCRIBE_MAIN: Failed to load library, will create new
+I (1838) SCRIBE_BATTERY: Initializing battery monitor...
+W (1848) SCRIBE_BATTERY: INA226 not detected; battery readings will be estimated
+I (1848) SCRIBE_BATTERY: Battery monitor initialized
+I (1858) SCRIBE_POWER: Initializing power management...
+I (1858) SCRIBE_AUDIO: Initializing audio codec...
+I (1878) ES7210: Work in Slave mode
+I (1888) ES7210: Enable ES7210_INPUT_MIC1
+I (1888) ES7210: Enable ES7210_INPUT_MIC2
+I (1898) ES7210: Enable ES7210_INPUT_MIC3
+I (1898) ES7210: Enable ES7210_INPUT_MIC4
+I (1898) ES7210: Enable TDM mode
+I (1908) I2S_IF: channel mode 0 bits:16/16 channel:2 mask:3
+I (1908) I2S_IF: STD Mode 1 bits:16/16 channel:2 sample_rate:48000 mask:3
+I (1908) ES8388: Start on mode:2
+I (1918) Adev_Codec: Open codec device OK
+I (1918) I2S_IF: Mode 1 need extend bits 32 to 64
+I (1918) I2S_IF: channel mode 2 bits:16/16 channel:4 mask:f
+I (1928) I2S_IF: TDM Mode 0 bits:16/16 channel:4 sample_rate:48000 mask:f
+I (1928) I2S_IF: channel mode 0 bits:16/32 channel:2 mask:3
+I (1938) I2S_IF: STD Mode 1 bits:16/32 channel:2 sample_rate:48000 mask:3
+I (1938) ES7210: Bits 16
+I (1948) ES7210: Enable ES7210_INPUT_MIC1
+I (1958) ES7210: Enable ES7210_INPUT_MIC2
+I (1958) ES7210: Enable ES7210_INPUT_MIC3
+I (1958) ES7210: Enable ES7210_INPUT_MIC4
+I (1958) ES7210: Enable TDM mode
+I (1968) ES7210: Unmuted
+I (1968) Adev_Codec: Open codec device OK
+I (1968) SCRIBE_AUDIO: Audio codec initialized
+I (2258) bmi270: Set sensors odr and range
+I (2258) bmi270: Enable the selected sensors
+I (2268) SCRIBE_IMU: IMU initialized
+I (2268) SCRIBE_TIME: Initializing time sync...
+I (2268) SCRIBE_AI: Initializing AI assistance service
+I (2268) SCRIBE_SECRETS: Initializing secrets storage...
+I (2268) SCRIBE_AI: No API key configured - AI features disabled
+I (2278) SCRIBE_UI: Initializing UI...
+I (2278) SCRIBE_MIPI_DSI: Initializing display: 720x1280, panel=0
+I (2288) SCRIBE_MIPI_DSI: Using M5Stack Tab5 BSP for MIPI-DSI init (hardware only)
+[32m[Pi4ioe5v/I][2.298]: Initializing PI4IOE5V with address 0x43
+[0m[32m[Pi4ioe5v/I][2.298]: Performing software reset
+[0m[32m[Pi4ioe5v/I][2.308]: PI4IOE5V Chip ID: 0xa2
+[0m[32m[Pi4ioe5v/I][2.308]: Setting initial output value to  0b1110110
+[0m[32m[Pi4ioe5v/I][2.318]: Setting output high impedance to        0b0
+[0m[32m[Pi4ioe5v/I][2.318]: Enabling pull-up/down for pin  0b1110110
+[0m[32m[Pi4ioe5v/I][2.328]: Setting pull-up for pin  0b1110110
+[0m[32m[Pi4ioe5v/I][2.338]: Enabling pull-up/down for pin        0b0
+[0m[32m[Pi4ioe5v/I][2.338]: Setting pull-down for pin        0b0
+[0m[32m[Pi4ioe5v/I][2.348]: Setting direction (1=output) to  0b1110110
+[0m[32m[Pi4ioe5v/I][2.348]: Setting input default to        0b0
+[0m[32m[Pi4ioe5v/I][2.358]: Setting interrupt mask (1=disabled) to        0b0
+[0m[32m[Pi4ioe5v/I][2.368]: Initializing PI4IOE5V with address 0x44
+[0m[32m[Pi4ioe5v/I][2.368]: Performing software reset
+[0m[32m[Pi4ioe5v/I][2.378]: PI4IOE5V Chip ID: 0xa2
+[0m[32m[Pi4ioe5v/I][2.378]: Setting initial output value to     0b1001
+[0m[32m[Pi4ioe5v/I][2.388]: Setting output high impedance to      0b110
+[0m[32m[Pi4ioe5v/I][2.398]: Enabling pull-up/down for pin 0b10111001
+[0m[32m[Pi4ioe5v/I][2.398]: Setting pull-up for pin 0b10111001
+[0m[32m[Pi4ioe5v/I][2.408]: Enabling pull-up/down for pin  0b1000000
+[0m[32m[Pi4ioe5v/I][2.408]: Setting pull-down for pin  0b1000000
+[0m[32m[Pi4ioe5v/I][2.418]: Setting direction (1=output) to 0b10111001
+[0m[32m[Pi4ioe5v/I][2.428]: Setting input default to        0b0
+[0m[32m[Pi4ioe5v/I][2.428]: Setting interrupt mask (1=disabled) to        0b0
+[0m[33m[I2cMasterBus/W][2.588]: Device 0x14 not found on bus 0: ESP_ERR_NOT_FOUND
+[0mI (2958) LVGL: Starting LVGL task
+E (2958) LVGL: lvgl_port_add_disp_priv(418): Not enough memory for LVGL buffer (rotation buffer) allocation!
+I (2958) SCRIBE_MIPI_DSI: LVGL port buf: 0x4ff40ff4 data=0x4ff58780 size=184320
+E (2968) cache: esp_cache_msync(103): invalid addr or null pointer
+
+assert failed: xQueueSemaphoreTake queue.c:1709 (( pxQueue ))
+Core  0 register dump:
+MEPC    : 0x4ff0d84c  RA      : 0x4ff0d7fe  SP      : 0x4ff584c0  GP      : 0x4ff1b200  
+TP      : 0x4ff58740  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x0000008a  S1      : 0x00000001  A0      : 0x4ff584fc  A1      : 0x4ff1d2ed  
+A2      : 0x00000001  A3      : 0x00000029  A4      : 0x00000001  A5      : 0x4ff53000  
+A6      : 0x0000000c  A7      : 0x76757473  S2      : 0x00000009  S3      : 0x4ff5860d  
+S4      : 0x4ff1d2ec  S5      : 0x000002cf  S6      : 0x000004ff  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00011880  MTVEC   : 0x4ff00003  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+Stack memory:
+4ff584c0: 0x0000012a 0xffffffc9 0x4019e8c8 0x4ff1834c 0x4ff1d35c 0x4019e8c8 0x4ff1d340 0x4017286a
+4ff584e0: 0x4ff1d36c 0x4ff584f4 0x4ff1d370 0x40172ac8 0x4ff1d2ec 0x39303731 0xffffff00 0x65737361
+4ff58500: 0x66207472 0x656c6961 0x78203a64 0x75657551 0x6d655365 0x6f687061 0x61546572 0x7120656b
+4ff58520: 0x65756575 0x313a632e 0x20393037 0x70202828 0x65755178 0x29206575 0x481c0029 0x4ff53c20
+4ff58540: 0x00000001 0x481ca884 0x4ff1b208 0x4015acc6 0x00000000 0x000002d0 0x00000000 0x481ca8ec
+4ff58560: 0x00000001 0x481ca974 0x00000000 0x00000040 0x4ff585bc 0x4ff56040 0x4ff560c0 0x00000010
+4ff58580: 0x000004ff 0x000002d0 0x00000000 0x4ff58780 0x00000000 0x00000500 0x4ff39184 0x40053398
+4ff585a0: 0x00000000 0x00000500 0x4ff55f98 0x4015e146 0x4ff585e8 0x00000062 0x0002d000 0x4ff58780
+4ff585c0: 0x48008880 0x00000000 0x00000000 0x00000000 0x00000500 0x00000000 0x00000480 0x4ff55f98
+4ff585e0: 0x4ff40d74 0x000002d0 0x00000000 0x4ff0e992 0x00000000 0x00000000 0x00000000 0x00000000
+4ff58600: 0x000004ff 0x000002cf 0x00000480 0x4ff55f98 0x4ff40d74 0x000002d0 0x4ff565bc 0x4ff55f98
+4ff58620: 0x4ff40d74 0x000002d0 0x4ff565bc 0x40051838 0x00000000 0x00000001 0x4ff586a0 0x4ff58780
+4ff58640: 0x00000080 0x000004ff 0x4ff586a0 0x00000500 0x4ff58780 0x4ff410ac 0x4ff40d74 0x40063922
+4ff58660: 0x00000000 0x00000480 0x000002cf 0x000004ff 0x00000001 0x4ff410ac 0x4ff40d74 0x40063d92
+4ff58680: 0x00000500 0x00000000 0x00000000 0x40064d5c 0x00000000 0x00000000 0x000002cf 0x000004ff
+4ff586a0: 0x00000000 0x00000480 0x000002cf 0x000004ff 0x00000000 0x00000000 0x00000000 0x00000000
+4ff586c0: 0x00000005 0xffffffff 0x4ff20150 0x40064f12 0x00000000 0xffffffff 0x4ff41104 0x40072e3c
+4ff586e0: 0x00000000 0x4ff40c74 0x4ff41104 0x40072ef6 0x00000000 0x00000000 0x00000000 0x4005089c
+4ff58700: 0x00000000 0x00000000 0x00000000 0x4ff0ed04 0x00000000 0x00000000 0x00000000 0x00000000
+4ff58720: 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0xa5a5a5a5 0xa5a5a5a5 0xa5a5a5a5
+4ff58740: 0x00000000 0x4ff56b68 0x4ff56b68 0x00000000 0x00000000 0x00000000 0xa5a5a5a5 0xa5a5a5a5
+4ff58760: 0xa5a5a5a5 0xa5a5a5a5 0x00047891 0x4ff53544 0x4ff53544 0x143b0eef 0x4ff58764 0x0002d003
+4ff58780: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587a0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587c0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587e0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58800: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58820: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58840: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58860: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58880: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff588a0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+
+
+
+ELF file SHA256: 7e08f34e5
+
+Rebooting...
+ESP-ROM:esp32p4-eco2-20240710
+Build:Jul 10 2024
+rst:0xc (SW_CPU_RESET),boot:0x20c (SPI_FAST_FLASH_BOOT)
+Core0 Saved PC:0x4ff064e2
+Core1 Saved PC:0x4ff0662a
+SPI mode:DIO, clock div:1
+load:0x4ff33ce0,len:0x164c
+load:0x4ff29ed0,len:0xe08
+load:0x4ff2cbd0,len:0x3588
+entry 0x4ff29eda
+I (28) boot: ESP-IDF -128-NOTFOUND 2nd stage bootloader
+I (28) boot: compile time Jan 28 2026 13:01:37
+I (29) boot: Multicore bootloader
+I (30) boot: chip revision: v1.3
+I (32) boot: efuse block revision: v0.3
+I (35) boot.esp32p4: SPI Speed      : 80MHz
+I (39) boot.esp32p4: SPI Mode       : DIO
+I (43) boot.esp32p4: SPI Flash Size : 16MB
+I (47) boot: Enabling RNG early entropy source...
+I (51) boot: Partition Table:
+I (54) boot: ## Label            Usage          Type ST Offset   Length
+I (60) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (67) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (73) boot:  2 factory          factory app      00 00 00010000 00c00000
+I (80) boot:  3 storage          Unknown data     01 82 00c10000 00300000
+I (87) boot: End of partition table
+I (90) esp_image: segment 0: paddr=00010020 vaddr=40170020 size=5b820h (374816) map
+I (150) esp_image: segment 1: paddr=0006b848 vaddr=30100000 size=00388h (   904) load
+I (152) esp_image: segment 2: paddr=0006bbd8 vaddr=4ff00000 size=04440h ( 17472) load
+I (158) esp_image: segment 3: paddr=00070020 vaddr=40000020 size=1619b0h (1448368) map
+I (364) esp_image: segment 4: paddr=001d19d8 vaddr=4ff04440 size=16548h ( 91464) load
+I (380) esp_image: segment 5: paddr=001e7f28 vaddr=4ff1aa00 size=038a8h ( 14504) load
+I (384) esp_image: segment 6: paddr=001eb7d8 vaddr=50108080 size=00020h (    32) load
+I (391) boot: Loaded app from partition at offset 0x10000
+I (391) boot: Disabling RNG early entropy source...
+I (408) hex_psram: vendor id    : 0x0d (AP)
+I (409) hex_psram: Latency      : 0x01 (Fixed)
+I (409) hex_psram: DriveStr.    : 0x00 (25 Ohm)
+I (410) hex_psram: dev id       : 0x03 (generation 4)
+I (414) hex_psram: density      : 0x07 (256 Mbit)
+I (419) hex_psram: good-die     : 0x06 (Pass)
+I (423) hex_psram: SRF          : 0x02 (Slow Refresh)
+I (428) hex_psram: BurstType    : 0x00 ( Wrap)
+I (432) hex_psram: BurstLen     : 0x03 (2048 Byte)
+I (436) hex_psram: BitMode      : 0x01 (X16 Mode)
+I (441) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)
+I (446) hex_psram: DriveStrength: 0x00 (1/1)
+I (450) MSPI Timing: Enter psram timing tuning
+I (627) esp_psram: Found 32MB PSRAM device
+I (627) esp_psram: Speed: 200MHz
+I (628) hex_psram: psram CS IO is dedicated
+I (629) cpu_start: Multicore app
+I (1579) esp_psram: SPI SRAM memory test OK
+I (1588) cpu_start: GPIO 38 and 37 are used as console UART I/O pins
+I (1588) cpu_start: Pro cpu start user code
+I (1589) cpu_start: cpu freq: 360000000 Hz
+I (1590) app_init: Application information:
+I (1594) app_init: Project name:     scribe
+I (1598) app_init: App version:      0.1.0
+I (1602) app_init: Compile time:     Jan 28 2026 13:02:15
+I (1607) app_init: ELF file SHA256:  7e08f34e5...
+I (1612) app_init: ESP-IDF:          -128-NOTFOUND
+I (1616) efuse_init: Min chip rev:     v0.1
+I (1620) efuse_init: Max chip rev:     v1.99 
+I (1624) efuse_init: Chip rev:         v1.3
+I (1628) heap_init: Initializing. RAM available for dynamic allocation:
+I (1634) heap_init: At 4FF20350 len 0001AC70 (107 KiB): RETENT_RAM
+I (1640) heap_init: At 4FF3AFC0 len 00004BF0 (18 KiB): RAM
+I (1645) heap_init: At 4FF53530 len 0004CAD0 (306 KiB): RAM
+I (1651) heap_init: At 501080A0 len 00007F60 (31 KiB): RTCRAM
+I (1656) heap_init: At 30100388 len 00001C78 (7 KiB): TCM
+I (1662) esp_psram: Adding pool of 32768K of PSRAM memory to heap allocator
+I (1669) spi_flash: detected chip: generic
+I (1672) spi_flash: flash io: dio
+I (1715) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (1721) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (1728) main_task: Started on CPU0
+I (1738) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+I (1738) main_task: Calling app_main()
+I (1738) SCRIBE_MAIN: Scribe v0.1.0 starting...
+I (1748) SCRIBE_MAIN: Open. Type. Your words are safe.
+I (1758) SCRIBE_STORAGE: Initializing SD card...
+W (1758) ldo: The voltage value 0 is out of the recommended range [500, 2700]
+I (1758) sdmmc_periph: sdmmc_host_init: SDMMC host already initialized, skipping init flow
+Name: USD  
+Type: SDHC
+Speed: 40.00 MHz (limit: 40.00 MHz)
+Size: 30191MB
+CSD: ver=2, sector_size=512, capacity=61831168 read_bl_len=9
+SSR: bus_width=4
+I (1818) SCRIBE_STORAGE: SD card mounted at /sdcard
+I (1818) SCRIBE_AUTOSAVE: Autosave manager initialized
+I (1818) SCRIBE_SESSION_STATE: Initializing session state storage
+W (1828) SCRIBE_LIBRARY: library.json not found, creating new
+E (1828) SCRIBE_LIBRARY: Failed to open library.json for writing
+W (1838) SCRIBE_MAIN: Failed to load library, will create new
+I (1838) SCRIBE_BATTERY: Initializing battery monitor...
+W (1848) SCRIBE_BATTERY: INA226 not detected; battery readings will be estimated
+I (1848) SCRIBE_BATTERY: Battery monitor initialized
+I (1858) SCRIBE_POWER: Initializing power management...
+I (1858) SCRIBE_AUDIO: Initializing audio codec...
+I (1878) ES7210: Work in Slave mode
+I (1888) ES7210: Enable ES7210_INPUT_MIC1
+I (1888) ES7210: Enable ES7210_INPUT_MIC2
+I (1898) ES7210: Enable ES7210_INPUT_MIC3
+I (1898) ES7210: Enable ES7210_INPUT_MIC4
+I (1898) ES7210: Enable TDM mode
+I (1908) I2S_IF: channel mode 0 bits:16/16 channel:2 mask:3
+I (1908) I2S_IF: STD Mode 1 bits:16/16 channel:2 sample_rate:48000 mask:3
+I (1908) ES8388: Start on mode:2
+I (1918) Adev_Codec: Open codec device OK
+I (1918) I2S_IF: Mode 1 need extend bits 32 to 64
+I (1918) I2S_IF: channel mode 2 bits:16/16 channel:4 mask:f
+I (1928) I2S_IF: TDM Mode 0 bits:16/16 channel:4 sample_rate:48000 mask:f
+I (1928) I2S_IF: channel mode 0 bits:16/32 channel:2 mask:3
+I (1938) I2S_IF: STD Mode 1 bits:16/32 channel:2 sample_rate:48000 mask:3
+I (1938) ES7210: Bits 16
+I (1948) ES7210: Enable ES7210_INPUT_MIC1
+I (1958) ES7210: Enable ES7210_INPUT_MIC2
+I (1958) ES7210: Enable ES7210_INPUT_MIC3
+I (1958) ES7210: Enable ES7210_INPUT_MIC4
+I (1958) ES7210: Enable TDM mode
+I (1968) ES7210: Unmuted
+I (1968) Adev_Codec: Open codec device OK
+I (1968) SCRIBE_AUDIO: Audio codec initialized
+I (2258) bmi270: Set sensors odr and range
+I (2258) bmi270: Enable the selected sensors
+I (2268) SCRIBE_IMU: IMU initialized
+I (2268) SCRIBE_TIME: Initializing time sync...
+I (2268) SCRIBE_AI: Initializing AI assistance service
+I (2268) SCRIBE_SECRETS: Initializing secrets storage...
+I (2268) SCRIBE_AI: No API key configured - AI features disabled
+I (2278) SCRIBE_UI: Initializing UI...
+I (2278) SCRIBE_MIPI_DSI: Initializing display: 720x1280, panel=0
+I (2288) SCRIBE_MIPI_DSI: Using M5Stack Tab5 BSP for MIPI-DSI init (hardware only)
+[32m[Pi4ioe5v/I][2.298]: Initializing PI4IOE5V with address 0x43
+[0m[32m[Pi4ioe5v/I][2.298]: Performing software reset
+[0m[32m[Pi4ioe5v/I][2.308]: PI4IOE5V Chip ID: 0xa2
+[0m[32m[Pi4ioe5v/I][2.308]: Setting initial output value to  0b1110110
+[0m[32m[Pi4ioe5v/I][2.318]: Setting output high impedance to        0b0
+[0m[32m[Pi4ioe5v/I][2.318]: Enabling pull-up/down for pin  0b1110110
+[0m[32m[Pi4ioe5v/I][2.328]: Setting pull-up for pin  0b1110110
+[0m[32m[Pi4ioe5v/I][2.338]: Enabling pull-up/down for pin        0b0
+[0m[32m[Pi4ioe5v/I][2.338]: Setting pull-down for pin        0b0
+[0m[32m[Pi4ioe5v/I][2.348]: Setting direction (1=output) to  0b1110110
+[0m[32m[Pi4ioe5v/I][2.358]: Setting input default to        0b0
+[0m[32m[Pi4ioe5v/I][2.358]: Setting interrupt mask (1=disabled) to        0b0
+[0m[32m[Pi4ioe5v/I][2.368]: Initializing PI4IOE5V with address 0x44
+[0m[32m[Pi4ioe5v/I][2.368]: Performing software reset
+[0m[32m[Pi4ioe5v/I][2.378]: PI4IOE5V Chip ID: 0xa2
+[0m[32m[Pi4ioe5v/I][2.378]: Setting initial output value to     0b1001
+[0m[32m[Pi4ioe5v/I][2.388]: Setting output high impedance to      0b110
+[0m[32m[Pi4ioe5v/I][2.398]: Enabling pull-up/down for pin 0b10111001
+[0m[32m[Pi4ioe5v/I][2.398]: Setting pull-up for pin 0b10111001
+[0m[32m[Pi4ioe5v/I][2.408]: Enabling pull-up/down for pin  0b1000000
+[0m[32m[Pi4ioe5v/I][2.408]: Setting pull-down for pin  0b1000000
+[0m[32m[Pi4ioe5v/I][2.418]: Setting direction (1=output) to 0b10111001
+[0m[32m[Pi4ioe5v/I][2.428]: Setting input default to        0b0
+[0m[32m[Pi4ioe5v/I][2.428]: Setting interrupt mask (1=disabled) to        0b0
+[0m[33m[I2cMasterBus/W][2.588]: Device 0x14 not found on bus 0: ESP_ERR_NOT_FOUND
+[0mI (2958) LVGL: Starting LVGL task
+E (2958) LVGL: lvgl_port_add_disp_priv(418): Not enough memory for LVGL buffer (rotation buffer) allocation!
+I (2958) SCRIBE_MIPI_DSI: LVGL port buf: 0x4ff40ff4 data=0x4ff58780 size=184320
+E (2968) cache: esp_cache_msync(103): invalid addr or null pointer
+
+assert failed: xQueueSemaphoreTake queue.c:1709 (( pxQueue ))
+Core  0 register dump:
+MEPC    : 0x4ff0d84c  RA      : 0x4ff0d7fe  SP      : 0x4ff584c0  GP      : 0x4ff1b200  
+TP      : 0x4ff58740  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x0000008a  S1      : 0x00000001  A0      : 0x4ff584fc  A1      : 0x4ff1d2ed  
+A2      : 0x00000001  A3      : 0x00000029  A4      : 0x00000001  A5      : 0x4ff53000  
+A6      : 0x0000000c  A7      : 0x76757473  S2      : 0x00000009  S3      : 0x4ff5860d  
+S4      : 0x4ff1d2ec  S5      : 0x000002cf  S6      : 0x000004ff  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00011880  MTVEC   : 0x4ff00003  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+Stack memory:
+4ff584c0: 0x0000012a 0xffffffc9 0x4019e8c8 0x4ff1834c 0x4ff1d35c 0x4019e8c8 0x4ff1d340 0x4017286a
+4ff584e0: 0x4ff1d36c 0x4ff584f4 0x4ff1d370 0x40172ac8 0x4ff1d2ec 0x39303731 0xffffff00 0x65737361
+4ff58500: 0x66207472 0x656c6961 0x78203a64 0x75657551 0x6d655365 0x6f687061 0x61546572 0x7120656b
+4ff58520: 0x65756575 0x313a632e 0x20393037 0x70202828 0x65755178 0x29206575 0x481c0029 0x4ff53c20
+4ff58540: 0x00000001 0x481ca884 0x4ff1b208 0x4015acc6 0x00000000 0x000002d0 0x00000000 0x481ca8ec
+4ff58560: 0x00000001 0x481ca974 0x00000000 0x00000040 0x4ff585bc 0x4ff56040 0x4ff560c0 0x00000010
+4ff58580: 0x000004ff 0x000002d0 0x00000000 0x4ff58780 0x00000000 0x00000500 0x4ff39184 0x40053398
+4ff585a0: 0x00000000 0x00000500 0x4ff55f98 0x4015e146 0x4ff585e8 0x00000062 0x0002d000 0x4ff58780
+4ff585c0: 0x48008880 0x00000000 0x00000000 0x00000000 0x00000500 0x00000000 0x00000480 0x4ff55f98
+4ff585e0: 0x4ff40d74 0x000002d0 0x00000000 0x4ff0e992 0x00000000 0x00000000 0x00000000 0x00000000
+4ff58600: 0x000004ff 0x000002cf 0x00000480 0x4ff55f98 0x4ff40d74 0x000002d0 0x4ff565bc 0x4ff55f98
+4ff58620: 0x4ff40d74 0x000002d0 0x4ff565bc 0x40051838 0x00000000 0x00000001 0x4ff586a0 0x4ff58780
+4ff58640: 0x00000080 0x000004ff 0x4ff586a0 0x00000500 0x4ff58780 0x4ff410ac 0x4ff40d74 0x40063922
+4ff58660: 0x00000000 0x00000480 0x000002cf 0x000004ff 0x00000001 0x4ff410ac 0x4ff40d74 0x40063d92
+4ff58680: 0x00000500 0x00000000 0x00000000 0x40064d5c 0x00000000 0x00000000 0x000002cf 0x000004ff
+4ff586a0: 0x00000000 0x00000480 0x000002cf 0x000004ff 0x00000000 0x00000000 0x00000000 0x00000000
+4ff586c0: 0x00000005 0xffffffff 0x4ff20150 0x40064f12 0x00000000 0xffffffff 0x4ff41104 0x40072e3c
+4ff586e0: 0x00000000 0x4ff40c74 0x4ff41104 0x40072ef6 0x00000000 0x00000000 0x00000000 0x4005089c
+4ff58700: 0x00000000 0x00000000 0x00000000 0x4ff0ed04 0x00000000 0x00000000 0x00000000 0x00000000
+4ff58720: 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0xa5a5a5a5 0xa5a5a5a5 0xa5a5a5a5
+4ff58740: 0x00000000 0x4ff56b68 0x4ff56b68 0x00000000 0x00000000 0x00000000 0xa5a5a5a5 0xa5a5a5a5
+4ff58760: 0xa5a5a5a5 0xa5a5a5a5 0x00047891 0x4ff53544 0x4ff53544 0x143b0eef 0x4ff58764 0x0002d003
+4ff58780: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587a0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587c0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff587e0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58800: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58820: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58840: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58860: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff58880: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+4ff588a0: 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be 0xf7bef7be
+
+
+
+ELF file SHA256: 7e08f34e5
+
+Rebooting...
+ESP-ROM:esp32p4-eco2-20240710
+Build:Jul 10 2024
+rst:0xc (SW_CPU_RESET),boot:0x20c (SPI_FAST_FLASH_BOOT)
+Core0 Saved PC:0x4ff064e2
+Core1 Saved PC:0x4ff0662a
+SPI mode:DIO, clock div:1
+load:0x4ff33ce0,len:0x164c
+load:0x4ff29ed0,len:0xe08
+load:0x4ff2cbd0,len:0x3588
+entry 0x4ff29eda
+I (28) boot: ESP-IDF -128-NOTFOUND 2nd stage bootloader
+I (28) boot: compile time Jan 28 2026 13:01:37
+I (29) boot: Multicore bootloader
+I (30) boot: chip revision: v1.3
+I (32) boot: efuse block revision: v0.3
+I (35) boot.esp32p4: SPI Speed      : 80MHz
+I (39) boot.esp32p4: SPI Mode       : DIO
+I (43) boot.esp32p4: SPI Flash Size : 16MB
+I (47) boot: Enabling RNG early entropy source...
+I (51) boot: Partition Table:
+I (54) boot: ## Label            Usage          Type ST Offset   Length
+I (60) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (67) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (73) boot:  2 factory          factory app      00 00 00010000 00c00000
+I (80) boot:  3 storage          Unknown data     01 82 00c10000 00300000
+I (87) boot: End of partition table

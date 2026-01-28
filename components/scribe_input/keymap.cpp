@@ -112,6 +112,19 @@ static const KeyEvent::Key hid_usage_to_key[] = {
     KeyEvent::Key::F10,      // 0x43
     KeyEvent::Key::F11,      // 0x44
     KeyEvent::Key::F12,      // 0x45
+    KeyEvent::Key::UNKNOWN,  // 0x46 - Print Screen
+    KeyEvent::Key::UNKNOWN,  // 0x47 - Scroll Lock
+    KeyEvent::Key::UNKNOWN,  // 0x48 - Pause
+    KeyEvent::Key::INSERT,   // 0x49
+    KeyEvent::Key::HOME,     // 0x4A
+    KeyEvent::Key::PAGE_UP,  // 0x4B
+    KeyEvent::Key::DELETE,   // 0x4C - Delete Forward
+    KeyEvent::Key::END,      // 0x4D
+    KeyEvent::Key::PAGE_DOWN,// 0x4E
+    KeyEvent::Key::RIGHT,    // 0x4F
+    KeyEvent::Key::LEFT,     // 0x50
+    KeyEvent::Key::DOWN,     // 0x51
+    KeyEvent::Key::UP,       // 0x52
 };
 
 KeyEvent::Key mapHIDUsageToKey(uint8_t usage) {

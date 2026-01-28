@@ -154,7 +154,7 @@ esp_err_t IOExpander::resetDisplayAndTouch() {
     if (ret != ESP_OK) {
         return ret;
     }
-    vTaskDelay(pdMS_TO_TICKS(5));
+    vTaskDelay(pdMS_TO_TICKS(100));
     ret = setLcdReset(true);
     if (ret != ESP_OK) {
         return ret;
@@ -163,7 +163,7 @@ esp_err_t IOExpander::resetDisplayAndTouch() {
     if (ret != ESP_OK) {
         return ret;
     }
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(100));
     return ESP_OK;
 }
 

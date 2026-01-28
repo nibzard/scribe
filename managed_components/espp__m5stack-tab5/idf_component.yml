@@ -1,0 +1,34 @@
+dependencies:
+  espp/base_component: '>=1.0'
+  espp/bmi270: '>=1.0'
+  espp/codec: '>=1.0'
+  espp/display: '>=1.0'
+  espp/display_drivers: '>=1.0'
+  espp/gt911: '>=1.0'
+  espp/i2c: '>=1.0'
+  espp/ina226: '>=1.0'
+  espp/input_drivers: '>=1.0'
+  espp/interrupt: '>=1.0'
+  espp/pi4ioe5v: '>=1.0'
+  espp/rx8130ce: '>=1.0'
+  espp/task: '>=1.0'
+  idf: '>=5.0'
+description: M5Stack Tab5 Board Support Package (BSP) component in C++ for ESP32-P4
+documentation: https://esp-cpp.github.io/espp/m5stack_tab5.html
+license: MIT
+maintainers:
+- William Emfinger <waemfinger@gmail.com>
+repository: git://github.com/esp-cpp/espp.git
+repository_info:
+  commit_sha: 4ed418ef029caf4885182c12a0fbbee3b23d4497
+  path: components/m5stack-tab5
+tags:
+- cpp
+- Component
+- M5Stack
+- Tab5
+- BSP
+targets:
+- esp32p4
+url: https://github.com/esp-cpp/espp/tree/main/components/m5stack-tab5
+version: 1.0.34

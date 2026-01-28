@@ -1,0 +1,25 @@
+WARNING: Python interpreter "C:\Users\korisnik\.espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe" used to start idf.py is not from installed venv "C:\Espressif\tools\python\v5.5.2\venv"
+--- Warning: GDB cannot open serial ports accessed as COMx
+--- Using \\.\COM5 instead...
+--- esp-idf-monitor 1.9.0 on \\.\COM5 115200
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+--- 0x4ff2cbf0: is_xmc_chip_strict at C:/esp/v5.5.2/esp-idf/components/bootloader_support/bootloader_flash/src/bootloader_flash.c:927
+--- 0x4ff1212a: pvTaskIncrementMutexHeldCount at C:/esp/v5.5.2/esp-idf/components/freertos/FreeRTOS-Kernel/tasks.c:5721
+--- 0x4000deba: s_test_psram at C:/esp/v5.5.2/esp-idf/components/esp_psram/system_layer/esp_psram.c:596
+--- 0x4ff29ed0: esp_bootloader_get_description at C:/esp/v5.5.2/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c:39
+--- 0x4ff2cbd0: esp_flash_encryption_enabled at C:/esp/v5.5.2/esp-idf/components/bootloader_support/src/flash_encrypt.c:89
+--- 0x4ff29eda: call_start_cpu0 at C:/esp/v5.5.2/esp-idf/components/bootloader/subproject/main/bootloader_start.c:25
+[0;33mHINT: Please reboot the board and then try again[0m
+[0;33mHINT: Please verify if there is an SD card inserted into the SD slot. Then, try rebooting the board.[0m
+--- 0x4002b778: fmt::v11::detail::parse_dynamic_spec_result<char> fmt::v11::detail::parse_dynamic_spec<char>(char const*, char const*, int&, fmt::v11::detail::arg_ref<char>&, fmt::v11::parse_context<char>&) at C:/Users/korisnik/dev/scribe/managed_components/espp__format/detail/fmt/include/fmt/base.h:1383
+--- 0x4ff2d730: bootloader_common_check_chip_validity at C:/esp/v5.5.2/esp-idf/components/bootloader_support/src/bootloader_common_loader.c:122
+--- Stack dump detected
+--- 0x4002b782: fmt::v11::detail::parse_dynamic_spec_result<char> fmt::v11::detail::parse_dynamic_spec<char>(char const*, char const*, int&, fmt::v11::detail::arg_ref<char>&, fmt::v11::parse_context<char>&) at C:/Users/korisnik/dev/scribe/managed_components/espp__format/detail/fmt/include/fmt/base.h:1383
+--- 0x4002b882: char const* fmt::v11::detail::parse_width<char>(char const*, char const*, fmt::v11::format_specs&, fmt::v11::detail::arg_ref<char>&, fmt::v11::parse_context<char>&) at C:/Users/korisnik/dev/scribe/managed_components/espp__format/detail/fmt/include/fmt/base.h:1419
+--- 0x4ff2d710: bootloader_common_check_efuse_blk_validity at C:/esp/v5.5.2/esp-idf/components/bootloader_support/src/bootloader_common_loader.c:114
+--- 0x4ff1794e: remove_free_block at C:/esp/v5.5.2/esp-idf/components/heap/tlsf/tlsf_control_functions.h:385
+--- (inlined by) block_remove at C:/esp/v5.5.2/esp-idf/components/heap/tlsf/tlsf_control_functions.h:422
+--- (inlined by) block_merge_next at C:/esp/v5.5.2/esp-idf/components/heap/tlsf/tlsf_control_functions.h:538
+--- (inlined by) block_trim_used at C:/esp/v5.5.2/esp-idf/components/heap/tlsf/tlsf_control_functions.h:568
+--- (inlined by) tlsf_realloc at C:/esp/v5.5.2/esp-idf/components/heap/tlsf/tlsf.c:707
+--- 0x4ff00003: _vector_table at ??:?

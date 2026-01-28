@@ -31,12 +31,18 @@ public:
     void setCloseCallback(std::function<void()> cb) { close_callback_ = cb; }
 
 private:
+    struct ButtonData {
+        ScreenMenu* screen;
+        int index;
+    };
+
     lv_obj_t* screen_;
     lv_obj_t* list_;
     int selected_index_ = 0;
     std::function<void()> close_callback_;
     std::vector<MenuItem> items_;
     std::vector<lv_obj_t*> buttons_;
+    std::vector<ButtonData> button_data_;
 
     void createWidgets();
     void updateSelection();

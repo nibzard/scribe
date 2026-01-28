@@ -18,7 +18,8 @@ void SpaceHoldDetector::init() {
         .callback = &holdTimerCallback,
         .arg = this,
         .dispatch_method = ESP_TIMER_TASK,
-        .name = "space_hold"
+        .name = "space_hold",
+        .skip_unhandled_events = false
     };
 
     esp_timer_create(&timer_args, &hold_timer_);

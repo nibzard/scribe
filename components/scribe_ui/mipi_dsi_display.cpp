@@ -10,11 +10,19 @@
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <inttypes.h>
+#include "m5stack-tab5.hpp"
+#include "esp_lvgl_port.h"
 
 using MIPIDSI::DisplayConfig;
 using MIPIDSI::Orientation;
 
 static const char* TAG = "SCRIBE_MIPI_DSI";
+
+static espp::M5StackTab5* s_tab5 = nullptr;
+static bool s_use_tab5_bsp = false;
+static bool s_use_lvgl_port = false;
+static bool s_lvgl_port_inited = false;
 
 // Display state
 static struct {
@@ -384,7 +392,7 @@ static esp_err_t initDSI() {
     esp_lcd_dsi_bus_config_t bus_config = {};
     bus_config.bus_id = kDsiBusId;
     bus_config.num_data_lanes = kDsiNumLanes;
-    bus_config.phy_clk_src = MIPI_DSI_PHY_PLLREF_CLK_SRC_DEFAULT;
+    bus_config.phy_clk_src = MIPI_DSI_PHY_PLLREF_CLK_SRC_XTAL;
     bus_config.lane_bit_rate_mbps = kDsiLaneMbps;
 
     ret = esp_lcd_new_dsi_bus(&bus_config, &state.dsi_bus);
@@ -469,6 +477,76 @@ static esp_err_t initDSI() {
     }
 
     ESP_LOGI(TAG, "ST7123 initialization complete");
+    return ESP_OK;
+}
+
+static esp_err_t initLvglPortDisplay() {
+    if (!s_lvgl_port_inited) {
+        lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+        esp_err_t ret = lvgl_port_init(&lvgl_cfg);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "lvgl_port_init failed: %s", esp_err_to_name(ret));
+            return ret;
+        }
+        s_lvgl_port_inited = true;
+    }
+
+    // Match M5 Tab5 demo sizing: 50 lines worth of pixels
+    uint32_t buffer_size = static_cast<uint32_t>(state.config.width) * 50;
+    if (buffer_size == 0) {
+        buffer_size = static_cast<uint32_t>(state.config.width) * 4;
+    }
+
+    const lvgl_port_display_cfg_t disp_cfg = {
+        .io_handle = state.dsi_io,
+        .panel_handle = state.dsi_panel,
+        .control_handle = state.dsi_panel,
+        .buffer_size = buffer_size,
+        .double_buffer = false,
+        .trans_size = 0,
+        .hres = static_cast<uint32_t>(state.config.width),
+        .vres = static_cast<uint32_t>(state.config.height),
+        .monochrome = false,
+        .rotation = {
+            .swap_xy = false,
+            .mirror_x = false,
+            .mirror_y = false,
+        },
+#if LVGL_VERSION_MAJOR >= 9
+        .color_format = LV_COLOR_FORMAT_RGB565,
+#endif
+        .flags = {
+            .buff_dma = 1,
+            .buff_spiram = 0,
+            .sw_rotate = 1,
+#if LVGL_VERSION_MAJOR >= 9
+            .swap_bytes = 0,
+#endif
+            .full_refresh = 0,
+            .direct_mode = 0,
+        },
+    };
+
+    const lvgl_port_display_dsi_cfg_t dsi_cfg = {
+        .flags = {
+            .avoid_tearing = 0,
+        },
+    };
+
+    lv_display_t* disp = lvgl_port_add_disp_dsi(&disp_cfg, &dsi_cfg);
+    if (!disp) {
+        ESP_LOGE(TAG, "lvgl_port_add_disp_dsi failed");
+        return ESP_FAIL;
+    }
+
+    lv_display_set_default(disp);
+    state.lvgl_display = disp;
+    lv_draw_buf_t* buf = lv_display_get_buf_active(disp);
+    ESP_LOGI(TAG, "LVGL port buf: %p data=%p size=%" PRIu32,
+             buf,
+             buf ? buf->data : nullptr,
+             buf ? buf->data_size : 0);
+    s_use_lvgl_port = true;
     return ESP_OK;
 }
 
@@ -593,6 +671,14 @@ esp_err_t MIPIDSI::init(const DisplayConfig& config) {
 
     state.config = config;
     state.use_spi = config.use_spi;
+    s_use_tab5_bsp = false;
+    s_tab5 = nullptr;
+    s_use_lvgl_port = false;
+
+    if (!state.use_spi && config.panel == PanelType::ST7123) {
+        s_use_tab5_bsp = false;
+        s_tab5 = nullptr;
+    }
 
     if (state.use_spi) {
         state.buffer_size = static_cast<size_t>(config.width) * 40 * 2;  // 40 lines buffer
@@ -632,37 +718,50 @@ esp_err_t MIPIDSI::init(const DisplayConfig& config) {
             ESP_LOGE(TAG, "Unsupported DSI panel type");
             return ESP_ERR_NOT_SUPPORTED;
         }
-        esp_err_t ret = initDSI();
+        ESP_LOGI(TAG, "Using M5Stack Tab5 BSP for MIPI-DSI init (hardware only)");
+        auto& tab5 = espp::M5StackTab5::get();
+        s_tab5 = &tab5;
+        s_use_tab5_bsp = true;
+
+        if (!tab5.initialize_lcd()) {
+            ESP_LOGE(TAG, "Tab5 BSP LCD init failed");
+            s_use_tab5_bsp = false;
+            s_tab5 = nullptr;
+            return ESP_FAIL;
+        }
+
+        state.dsi_io = tab5.lcd_io_handle();
+        state.dsi_panel = tab5.lcd_panel_handle();
+        if (!state.dsi_io || !state.dsi_panel) {
+            ESP_LOGE(TAG, "Tab5 BSP did not provide valid DSI handles");
+            return ESP_FAIL;
+        }
+
+        esp_err_t ret = initLvglPortDisplay();
         if (ret != ESP_OK) {
             return ret;
         }
     }
 
-    // Create LVGL display
-    state.lvgl_display = lv_display_create(config.width, config.height);
-    if (!state.lvgl_display) {
-        ESP_LOGE(TAG, "Failed to create LVGL display");
-        return ESP_ERR_NO_MEM;
-    }
-
-    // Set flush callback
-    lv_display_set_flush_cb(state.lvgl_display, lvglFlushCallback);
-
-    // Set color format before configuring buffers
-    lv_display_set_color_format(state.lvgl_display, LV_COLOR_FORMAT_RGB565);
-
     if (state.use_spi) {
+        // Create LVGL display for SPI panels
+        state.lvgl_display = lv_display_create(config.width, config.height);
+        if (!state.lvgl_display) {
+            ESP_LOGE(TAG, "Failed to create LVGL display");
+            return ESP_ERR_NO_MEM;
+        }
+
+        // Set flush callback
+        lv_display_set_flush_cb(state.lvgl_display, lvglFlushCallback);
+
+        // Set color format before configuring buffers
+        lv_display_set_color_format(state.lvgl_display, LV_COLOR_FORMAT_RGB565);
+
         lv_display_set_buffers(state.lvgl_display, state.draw_buffer, nullptr,
                                state.buffer_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
-    } else {
-        lv_display_set_buffers(state.lvgl_display,
-                               state.frame_buffers[0],
-                               state.num_frame_buffers > 1 ? state.frame_buffers[1] : nullptr,
-                               state.frame_buffer_size,
-                               LV_DISPLAY_RENDER_MODE_DIRECT);
-    }
 
-    clear(0x0000);
+        clear(0x0000);
+    }
 
     state.initialized = true;
     ESP_LOGI(TAG, "Display initialization complete");
@@ -671,6 +770,26 @@ esp_err_t MIPIDSI::init(const DisplayConfig& config) {
 
 esp_err_t MIPIDSI::setOrientation(Orientation orientation) {
     state.current_orientation = orientation;
+
+    if ((s_use_tab5_bsp || s_use_lvgl_port) && state.lvgl_display) {
+        lv_display_rotation_t rot = LV_DISPLAY_ROTATION_0;
+        switch (orientation) {
+            case Orientation::PORTRAIT:
+                rot = LV_DISPLAY_ROTATION_0;
+                break;
+            case Orientation::LANDSCAPE:
+                rot = LV_DISPLAY_ROTATION_90;
+                break;
+            case Orientation::PORTRAIT_INVERTED:
+                rot = LV_DISPLAY_ROTATION_180;
+                break;
+            case Orientation::LANDSCAPE_INVERTED:
+                rot = LV_DISPLAY_ROTATION_270;
+                break;
+        }
+        lv_display_set_rotation(state.lvgl_display, rot);
+        return ESP_OK;
+    }
 
     if (state.lvgl_display) {
         bool swap = (orientation == Orientation::LANDSCAPE ||
@@ -809,6 +928,11 @@ esp_err_t MIPIDSI::reset() {
 }
 
 esp_err_t MIPIDSI::sleep(bool enter) {
+    if (s_use_tab5_bsp && s_tab5) {
+        s_tab5->set_backlight_enabled(!enter);
+        return ESP_OK;
+    }
+
     if (!state.use_spi && state.dsi_io) {
         uint8_t cmd = enter ? PanelCommands::DSI_DISPOFF : PanelCommands::DSI_DISPON;
         esp_err_t ret = esp_lcd_panel_io_tx_param(state.dsi_io, cmd, nullptr, 0);
@@ -845,6 +969,14 @@ esp_err_t MIPIDSI::sleep(bool enter) {
 }
 
 esp_err_t MIPIDSI::setBacklight(int percent) {
+    if (s_use_tab5_bsp && s_tab5) {
+        if (percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+        s_tab5->brightness(static_cast<float>(percent));
+        s_tab5->set_backlight_enabled(percent > 0);
+        return ESP_OK;
+    }
+
     if (state.config.backlight_pin == GPIO_NUM_NC) {
         return ESP_ERR_NOT_SUPPORTED;
     }
@@ -871,12 +1003,20 @@ const DisplayConfig& MIPIDSI::getConfig() {
     return state.config;
 }
 
+bool MIPIDSI::usesLvglPort() {
+    return s_use_lvgl_port;
+}
+
 void MIPIDSI::deinit() {
     if (!state.initialized) {
         return;
     }
 
-    if (state.lvgl_display) {
+    if (s_use_lvgl_port && state.lvgl_display) {
+        lvgl_port_remove_disp(state.lvgl_display);
+        state.lvgl_display = nullptr;
+        s_use_lvgl_port = false;
+    } else if (state.lvgl_display) {
         lv_display_delete(state.lvgl_display);
         state.lvgl_display = nullptr;
     }

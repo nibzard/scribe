@@ -23,13 +23,18 @@
 #include "rtc_time.h"
 #include "audio_manager.h"
 #include "imu_manager.h"
+#include "tab5_i2c.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <m5stack-tab5.hpp>
+#include <esp_err.h>
 #include <esp_log.h>
 #include <esp_system.h>
 #include <lvgl.h>
+#include "esp_lvgl_port.h"
 #include <ctime>
+#include <inttypes.h>
 #include <string>
 #include <nvs_flash.h>
 
@@ -81,6 +86,19 @@ extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "Scribe v0.1.0 starting...");
     ESP_LOGI(TAG, "Open. Type. Your words are safe.");
+
+    // Initialize Tab5 BSP early to own the internal I2C bus and share it.
+    espp::M5StackTab5& tab5_bsp = espp::M5StackTab5::get();
+    tab5::I2CBus& i2c_bus = tab5::I2CBus::getInstance();
+    i2c_master_bus_handle_t bus_handle = tab5_bsp.internal_i2c().handle();
+    if (!bus_handle) {
+        ESP_LOGE(TAG, "Tab5 internal I2C not initialized");
+    } else {
+        esp_err_t i2c_ret = i2c_bus.adopt(bus_handle);
+        if (i2c_ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to adopt Tab5 I2C bus: %s", esp_err_to_name(i2c_ret));
+        }
+    }
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -150,7 +168,7 @@ extern "C" void app_main(void)
         ESP_LOGW(TAG, "IMU init failed: %s", esp_err_to_name(ret));
     }
 
-    // Initialize RTC + SNTP time sync
+    // Initialize RTC time (SNTP will be started after TCP/IP is ready)
     initTimeSync();
 
     // Initialize AI assistance (optional)
@@ -384,17 +402,34 @@ static void ui_task(void* arg) {
     ESP_LOGI(TAG, "UI task started");
 
     UIApp& ui = UIApp::getInstance();
+    const bool use_lvgl_port = ui.usesLvglPort();
+    if (use_lvgl_port) {
+        lvgl_port_lock(0);
+    }
     ui.showEditor();
+    if (use_lvgl_port) {
+        lvgl_port_unlock();
+    }
 
     // Autosave timer tracking
     TickType_t last_keypress_time = xTaskGetTickCount();
     const TickType_t autosave_delay = pdMS_TO_TICKS(5000);  // 5 seconds idle
     const TickType_t ui_tick = pdMS_TO_TICKS(5);
     bool has_unsaved_changes = false;
+    static bool sntp_started = false;
+
+    // Start SNTP after UI task begins (TCP/IP is now ready)
+    if (!sntp_started) {
+        startSNTP();
+        sntp_started = true;
+    }
 
     while (true) {
         Event event;
         if (xQueueReceive(g_event_queue, &event, ui_tick) == pdTRUE) {
+            if (use_lvgl_port) {
+                lvgl_port_lock(0);
+            }
             switch (event.type) {
                 case EventType::KEY_EVENT: {
                     const KeyEvent& key_event = event.key_event;
@@ -514,6 +549,9 @@ static void ui_task(void* arg) {
                 default:
                     break;
             }
+            if (use_lvgl_port) {
+                lvgl_port_unlock();
+            }
         }
 
         // Check for autosave trigger (every 5 seconds of idle time)
@@ -533,7 +571,13 @@ static void ui_task(void* arg) {
                         delete req;
                         ESP_LOGW(TAG, "Autosave queue full; will retry on next idle window");
                     } else {
+                        if (use_lvgl_port) {
+                            lvgl_port_lock(0);
+                        }
                         ui.setSaving(true);
+                        if (use_lvgl_port) {
+                            lvgl_port_unlock();
+                        }
                         autosave_queued = true;
                     }
                 } else {
@@ -548,8 +592,40 @@ static void ui_task(void* arg) {
             }
         }
 
+        static bool s_logged_lvgl_buf = false;
+        if (use_lvgl_port) {
+            lvgl_port_lock(0);
+        }
+
+        if (!s_logged_lvgl_buf) {
+            lv_display_t* disp = lv_display_get_default();
+            if (!disp) {
+                ESP_LOGE(TAG, "LVGL default display is null");
+            } else {
+                lv_draw_buf_t* buf = lv_display_get_buf_active(disp);
+                ESP_LOGI(TAG, "LVGL draw buf: %p data=%p size=%" PRIu32,
+                         buf,
+                         buf ? buf->data : nullptr,
+                         buf ? buf->data_size : 0);
+            }
+            s_logged_lvgl_buf = true;
+        }
+
+        static TickType_t last_orientation_check = 0;
+        TickType_t now = xTaskGetTickCount();
+        if ((now - last_orientation_check) >= pdMS_TO_TICKS(250)) {
+            ui.updateAutoOrientation();
+            last_orientation_check = now;
+        }
+
         ui.processAsyncEvents();
-        lv_timer_handler();
+        if (!use_lvgl_port) {
+            lv_timer_handler();
+        }
+
+        if (use_lvgl_port) {
+            lvgl_port_unlock();
+        }
     }
 
     vTaskDelete(nullptr);

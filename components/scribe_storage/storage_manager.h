@@ -45,6 +45,9 @@ public:
     // Get free space in bytes
     size_t getFreeSpace() const;
 
+    // Ensure Scribe directory structure exists
+    esp_err_t ensureDirectories();
+
 private:
     StorageManager()
         : mounted_(false),

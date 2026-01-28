@@ -28,6 +28,7 @@ private:
     ~Strings() = default;
 
     esp_err_t loadFromFile(const char* path);
+    esp_err_t loadFromBuffer(const char* data, size_t size);
     void flattenJson(cJSON* node, const std::string& prefix);
 
     std::unordered_map<std::string, std::string> strings_;

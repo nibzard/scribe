@@ -11,6 +11,8 @@
 #include <sdmmc_cmd.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <errno.h>
+#include <string.h>
 
 static const char* TAG = "SCRIBE_STORAGE";
 
@@ -130,16 +132,35 @@ esp_err_t StorageManager::createDirectories() {
 
     for (int i = 0; dirs[i] != nullptr; i++) {
         struct stat st;
-        if (stat(dirs[i], &st) != 0) {
-            if (mkdir(dirs[i], 0755) != 0) {
-                ESP_LOGE(TAG, "Failed to create directory: %s", dirs[i]);
+        if (stat(dirs[i], &st) == 0) {
+            if (!S_ISDIR(st.st_mode)) {
+                ESP_LOGE(TAG, "Path exists but is not a directory: %s", dirs[i]);
                 return ESP_FAIL;
             }
-            ESP_LOGI(TAG, "Created directory: %s", dirs[i]);
+            continue;
         }
+
+        if (errno != ENOENT) {
+            ESP_LOGE(TAG, "Failed to stat directory %s: %s", dirs[i], strerror(errno));
+            return ESP_FAIL;
+        }
+
+        if (mkdir(dirs[i], 0755) != 0 && errno != EEXIST) {
+            ESP_LOGE(TAG, "Failed to create directory %s: %s", dirs[i], strerror(errno));
+            return ESP_FAIL;
+        }
+        ESP_LOGI(TAG, "Created directory: %s", dirs[i]);
     }
 
     return ESP_OK;
+}
+
+esp_err_t StorageManager::ensureDirectories() {
+    if (!mounted_) {
+        ESP_LOGE(TAG, "SD card not mounted; cannot ensure directories");
+        return ESP_ERR_INVALID_STATE;
+    }
+    return createDirectories();
 }
 
 esp_err_t StorageManager::unmount() {

@@ -1,0 +1,21 @@
+dependencies:
+  espp/base_component: '>=1.0'
+  espp/cli: '>=1.0'
+  espp/task: '>=1.0'
+  idf:
+    version: '>=5.0'
+description: I2C (Legacy) component for ESP-IDF
+documentation: https://esp-cpp.github.io/espp/i2c.html
+license: MIT
+maintainers:
+- William Emfinger <waemfinger@gmail.com>
+repository: git://github.com/esp-cpp/espp.git
+repository_info:
+  commit_sha: 4ed418ef029caf4885182c12a0fbbee3b23d4497
+  path: components/i2c
+tags:
+- cpp
+- Component
+- I2C
+url: https://github.com/esp-cpp/espp/tree/main/components/i2c
+version: 1.0.34

@@ -3,6 +3,7 @@
 #include <cJSON.h>
 #include <esp_log.h>
 #include <cstring>
+#include <errno.h>
 
 static const char* TAG = "SCRIBE_SETTINGS_STORE";
 
@@ -108,6 +109,8 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
 }
 
 esp_err_t SettingsStore::save(const AppSettings& settings) {
+    StorageManager::getInstance().ensureDirectories();
+
     cJSON* root = cJSON_CreateObject();
     cJSON_AddNumberToObject(root, "version", 2);
     cJSON_AddBoolToObject(root, "dark_theme", settings.dark_theme);
@@ -126,7 +129,7 @@ esp_err_t SettingsStore::save(const AppSettings& settings) {
 
     FILE* f = fopen(SCRIBE_SETTINGS_JSON, "w");
     if (!f) {
-        ESP_LOGE(TAG, "Failed to open settings.json for writing");
+        ESP_LOGE(TAG, "Failed to open settings.json for writing: %s", strerror(errno));
         free(json_str);
         return ESP_FAIL;
     }

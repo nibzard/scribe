@@ -83,6 +83,9 @@ esp_err_t TouchGT911::init(int width, int height) {
     esp_lcd_panel_io_i2c_config_t io_cfg = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
     io_cfg.dev_addr = kTouchI2cAddr;
     io_cfg.scl_speed_hz = 400000;
+    io_cfg.on_color_trans_done = nullptr;
+    io_cfg.user_ctx = nullptr;
+    io_cfg.lcd_param_bits = 8;
 
     ret = esp_lcd_new_panel_io_i2c(bus.handle(), &io_cfg, &io_handle);
     if (ret != ESP_OK) {
@@ -103,6 +106,10 @@ esp_err_t TouchGT911::init(int width, int height) {
             .mirror_x = 0,
             .mirror_y = 0,
         },
+        .process_coordinates = nullptr,
+        .interrupt_callback = nullptr,
+        .user_data = nullptr,
+        .driver_data = nullptr,
     };
 
     ret = esp_lcd_touch_new_i2c_gt911(io_handle, &tp_cfg, &touch_);
