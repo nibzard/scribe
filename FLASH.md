@@ -1,1 +1,1 @@
-Check AGENTS.md and LESSONS_LEARNED.md on how to build this project and flash it on a device
+Check AGENTS.md and LESSONS_LEARNED.md on how to build this project and flash it on a device. If you observe any errors, fix them to make everything work. Then update the PR we just did with this feature or fix.
