@@ -293,19 +293,31 @@ void TextView::clearSelection() {
 }
 
 void TextView::scrollToCursor() {
-    size_t line = posToLine(cursor_pos_);
-    if (line < line_cache_.size()) {
-        int cursor_y = line_cache_[line].y_offset;
-
-        // Scroll if cursor is above visible area
-        if (cursor_y < scroll_y_) {
-            scroll_y_ = cursor_y;
-        }
-        // Scroll if cursor is below visible area
-        else if (cursor_y + line_height_ > scroll_y_ + viewport_height_) {
-            scroll_y_ = cursor_y + line_height_ - viewport_height_;
-        }
+    if (line_cache_.empty()) {
+        scroll_y_ = 0;
+        return;
     }
+
+    size_t line = posToLine(cursor_pos_);
+    if (line >= line_cache_.size()) {
+        line = line_cache_.size() - 1;
+    }
+
+    int cursor_y = line_cache_[line].y_offset;
+    int content_height = line_cache_.back().y_offset + line_height_;
+    int max_scroll = content_height - viewport_height_;
+    if (max_scroll < 0) {
+        max_scroll = 0;
+    }
+
+    int target = cursor_y + (line_height_ / 2) - (viewport_height_ / 2);
+    if (target < 0) {
+        target = 0;
+    } else if (target > max_scroll) {
+        target = max_scroll;
+    }
+
+    scroll_y_ = target;
 }
 
 void TextView::scrollToLine(size_t line) {

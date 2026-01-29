@@ -39,6 +39,7 @@ This section collects end-user flows and UI behaviors.
 
 ### 2.1 Editor Basics
 - The editor screen is the default writing surface with a TextView-backed document.
+- The active line stays vertically centered while typing; scrolling clamps near the start/end.
 - Cursor movement, selection, undo/redo, and find are handled through keybindings.
 - The Magic Bar can insert AI results into the document (preview only).
 - Find/search opens an overlay and highlights matches.
