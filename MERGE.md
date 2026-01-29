@@ -1,0 +1,1 @@
+Review the last PR we submitted with gh cli, and merge it if it passes your review, if not then first fix what is needed and then do the needed update and merge it. Return to the main branch and pull changes. If there are no open PRs to review and merge create a STOP file to exit, and then exit. I am using this command to check for a stop file: $stopFile = ".\STOP"

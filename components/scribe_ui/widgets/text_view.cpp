@@ -1,5 +1,6 @@
 #include "text_view.h"
 #include "../theme/theme.h"
+#include "misc/lv_text_private.h"
 #include <esp_log.h>
 #include <cstring>
 
@@ -23,13 +24,26 @@ void text_view_draw_cb(lv_event_t* e) {
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
 
-    int x = obj_coords.x1;
-    int y = obj_coords.y1 - tv->scroll_y_;
-    int width = lv_area_get_width(&obj_coords);
+    int x = obj_coords.x1 + tv->inset_left_;
+    int y = obj_coords.y1 + tv->inset_top_ - tv->scroll_y_;
+    int width = lv_area_get_width(&obj_coords) - tv->inset_left_ - tv->inset_right_;
+    if (width < 1) {
+        width = 1;
+    }
 
     // Clip drawing area to visible region
     lv_area_t clip_area;
     lv_area_copy(&clip_area, &obj_coords);
+    clip_area.x1 += tv->inset_left_;
+    clip_area.y1 += tv->inset_top_;
+    clip_area.x2 -= tv->inset_right_;
+    clip_area.y2 -= tv->inset_bottom_;
+    if (clip_area.x2 < clip_area.x1) {
+        clip_area.x2 = clip_area.x1;
+    }
+    if (clip_area.y2 < clip_area.y1) {
+        clip_area.y2 = clip_area.y1;
+    }
 
     const Theme::Colors& colors = Theme::getColors();
 
@@ -44,6 +58,9 @@ void text_view_draw_cb(lv_event_t* e) {
     // Draw text line by line
     const std::string& text = tv->text_;
     const auto& line_cache = tv->line_cache_;
+    const char* snapshot_text = (tv->use_snapshot_ && !tv->snapshot_text_cache_.empty())
+        ? tv->snapshot_text_cache_.c_str()
+        : nullptr;
 
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
@@ -80,10 +97,16 @@ void text_view_draw_cb(lv_event_t* e) {
                 int sel_x = 0;
                 int sel_width = 0;
                 if (tv->use_snapshot_) {
-                    std::string prefix = tv->getTextRange(line.start_pos, sel_line_start);
-                    std::string selection = tv->getTextRange(sel_line_start, sel_line_end);
-                    sel_x = x + tv->measureTextWidth(prefix.c_str(), prefix.size());
-                    sel_width = tv->measureTextWidth(selection.c_str(), selection.size());
+                    if (snapshot_text) {
+                        sel_x = x + tv->measureTextWidth(
+                            snapshot_text + line.start_pos,
+                            sel_line_start - line.start_pos
+                        );
+                        sel_width = tv->measureTextWidth(
+                            snapshot_text + sel_line_start,
+                            sel_line_end - sel_line_start
+                        );
+                    }
                 } else {
                     sel_x = x + tv->measureTextWidth(
                         text.c_str() + line.start_pos,
@@ -118,15 +141,20 @@ void text_view_draw_cb(lv_event_t* e) {
         text_area.x2 = x + width - 1;
         text_area.y2 = line_y + tv->line_height_ - 1;
 
-        std::string line_text_buffer;
         const char* line_text = nullptr;
         size_t line_len = line.length;
         if (tv->use_snapshot_) {
-            line_text_buffer = tv->getTextRange(line.start_pos, line.start_pos + line.length);
-            line_text = line_text_buffer.c_str();
-            line_len = line_text_buffer.size();
+            if (snapshot_text) {
+                line_text = snapshot_text + line.start_pos;
+            } else {
+                line_len = 0;
+            }
         } else {
             line_text = text.c_str() + line.start_pos;
+        }
+
+        if (!line_text || line_len == 0) {
+            continue;
         }
 
         // Remove trailing newline for display
@@ -147,8 +175,12 @@ void text_view_draw_cb(lv_event_t* e) {
         size_t pos_in_line = tv->cursor_pos_ - line.start_pos;
         int cursor_x = 0;
         if (tv->use_snapshot_) {
-            std::string prefix = tv->getTextRange(line.start_pos, line.start_pos + pos_in_line);
-            cursor_x = x + tv->measureTextWidth(prefix.c_str(), prefix.size());
+            if (snapshot_text) {
+                cursor_x = x + tv->measureTextWidth(
+                    snapshot_text + line.start_pos,
+                    pos_in_line
+                );
+            }
         } else {
             cursor_x = x + tv->measureTextWidth(
                 text.c_str() + line.start_pos,
@@ -191,7 +223,7 @@ TextView::TextView(lv_obj_t* parent) {
     lv_obj_set_style_bg_color(obj_, colors.bg, 0);
     lv_obj_set_style_bg_opa(obj_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(obj_, 0, 0);
-    lv_obj_set_style_pad_all(obj_, 10, 0);
+    lv_obj_set_style_pad_all(obj_, 0, 0);
 
     // Add draw callback
     lv_obj_add_event_cb(obj_, text_view_draw_cb, LV_EVENT_DRAW_MAIN, nullptr);
@@ -202,8 +234,8 @@ TextView::TextView(lv_obj_t* parent) {
     lv_obj_get_coords(obj_, &coords);
     int width = lv_area_get_width(&coords);
     int height = lv_area_get_height(&coords);
-    viewport_width_ = width > 20 ? (width - 20) : 1;  // Account for padding
-    viewport_height_ = height > 20 ? (height - 20) : 1;
+    viewport_width_ = width > 0 ? width : 1;
+    viewport_height_ = height > 0 ? height : 1;
     visible_lines_ = viewport_height_ / line_height_;
     if (visible_lines_ < 1) {
         visible_lines_ = 1;
@@ -223,6 +255,7 @@ TextView::~TextView() {
 void TextView::setText(const std::string& text) {
     use_snapshot_ = false;
     text_ = text;
+    snapshot_text_cache_.clear();
     total_length_ = text_.length();
     updateLineCache();
     invalidate();
@@ -232,6 +265,7 @@ void TextView::setSnapshot(const PieceTableSnapshot& snapshot) {
     snapshot_ = snapshot;
     use_snapshot_ = true;
     text_.clear();
+    snapshot_text_cache_.clear();
     total_length_ = snapshot_.total_length;
     updateLineCache();
     invalidate();
@@ -317,6 +351,14 @@ void TextView::setViewportSize(int width, int height) {
     updateLineCache();
 }
 
+void TextView::setContentInsets(int left, int top, int right, int bottom) {
+    inset_left_ = left > 0 ? left : 0;
+    inset_top_ = top > 0 ? top : 0;
+    inset_right_ = right > 0 ? right : 0;
+    inset_bottom_ = bottom > 0 ? bottom : 0;
+    invalidate();
+}
+
 void TextView::applyTheme() {
     if (!obj_) {
         return;
@@ -356,46 +398,32 @@ void TextView::updateLineCache() {
         return;
     }
 
-    size_t line_start = 0;
+    lv_text_attributes_t attrs;
+    lv_text_attributes_init(&attrs);
+    attrs.letter_space = 0;
+    attrs.line_space = 0;
+    attrs.max_width = viewport_width_;
+    attrs.text_flags = LV_TEXT_FLAG_BREAK_ALL;
+
+    size_t index = 0;
     int y_offset = 0;
-    int line_width = 0;
-
-    for (size_t i = 0; i <= text_.length(); i++) {
-        bool is_newline = (i < text_.length() && text_[i] == '\n');
-
-        // Check if we need to wrap or hit newline
-        if (is_newline || line_width >= viewport_width_) {
-            line_cache_.push_back({line_start, i - line_start, y_offset});
-
-            if (is_newline) {
-                line_start = i + 1;
-            } else {
-                line_start = i;
-            }
-
-            y_offset += line_height_;
-            line_width = 0;
-
-            // Skip the newline character
-            if (is_newline) {
-                continue;
+    const size_t text_len = text_.length();
+    while (index < text_len) {
+        uint32_t remaining = static_cast<uint32_t>(text_len - index);
+        uint32_t line_bytes = lv_text_get_next_line(text_.c_str() + index, remaining, font_, nullptr, &attrs);
+        if (line_bytes == 0) {
+            break;
+        }
+        size_t line_len = line_bytes;
+        char last = text_[index + line_bytes - 1];
+        if (last == '\n' || last == '\r') {
+            if (line_len > 0) {
+                line_len -= 1;
             }
         }
-
-        if (i < text_.length()) {
-            char c = text_[i];
-            if (c == '\t') {
-                line_width += char_width_ * 4;  // Tab = 4 spaces
-            } else if (c >= 32 && c < 127) {
-                line_width += char_width_;
-            }
-            // Non-printable chars take minimal space
-        }
-    }
-
-    // Don't forget the last line if it doesn't end with newline
-    if (line_start < text_.length()) {
-        line_cache_.push_back({line_start, text_.length() - line_start, y_offset});
+        line_cache_.push_back({index, line_len, y_offset});
+        y_offset += line_height_;
+        index += line_bytes;
     }
 
     ESP_LOGD(TAG, "Line cache updated: %zu lines, total height %d",
@@ -411,47 +439,37 @@ void TextView::updateLineCacheFromSnapshot() {
         return;
     }
 
-    size_t line_start = 0;
-    size_t pos = 0;
-    int y_offset = 0;
-    int line_width = 0;
-
-    for (const auto& piece : snapshot_.pieces) {
-        const std::string& buffer = (piece.type == Piece::Type::ORIGINAL)
-            ? *snapshot_.original_buffer
-            : *snapshot_.add_buffer;
-
-        for (size_t i = 0; i < piece.length; ++i) {
-            if (pos >= total_length_) {
-                break;
-            }
-
-            char c = buffer[piece.start + i];
-            bool is_newline = (c == '\n');
-
-            if (is_newline || line_width >= viewport_width_) {
-                line_cache_.push_back({line_start, pos - line_start, y_offset});
-                line_start = is_newline ? pos + 1 : pos;
-                y_offset += line_height_;
-                line_width = 0;
-                if (is_newline) {
-                    pos++;
-                    continue;
-                }
-            }
-
-            if (c == '\t') {
-                line_width += char_width_ * 4;
-            } else if (c >= 32 && c < 127) {
-                line_width += char_width_;
-            }
-
-            pos++;
-        }
+    snapshot_text_cache_ = getTextRange(0, total_length_);
+    if (snapshot_text_cache_.empty()) {
+        return;
     }
 
-    if (line_start < total_length_) {
-        line_cache_.push_back({line_start, total_length_ - line_start, y_offset});
+    lv_text_attributes_t attrs;
+    lv_text_attributes_init(&attrs);
+    attrs.letter_space = 0;
+    attrs.line_space = 0;
+    attrs.max_width = viewport_width_;
+    attrs.text_flags = LV_TEXT_FLAG_BREAK_ALL;
+
+    size_t index = 0;
+    int y_offset = 0;
+    const size_t text_len = snapshot_text_cache_.length();
+    while (index < text_len) {
+        uint32_t remaining = static_cast<uint32_t>(text_len - index);
+        uint32_t line_bytes = lv_text_get_next_line(snapshot_text_cache_.c_str() + index, remaining, font_, nullptr, &attrs);
+        if (line_bytes == 0) {
+            break;
+        }
+        size_t line_len = line_bytes;
+        char last = snapshot_text_cache_[index + line_bytes - 1];
+        if (last == '\n' || last == '\r') {
+            if (line_len > 0) {
+                line_len -= 1;
+            }
+        }
+        line_cache_.push_back({index, line_len, y_offset});
+        y_offset += line_height_;
+        index += line_bytes;
     }
 
     ESP_LOGD(TAG, "Line cache updated: %zu lines, total height %d",
@@ -511,16 +529,39 @@ int TextView::measureTextWidth(const char* text, size_t length) const {
     if (!text || length == 0) {
         return 0;
     }
+    if (!font_) {
+        return 0;
+    }
+
+    lv_text_attributes_t attrs;
+    lv_text_attributes_init(&attrs);
+    attrs.letter_space = 0;
+    attrs.line_space = 0;
+    attrs.max_width = viewport_width_;
+    attrs.text_flags = LV_TEXT_FLAG_NONE;
+
+    const char* tab = static_cast<const char*>(memchr(text, '\t', length));
+    if (!tab) {
+        return lv_text_get_width(text, static_cast<uint32_t>(length), font_, &attrs);
+    }
 
     int width = 0;
-    for (size_t i = 0; i < length && text[i] != '\0'; i++) {
-        char c = text[i];
-        if (c == '\t') {
-            width += char_width_ * 4;
-        } else if (c >= 32 && c < 127) {
-            width += char_width_;
+    int space_w = lv_font_get_glyph_width(font_, ' ', '\0');
+    size_t offset = 0;
+    while (offset < length) {
+        const char* next_tab = static_cast<const char*>(memchr(text + offset, '\t', length - offset));
+        size_t chunk_len = next_tab ? static_cast<size_t>(next_tab - (text + offset)) : (length - offset);
+        if (chunk_len > 0) {
+            width += lv_text_get_width(text + offset, static_cast<uint32_t>(chunk_len), font_, &attrs);
+        }
+        if (next_tab) {
+            width += space_w * 4;
+            offset += chunk_len + 1;
+        } else {
+            break;
         }
     }
+
     return width;
 }
 

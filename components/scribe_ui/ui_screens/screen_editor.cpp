@@ -6,6 +6,7 @@
 static const char* TAG = "SCRIBE_SCREEN_EDITOR";
 
 ScreenEditor::ScreenEditor() : screen_(nullptr), text_view_(nullptr), hud_panel_(nullptr) {
+    text_margin_px_ = Theme::scalePx(20);
 }
 
 ScreenEditor::~ScreenEditor() {
@@ -40,62 +41,64 @@ void ScreenEditor::createWidgets() {
 
     // HUD panel (hidden by default)
     hud_panel_ = lv_obj_create(screen_);
-    lv_obj_set_size(hud_panel_, 240, 180);
-    lv_obj_align(hud_panel_, LV_ALIGN_TOP_RIGHT, -10, 10);
+    lv_obj_set_size(hud_panel_, Theme::scalePx(240), Theme::scalePx(180));
+    lv_obj_align(hud_panel_, LV_ALIGN_TOP_RIGHT, -Theme::scalePx(10), Theme::scalePx(10));
     lv_obj_add_flag(hud_panel_, LV_OBJ_FLAG_HIDDEN);
     applyTheme();
 
     // HUD labels (left) and values (right)
-    int y = 10;
+    int y = Theme::scalePx(10);
+    int line_gap = Theme::scalePx(20);
+    int section_gap = Theme::scalePx(22);
     hud_project_label_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_project_label_, Strings::getInstance().get("hud.project"));
-    lv_obj_align(hud_project_label_, LV_ALIGN_TOP_LEFT, 10, y);
+    lv_obj_align(hud_project_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(10), y);
 
     hud_project_value_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_project_value_, "");
-    lv_obj_align(hud_project_value_, LV_ALIGN_TOP_RIGHT, -10, y);
+    lv_obj_align(hud_project_value_, LV_ALIGN_TOP_RIGHT, -Theme::scalePx(10), y);
 
-    y += 20;
+    y += line_gap;
     hud_today_label_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_today_label_, Strings::getInstance().get("hud.words_today"));
-    lv_obj_align(hud_today_label_, LV_ALIGN_TOP_LEFT, 10, y);
+    lv_obj_align(hud_today_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(10), y);
 
     hud_today_value_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_today_value_, "0");
-    lv_obj_align(hud_today_value_, LV_ALIGN_TOP_RIGHT, -10, y);
+    lv_obj_align(hud_today_value_, LV_ALIGN_TOP_RIGHT, -Theme::scalePx(10), y);
 
-    y += 20;
+    y += line_gap;
     hud_total_label_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_total_label_, Strings::getInstance().get("hud.words_total"));
-    lv_obj_align(hud_total_label_, LV_ALIGN_TOP_LEFT, 10, y);
+    lv_obj_align(hud_total_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(10), y);
 
     hud_total_value_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_total_value_, "0");
-    lv_obj_align(hud_total_value_, LV_ALIGN_TOP_RIGHT, -10, y);
+    lv_obj_align(hud_total_value_, LV_ALIGN_TOP_RIGHT, -Theme::scalePx(10), y);
 
-    y += 20;
+    y += line_gap;
     hud_battery_label_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_battery_label_, Strings::getInstance().get("hud.battery"));
-    lv_obj_align(hud_battery_label_, LV_ALIGN_TOP_LEFT, 10, y);
+    lv_obj_align(hud_battery_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(10), y);
 
     hud_battery_value_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_battery_value_, "0%");
-    lv_obj_align(hud_battery_value_, LV_ALIGN_TOP_RIGHT, -10, y);
+    lv_obj_align(hud_battery_value_, LV_ALIGN_TOP_RIGHT, -Theme::scalePx(10), y);
 
-    y += 22;
+    y += section_gap;
     hud_save_label_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_save_label_, Strings::getInstance().get("hud.saved"));
-    lv_obj_align(hud_save_label_, LV_ALIGN_TOP_LEFT, 10, y);
+    lv_obj_align(hud_save_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(10), y);
 
-    y += 20;
+    y += line_gap;
     hud_backup_label_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_backup_label_, Strings::getInstance().get("hud.backup_off"));
-    lv_obj_align(hud_backup_label_, LV_ALIGN_TOP_LEFT, 10, y);
+    lv_obj_align(hud_backup_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(10), y);
 
-    y += 20;
+    y += line_gap;
     hud_ai_label_ = lv_label_create(hud_panel_);
     lv_label_set_text(hud_ai_label_, Strings::getInstance().get("hud.ai_off"));
-    lv_obj_align(hud_ai_label_, LV_ALIGN_TOP_LEFT, 10, y);
+    lv_obj_align(hud_ai_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(10), y);
 }
 
 void ScreenEditor::show() {
@@ -223,28 +226,66 @@ void ScreenEditor::setEditorFont(const lv_font_t* font) {
     }
 }
 
+void ScreenEditor::setEditorMargin(int margin_px) {
+    if (margin_px < 0) {
+        margin_px = 0;
+    }
+    text_margin_px_ = margin_px;
+    updateTextViewLayout();
+}
+
 void ScreenEditor::handleDisplayResize() {
     if (!screen_) {
         return;
     }
-    lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
+    applyTheme();
+}
+
+void ScreenEditor::applyTheme() {
+    if (screen_) {
+        lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
+    }
     if (text_view_) {
         lv_obj_set_size(text_view_->obj(), LV_HOR_RES, LV_VER_RES);
         lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
     }
-    updateTextViewLayout();
-}
-void ScreenEditor::applyTheme() {
     Theme::applyScreenStyle(screen_);
     if (text_view_) {
         text_view_->applyTheme();
+        updateTextViewLayout();
     }
     if (hud_panel_) {
         const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_size(hud_panel_, Theme::scalePx(240), Theme::scalePx(180));
+        lv_obj_align(hud_panel_, LV_ALIGN_TOP_RIGHT, -Theme::scalePx(10), Theme::scalePx(10));
         lv_obj_set_style_bg_color(hud_panel_, colors.fg, 0);
         lv_obj_set_style_bg_opa(hud_panel_, LV_OPA_COVER, 0);
         lv_obj_set_style_border_color(hud_panel_, colors.border, 0);
         lv_obj_set_style_border_width(hud_panel_, 1, 0);
+        lv_obj_set_style_text_font(hud_panel_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+
+        int y = Theme::scalePx(10);
+        int line_gap = Theme::scalePx(20);
+        int section_gap = Theme::scalePx(22);
+        int x_left = Theme::scalePx(10);
+        int x_right = -Theme::scalePx(10);
+        if (hud_project_label_) lv_obj_align(hud_project_label_, LV_ALIGN_TOP_LEFT, x_left, y);
+        if (hud_project_value_) lv_obj_align(hud_project_value_, LV_ALIGN_TOP_RIGHT, x_right, y);
+        y += line_gap;
+        if (hud_today_label_) lv_obj_align(hud_today_label_, LV_ALIGN_TOP_LEFT, x_left, y);
+        if (hud_today_value_) lv_obj_align(hud_today_value_, LV_ALIGN_TOP_RIGHT, x_right, y);
+        y += line_gap;
+        if (hud_total_label_) lv_obj_align(hud_total_label_, LV_ALIGN_TOP_LEFT, x_left, y);
+        if (hud_total_value_) lv_obj_align(hud_total_value_, LV_ALIGN_TOP_RIGHT, x_right, y);
+        y += line_gap;
+        if (hud_battery_label_) lv_obj_align(hud_battery_label_, LV_ALIGN_TOP_LEFT, x_left, y);
+        if (hud_battery_value_) lv_obj_align(hud_battery_value_, LV_ALIGN_TOP_RIGHT, x_right, y);
+        y += section_gap;
+        if (hud_save_label_) lv_obj_align(hud_save_label_, LV_ALIGN_TOP_LEFT, x_left, y);
+        y += line_gap;
+        if (hud_backup_label_) lv_obj_align(hud_backup_label_, LV_ALIGN_TOP_LEFT, x_left, y);
+        y += line_gap;
+        if (hud_ai_label_) lv_obj_align(hud_ai_label_, LV_ALIGN_TOP_LEFT, x_left, y);
     }
 }
 
@@ -255,10 +296,16 @@ void ScreenEditor::updateTextViewLayout() {
     lv_obj_update_layout(text_view_->obj());
     lv_area_t coords;
     lv_obj_get_coords(text_view_->obj(), &coords);
-    int width = lv_area_get_width(&coords) - 20;
-    int height = lv_area_get_height(&coords) - 20;
-    if (width < 1) width = 1;
-    if (height < 1) height = 1;
-    text_view_->setViewportSize(width, height);
+    int width = lv_area_get_width(&coords);
+    int height = lv_area_get_height(&coords);
+    int margin = text_margin_px_;
+    if (margin < 0) {
+        margin = 0;
+    }
+    int inner_width = width - (margin * 2);
+    int inner_height = height - (margin * 2);
+    if (inner_width < 1) inner_width = 1;
+    if (inner_height < 1) inner_height = 1;
+    text_view_->setContentInsets(margin, margin, margin, margin);
+    text_view_->setViewportSize(inner_width, inner_height);
 }
-

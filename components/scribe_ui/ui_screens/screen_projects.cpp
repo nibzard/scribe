@@ -39,14 +39,15 @@ void ScreenProjects::init() {
 
 void ScreenProjects::createWidgets() {
     // Title
-    lv_obj_t* title = lv_label_create(screen_);
-    lv_label_set_text(title, Strings::getInstance().get("switch_project.title"));
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
+    title_ = lv_label_create(screen_);
+    lv_label_set_text(title_, Strings::getInstance().get("switch_project.title"));
+    lv_obj_align(title_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(20));
+    lv_obj_set_style_text_font(title_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
 
     // Search bar
     search_bar_ = lv_textarea_create(screen_);
-    lv_obj_set_size(search_bar_, 300, 40);
-    lv_obj_align(search_bar_, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_set_size(search_bar_, Theme::fitWidth(300, 40), Theme::scalePx(40));
+    lv_obj_align(search_bar_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(60));
     lv_textarea_set_placeholder_text(search_bar_, Strings::getInstance().get("switch_project.search_hint"));
     lv_textarea_set_one_line(search_bar_, true);
     const Theme::Colors& colors = Theme::getColors();
@@ -56,34 +57,48 @@ void ScreenProjects::createWidgets() {
     lv_obj_set_style_border_width(search_bar_, 1, 0);
     lv_obj_set_style_text_color(search_bar_, colors.text, 0);
     lv_obj_set_style_text_color(search_bar_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_text_font(search_bar_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Project list
     list_ = lv_list_create(screen_);
-    lv_obj_set_size(list_, 350, 350);
-    lv_obj_align(list_, LV_ALIGN_TOP_MID, 0, 120);
+    lv_obj_set_size(list_, Theme::fitWidth(350, 40), Theme::fitHeight(350, 200));
+    lv_obj_align(list_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(120));
     lv_obj_set_style_bg_color(list_, colors.fg, 0);
     lv_obj_set_style_bg_opa(list_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(list_, colors.border, 0);
     lv_obj_set_style_border_width(list_, 1, 0);
+    lv_obj_set_style_text_font(list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 }
 
 void ScreenProjects::show() {
     if (screen_) {
         Theme::applyScreenStyle(screen_);
         const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_style_text_font(screen_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        if (title_) {
+            lv_obj_set_style_text_color(title_, colors.text, 0);
+            lv_obj_set_style_text_font(title_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
+            lv_obj_align(title_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(20));
+        }
         if (search_bar_) {
+            lv_obj_set_size(search_bar_, Theme::fitWidth(300, 40), Theme::scalePx(40));
+            lv_obj_align(search_bar_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(60));
             lv_obj_set_style_bg_color(search_bar_, colors.fg, 0);
             lv_obj_set_style_bg_opa(search_bar_, LV_OPA_COVER, 0);
             lv_obj_set_style_border_color(search_bar_, colors.border, 0);
             lv_obj_set_style_border_width(search_bar_, 1, 0);
             lv_obj_set_style_text_color(search_bar_, colors.text, 0);
             lv_obj_set_style_text_color(search_bar_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+            lv_obj_set_style_text_font(search_bar_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
         }
         if (list_) {
+            lv_obj_set_size(list_, Theme::fitWidth(350, 40), Theme::fitHeight(350, 200));
+            lv_obj_align(list_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(120));
             lv_obj_set_style_bg_color(list_, colors.fg, 0);
             lv_obj_set_style_bg_opa(list_, LV_OPA_COVER, 0);
             lv_obj_set_style_border_color(list_, colors.border, 0);
             lv_obj_set_style_border_width(list_, 1, 0);
+            lv_obj_set_style_text_font(list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
         }
         for (auto* btn : buttons_) {
             if (!btn) continue;
@@ -257,7 +272,7 @@ void ScreenProjects::showArchiveDialog(const std::string& project_name) {
 
     // Create modal dialog
     archive_dialog_ = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(archive_dialog_, LV_HOR_RES - 40, LV_VER_RES - 80);
+    lv_obj_set_size(archive_dialog_, LV_HOR_RES - Theme::scalePx(40), LV_VER_RES - Theme::scalePx(80));
     lv_obj_align(archive_dialog_, LV_ALIGN_CENTER, 0, 0);
     const Theme::Colors& colors = Theme::getColors();
     lv_obj_set_style_bg_opa(archive_dialog_, LV_OPA_80, 0);
@@ -265,19 +280,21 @@ void ScreenProjects::showArchiveDialog(const std::string& project_name) {
 
     // Create dialog content
     lv_obj_t* content = lv_obj_create(archive_dialog_);
-    lv_obj_set_size(content, LV_HOR_RES - 80, 120);
+    lv_obj_set_size(content, LV_HOR_RES - Theme::scalePx(80), Theme::scalePx(120));
     lv_obj_align(content, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_bg_opa(content, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(content, colors.fg, 0);
     lv_obj_set_style_border_color(content, colors.border, 0);
     lv_obj_set_style_border_width(content, 1, 0);
-    lv_obj_set_style_pad_all(content, 20, 0);
+    lv_obj_set_style_pad_all(content, Theme::scalePx(20), 0);
+    lv_obj_set_style_text_font(content, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Title
     lv_obj_t* title = lv_label_create(content);
     lv_label_set_text(title, Strings::getInstance().get("switch_project.archive_title"));
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, Theme::scalePx(10));
     lv_obj_set_style_text_color(title, colors.text, 0);
+    lv_obj_set_style_text_font(title, Theme::getUIFont(Theme::UiFontRole::Title), 0);
 
     // Message
     lv_obj_t* msg = lv_label_create(content);
@@ -292,8 +309,9 @@ void ScreenProjects::showArchiveDialog(const std::string& project_name) {
     // Confirm button hint
     lv_obj_t* hint = lv_label_create(content);
     lv_label_set_text(hint, Strings::getInstance().get("switch_project.archive_hint"));
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -Theme::scalePx(10));
     lv_obj_set_style_text_color(hint, colors.text_secondary, 0);
+    lv_obj_set_style_text_font(hint, Theme::getUIFont(Theme::UiFontRole::Small), 0);
 }
 
 void ScreenProjects::hideArchiveDialog() {

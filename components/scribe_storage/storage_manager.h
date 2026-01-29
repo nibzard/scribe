@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_err.h>
+#include <string>
 #include <driver/sdmmc_host.h>
 #if CONFIG_SCRIBE_WOKWI_SIM
 #include <driver/sdspi_host.h>
@@ -39,8 +40,20 @@ public:
     // Check if SD card is mounted and accessible
     bool isMounted() const { return mounted_; }
 
+    // Check if storage is temporarily suspended (e.g., USB mass storage mode)
+    bool isSuspended() const { return suspended_; }
+
+    // Suspend/resume storage access (prevents app writes while USB host owns the card)
+    void setSuspended(bool suspended) { suspended_ = suspended; }
+
     // Unmount SD card
     esp_err_t unmount();
+
+    // Remount SD card after manual unmount
+    esp_err_t mountCard();
+
+    // Get SD card handle (for USB MSC)
+    sdmmc_card_t* getCard() const { return card_; }
 
     // Get free space in bytes
     size_t getFreeSpace() const;
@@ -48,9 +61,16 @@ public:
     // Ensure Scribe directory structure exists
     esp_err_t ensureDirectories();
 
+    // Format SD card as FAT (destructive). Requires user confirmation in UI.
+    esp_err_t formatCard();
+
+    // Verify card accessibility (dirs + write/read test). Optional detail on failure.
+    esp_err_t verifyCard(std::string* detail);
+
 private:
     StorageManager()
         : mounted_(false),
+          suspended_(false),
           card_(nullptr)
 #if CONFIG_SCRIBE_WOKWI_SIM
           , bus_initialized_(false),
@@ -68,6 +88,7 @@ private:
     ~StorageManager() = default;
 
     bool mounted_;
+    bool suspended_;
     sdmmc_card_t* card_;
 #if CONFIG_SCRIBE_WOKWI_SIM
     bool bus_initialized_;
@@ -76,4 +97,10 @@ private:
 
     // Create Scribe directory structure
     esp_err_t createDirectories();
+
+    // Mount SD card with optional format fallback
+    esp_err_t mount(bool format_if_mount_failed);
+
+    // Write/read/delete sanity check on the filesystem
+    esp_err_t writeReadTest(std::string* detail);
 };

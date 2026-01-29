@@ -40,46 +40,46 @@ void HUDOverlay::createWidgets() {
     const Theme::Colors& colors = Theme::getColors();
     // Create main container (semi-transparent dark box)
     container_ = lv_obj_create(overlay_);
-    lv_obj_set_size(container_, 280, 180);
+    lv_obj_set_size(container_, Theme::scalePx(280), Theme::scalePx(180));
     lv_obj_center(container_);
     lv_obj_set_style_bg_color(container_, colors.fg, 0);
     lv_obj_set_style_bg_opa(container_, LV_OPA_90, 0);
     lv_obj_set_style_border_width(container_, 2, 0);
     lv_obj_set_style_border_color(container_, colors.border, 0);
     lv_obj_set_style_border_opa(container_, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(container_, 10, 0);
-    lv_obj_set_style_pad_all(container_, 15, 0);
+    lv_obj_set_style_radius(container_, Theme::scalePx(10), 0);
+    lv_obj_set_style_pad_all(container_, Theme::scalePx(15), 0);
 
     // Project name label (title)
     project_label_ = lv_label_create(container_);
-    lv_obj_set_style_text_font(project_label_, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(project_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
     lv_obj_set_style_text_color(project_label_, colors.text, 0);
     lv_label_set_long_mode(project_label_, LV_LABEL_LONG_MODE_DOTS);
-    lv_obj_set_width(project_label_, 250);
+    lv_obj_set_width(project_label_, Theme::scalePx(250));
     lv_obj_align(project_label_, LV_ALIGN_TOP_MID, 0, 0);
 
     // Separator line
     separator_ = lv_obj_create(container_);
-    lv_obj_set_size(separator_, 250, 1);
+    lv_obj_set_size(separator_, Theme::scalePx(250), 1);
     lv_obj_set_style_bg_color(separator_, colors.border, 0);
     lv_obj_set_style_bg_opa(separator_, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(separator_, 0, 0);
-    lv_obj_align(separator_, LV_ALIGN_TOP_MID, 0, 30);
+    lv_obj_align(separator_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(30));
 
     // Word counts section
     words_today_label_ = lv_label_create(container_);
-    lv_obj_set_style_text_font(words_today_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(words_today_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
     lv_obj_set_style_text_color(words_today_label_, colors.text, 0);
-    lv_obj_align(words_today_label_, LV_ALIGN_TOP_LEFT, 0, 40);
+    lv_obj_align(words_today_label_, LV_ALIGN_TOP_LEFT, 0, Theme::scalePx(40));
     {
         std::string text = std::string(Strings::getInstance().get("hud.words_today")) + ": 0";
         lv_label_set_text(words_today_label_, text.c_str());
     }
 
     words_total_label_ = lv_label_create(container_);
-    lv_obj_set_style_text_font(words_total_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(words_total_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
     lv_obj_set_style_text_color(words_total_label_, colors.text, 0);
-    lv_obj_align(words_total_label_, LV_ALIGN_TOP_LEFT, 140, 40);
+    lv_obj_align(words_total_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(140), Theme::scalePx(40));
     {
         std::string text = std::string(Strings::getInstance().get("hud.words_total")) + ": 0";
         lv_label_set_text(words_total_label_, text.c_str());
@@ -87,9 +87,9 @@ void HUDOverlay::createWidgets() {
 
     // Battery label
     battery_label_ = lv_label_create(container_);
-    lv_obj_set_style_text_font(battery_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(battery_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
     lv_obj_set_style_text_color(battery_label_, colors.text, 0);
-    lv_obj_align(battery_label_, LV_ALIGN_TOP_LEFT, 0, 70);
+    lv_obj_align(battery_label_, LV_ALIGN_TOP_LEFT, 0, Theme::scalePx(70));
     {
         std::string text = std::string(Strings::getInstance().get("hud.battery")) + ": --%";
         lv_label_set_text(battery_label_, text.c_str());
@@ -97,23 +97,23 @@ void HUDOverlay::createWidgets() {
 
     // Save state label
     save_label_ = lv_label_create(container_);
-    lv_obj_set_style_text_font(save_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(save_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
     lv_obj_set_style_text_color(save_label_, colors.success, 0);
-    lv_obj_align(save_label_, LV_ALIGN_TOP_LEFT, 0, 100);
+    lv_obj_align(save_label_, LV_ALIGN_TOP_LEFT, 0, Theme::scalePx(100));
     lv_label_set_text(save_label_, Strings::getInstance().get("hud.saved"));
 
     // Backup state label
     backup_label_ = lv_label_create(container_);
-    lv_obj_set_style_text_font(backup_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(backup_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
     lv_obj_set_style_text_color(backup_label_, colors.info, 0);
-    lv_obj_align(backup_label_, LV_ALIGN_TOP_LEFT, 0, 125);
+    lv_obj_align(backup_label_, LV_ALIGN_TOP_LEFT, 0, Theme::scalePx(125));
     lv_label_set_text(backup_label_, Strings::getInstance().get("hud.backup_off"));
 
     // AI state label
     ai_label_ = lv_label_create(container_);
-    lv_obj_set_style_text_font(ai_label_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(ai_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
     lv_obj_set_style_text_color(ai_label_, colors.text_secondary, 0);
-    lv_obj_align(ai_label_, LV_ALIGN_TOP_LEFT, 140, 125);
+    lv_obj_align(ai_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(140), Theme::scalePx(125));
     lv_label_set_text(ai_label_, Strings::getInstance().get("hud.ai_off"));
 
     ESP_LOGI(TAG, "HUD widgets created");
@@ -234,16 +234,51 @@ void HUDOverlay::applyTheme() {
         return;
     }
     const Theme::Colors& colors = Theme::getColors();
+    lv_obj_set_size(container_, Theme::scalePx(280), Theme::scalePx(180));
+    lv_obj_center(container_);
     lv_obj_set_style_bg_color(container_, colors.fg, 0);
     lv_obj_set_style_border_color(container_, colors.border, 0);
+    lv_obj_set_style_radius(container_, Theme::scalePx(10), 0);
+    lv_obj_set_style_pad_all(container_, Theme::scalePx(15), 0);
     if (separator_) {
+        lv_obj_set_size(separator_, Theme::scalePx(250), 1);
         lv_obj_set_style_bg_color(separator_, colors.border, 0);
+        lv_obj_align(separator_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(30));
     }
-    if (project_label_) lv_obj_set_style_text_color(project_label_, colors.text, 0);
-    if (words_today_label_) lv_obj_set_style_text_color(words_today_label_, colors.text, 0);
-    if (words_total_label_) lv_obj_set_style_text_color(words_total_label_, colors.text, 0);
-    if (battery_label_) lv_obj_set_style_text_color(battery_label_, colors.text, 0);
-    if (save_label_) lv_obj_set_style_text_color(save_label_, colors.success, 0);
-    if (backup_label_) lv_obj_set_style_text_color(backup_label_, colors.info, 0);
-    if (ai_label_) lv_obj_set_style_text_color(ai_label_, colors.text_secondary, 0);
+    if (project_label_) {
+        lv_obj_set_style_text_color(project_label_, colors.text, 0);
+        lv_obj_set_style_text_font(project_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
+        lv_obj_set_width(project_label_, Theme::scalePx(250));
+        lv_obj_align(project_label_, LV_ALIGN_TOP_MID, 0, 0);
+    }
+    if (words_today_label_) {
+        lv_obj_set_style_text_color(words_today_label_, colors.text, 0);
+        lv_obj_set_style_text_font(words_today_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        lv_obj_align(words_today_label_, LV_ALIGN_TOP_LEFT, 0, Theme::scalePx(40));
+    }
+    if (words_total_label_) {
+        lv_obj_set_style_text_color(words_total_label_, colors.text, 0);
+        lv_obj_set_style_text_font(words_total_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        lv_obj_align(words_total_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(140), Theme::scalePx(40));
+    }
+    if (battery_label_) {
+        lv_obj_set_style_text_color(battery_label_, colors.text, 0);
+        lv_obj_set_style_text_font(battery_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        lv_obj_align(battery_label_, LV_ALIGN_TOP_LEFT, 0, Theme::scalePx(70));
+    }
+    if (save_label_) {
+        lv_obj_set_style_text_color(save_label_, colors.success, 0);
+        lv_obj_set_style_text_font(save_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        lv_obj_align(save_label_, LV_ALIGN_TOP_LEFT, 0, Theme::scalePx(100));
+    }
+    if (backup_label_) {
+        lv_obj_set_style_text_color(backup_label_, colors.info, 0);
+        lv_obj_set_style_text_font(backup_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        lv_obj_align(backup_label_, LV_ALIGN_TOP_LEFT, 0, Theme::scalePx(125));
+    }
+    if (ai_label_) {
+        lv_obj_set_style_text_color(ai_label_, colors.text_secondary, 0);
+        lv_obj_set_style_text_font(ai_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        lv_obj_align(ai_label_, LV_ALIGN_TOP_LEFT, Theme::scalePx(140), Theme::scalePx(125));
+    }
 }

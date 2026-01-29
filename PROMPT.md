@@ -1,0 +1,1 @@
+Using todo-github skill pick up an issue from github issues that makes most sense to work on first then work on it. When done use doc-maintainer skill to update docs, then use feature-workflow skill to submit a PR and after that use todo-github skill to update this issue on github with the link to PR.

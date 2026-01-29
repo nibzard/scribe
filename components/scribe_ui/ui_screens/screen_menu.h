@@ -37,6 +37,7 @@ private:
     };
 
     lv_obj_t* screen_;
+    lv_obj_t* title_ = nullptr;
     lv_obj_t* list_;
     int selected_index_ = 0;
     std::function<void()> close_callback_;
@@ -46,4 +47,5 @@ private:
 
     void createWidgets();
     void updateSelection();
+    void sizeListToContent();
 };

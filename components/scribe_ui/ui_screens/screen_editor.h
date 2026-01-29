@@ -39,6 +39,7 @@ public:
     void setHUDBackupState(const std::string& status);
     void setHUDAIState(const std::string& status);
     void setEditorFont(const lv_font_t* font);
+    void setEditorMargin(int margin_px);
     void handleDisplayResize();
 
 private:
@@ -60,10 +61,10 @@ private:
     EditorCore* editor_ = nullptr;
     bool hud_visible_ = false;
     uint64_t last_revision_ = 0;
+    int text_margin_px_ = 0;
 
     void createWidgets();
     void updateHUD();
     void applyTheme();
     void updateTextViewLayout();
 };
-

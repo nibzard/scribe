@@ -21,6 +21,8 @@ public:
 
 private:
     lv_obj_t* screen_ = nullptr;
+    lv_obj_t* icon_label_ = nullptr;
+    lv_obj_t* title_label_ = nullptr;
     lv_obj_t* message_label_ = nullptr;
     lv_obj_t* preview_label_ = nullptr;
     lv_obj_t* restore_btn_ = nullptr;

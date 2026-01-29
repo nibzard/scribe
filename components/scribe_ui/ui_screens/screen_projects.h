@@ -53,6 +53,7 @@ public:
 
 private:
     lv_obj_t* screen_;
+    lv_obj_t* title_ = nullptr;
     lv_obj_t* list_;
     lv_obj_t* search_bar_;
     lv_obj_t* archive_dialog_{nullptr};

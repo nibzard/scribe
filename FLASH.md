@@ -1,0 +1,1 @@
+Check AGENTS.md and LESSONS_LEARNED.md on how to build this project and flash it on a device

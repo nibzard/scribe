@@ -15,6 +15,7 @@
 #include "ui_app.h"
 #include "strings.h"
 #include "keyboard_host.h"
+#include "usb_msc_device.h"
 #include "keybinding.h"
 #include "space_hold_detector.h"
 #include "power_manager.h"
@@ -24,6 +25,7 @@
 #include "audio_manager.h"
 #include "imu_manager.h"
 #include "tab5_i2c.h"
+#include "env_importer.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -61,9 +63,15 @@ static UIApp* g_ui = nullptr;
 QueueHandle_t g_storage_queue = nullptr;
 static bool g_space_tap_pending = false;
 
+enum class StorageRequestType : uint8_t {
+    Save,
+    Format
+};
+
 struct StorageRequest {
+    StorageRequestType type = StorageRequestType::Save;
     EditorSnapshot snapshot;
-    bool manual;
+    bool manual = false;
 };
 
 static SpaceHoldDetector g_space_hold;
@@ -129,6 +137,9 @@ extern "C" void app_main(void)
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize storage: %s", esp_err_to_name(ret));
         // Continue anyway - might be able to run with in-memory storage
+        Event ev;
+        ev.type = EventType::STORAGE_MOUNT_FAILED;
+        xQueueSend(g_event_queue, &ev, 0);
     }
 
     // Initialize autosave manager
@@ -196,6 +207,31 @@ extern "C" void app_main(void)
             ev.data = nullptr;
             ESP_LOGW(TAG, "Failed to queue project switch event");
         }
+    });
+    ui.setStorageFormatRequestCallback([]() -> bool {
+        if (!g_storage_queue) {
+            return false;
+        }
+        StorageRequest* req = new StorageRequest{};
+        req->type = StorageRequestType::Format;
+        if (xQueueSend(g_storage_queue, &req, 0) != pdTRUE) {
+            delete req;
+            return false;
+        }
+        return true;
+    });
+    ui.setUsbStorageRequestCallback([](bool enable) {
+        Event ev;
+        ev.type = EventType::USB_STORAGE_REQUEST;
+        ev.int_param = enable ? 1 : 0;
+        xQueueSend(g_event_queue, &ev, 0);
+    });
+
+    UsbMscDevice::getInstance().setStatusCallback([](bool connected) {
+        Event ev;
+        ev.type = EventType::USB_STORAGE_STATUS;
+        ev.int_param = connected ? 1 : 0;
+        xQueueSend(g_event_queue, &ev, 0);
     });
 
     // Set up keybinding callbacks
@@ -306,7 +342,7 @@ extern "C" void app_main(void)
         if (!ai.isEnabled()) {
             ui.showToast(Strings::getInstance().get("hud.ai_off"));
         } else {
-            ui.showToast(Strings::getInstance().get("ai.error"));
+            ui.showMagicBar();
         }
     });
 
@@ -412,6 +448,9 @@ static void ui_task(void* arg) {
     ESP_LOGI(TAG, "UI task started");
 
     UIApp& ui = UIApp::getInstance();
+    StorageManager& storage = StorageManager::getInstance();
+    UsbMscDevice& usb_msc = UsbMscDevice::getInstance();
+    Strings& strings = Strings::getInstance();
     const bool use_lvgl_port = ui.usesLvglPort();
     if (use_lvgl_port) {
         lvgl_port_lock(0);
@@ -432,6 +471,8 @@ static void ui_task(void* arg) {
     std::string pending_project_id;
     uint64_t pending_project_revision = 0;
     static bool sntp_started = false;
+    bool usb_storage_active = false;
+    bool usb_storage_connected = false;
 
     auto reset_save_state = [&]() {
         if (g_editor) {
@@ -449,6 +490,88 @@ static void ui_task(void* arg) {
     };
 
     reset_save_state();
+
+    auto enter_usb_storage = [&]() {
+        if (usb_storage_active) {
+            ui.showUsbStorage();
+            return;
+        }
+
+        if (!storage.isMounted()) {
+            ui.showToast(strings.get("storage.sd_missing_title"));
+            return;
+        }
+
+        if (g_editor && !ui.getCurrentProjectId().empty()) {
+            if (ui.saveCurrentProject() == ESP_OK) {
+                last_saved_revision = g_editor->getRevision();
+                last_seen_revision = last_saved_revision;
+                inflight_saves = 0;
+                ui.setSaving(false);
+            } else {
+                ui.showToast(strings.get("storage.write_error"));
+            }
+        }
+
+        storage.setSuspended(true);
+        if (storage.isMounted()) {
+            esp_err_t unmount_ret = storage.unmount();
+            if (unmount_ret != ESP_OK) {
+                storage.setSuspended(false);
+                ui.showToast(strings.get("storage.write_error"));
+                return;
+            }
+        }
+
+        esp_err_t ret = usb_msc.start(storage.getCard());
+        if (ret != ESP_OK) {
+            storage.setSuspended(false);
+            storage.mountCard();
+            ui.showToast(strings.get("storage.write_error"));
+            return;
+        }
+
+        usb_storage_active = true;
+        usb_storage_connected = false;
+        ui.showUsbStorage();
+        ui.setUsbStorageConnected(false);
+    };
+
+    auto exit_usb_storage = [&]() {
+        if (!usb_storage_active) {
+            ui.showAdvanced();
+            return;
+        }
+
+        usb_msc.stop();
+
+        esp_err_t mount_ret = storage.mountCard();
+        storage.setSuspended(false);
+        if (mount_ret == ESP_OK || mount_ret == ESP_ERR_INVALID_STATE) {
+            storage.ensureDirectories();
+            mount_ret = ESP_OK;
+        } else {
+            ui.showToast(strings.get("storage.write_error"));
+        }
+
+        usb_storage_active = false;
+        usb_storage_connected = false;
+        ui.showAdvanced();
+
+        if (mount_ret == ESP_OK) {
+            std::string env_path = std::string(SCRIBE_BASE_PATH) + "/.env";
+            EnvImportResult env_result = importEnvFile(env_path.c_str());
+            if (!env_result.found) {
+                ui.showToast(strings.get("usb_storage.env_none"));
+            } else if ((env_result.ai_key_set || env_result.github_token_set)) {
+                ui.showToast(strings.get("usb_storage.env_imported"));
+            } else if (!env_result.error.empty()) {
+                ui.showToast(strings.get("usb_storage.env_error"));
+            } else {
+                ui.showToast(strings.get("usb_storage.env_empty"));
+            }
+        }
+    };
 
     // Start SNTP after UI task begins (TCP/IP is now ready)
     if (!sntp_started) {
@@ -477,6 +600,7 @@ static void ui_task(void* arg) {
                             tap_event.shift = false;
                             tap_event.ctrl = false;
                             tap_event.alt = false;
+                            tap_event.meta = false;
                             tap_event.char_code = ' ';
 
                             if (!ui.handleKeyEvent(tap_event)) {
@@ -537,10 +661,10 @@ static void ui_task(void* arg) {
                             break;
                         }
                         EditorSnapshot snap = g_editor->createSnapshot(project_id);
-                        StorageRequest* req = new StorageRequest{
-                            snap,
-                            true
-                        };
+                        StorageRequest* req = new StorageRequest{};
+                        req->type = StorageRequestType::Save;
+                        req->snapshot = snap;
+                        req->manual = true;
                         if (xQueueSend(g_storage_queue, &req, 0) != pdTRUE) {
                             delete req;
                             ui.showToast(Strings::getInstance().get("storage.write_error"));
@@ -583,6 +707,37 @@ static void ui_task(void* arg) {
                         pending_project_revision = 0;
                     }
                     break;
+                case EventType::STORAGE_MOUNT_FAILED:
+                    ui.showStoragePrompt();
+                    break;
+                case EventType::STORAGE_FORMAT_STATUS: {
+                    StorageFormatStatus* status = static_cast<StorageFormatStatus*>(event.data);
+                    if (status) {
+                        ui.handleStorageFormatUpdate(status->done, status->success, status->status, status->detail);
+                        delete status;
+                    }
+                    break;
+                }
+                case EventType::USB_STORAGE_REQUEST:
+                    if (event.int_param == 1) {
+                        enter_usb_storage();
+                    } else {
+                        exit_usb_storage();
+                    }
+                    break;
+                case EventType::USB_STORAGE_STATUS: {
+                    bool connected = (event.int_param == 1);
+                    ui.setUsbStorageConnected(connected);
+                    if (connected) {
+                        usb_storage_connected = true;
+                    } else {
+                        if (usb_storage_active && usb_storage_connected) {
+                            exit_usb_storage();
+                        }
+                        usb_storage_connected = false;
+                    }
+                    break;
+                }
                 case EventType::BATTERY_LOW:
                     ui.showToast(Strings::getInstance().get("power.low_battery"));
                     break;
@@ -622,10 +777,10 @@ static void ui_task(void* arg) {
 
                     if (dirty) {
                         EditorSnapshot snap = g_editor->createSnapshot(ui.getCurrentProjectId());
-                        StorageRequest* req = new StorageRequest{
-                            snap,
-                            true
-                        };
+                        StorageRequest* req = new StorageRequest{};
+                        req->type = StorageRequestType::Save;
+                        req->snapshot = snap;
+                        req->manual = true;
                         if (xQueueSend(g_storage_queue, &req, 0) != pdTRUE) {
                             delete req;
                             ui.showToast(Strings::getInstance().get("storage.write_error"));
@@ -675,17 +830,18 @@ static void ui_task(void* arg) {
         // Check for autosave trigger (every 5 seconds of idle time)
         TickType_t current_time = xTaskGetTickCount();
         bool dirty = last_seen_revision > last_saved_revision;
-        if (dirty && inflight_saves == 0 && (current_time - last_keypress_time >= autosave_delay)) {
+        if (dirty && inflight_saves == 0 && !storage.isSuspended() &&
+            (current_time - last_keypress_time >= autosave_delay)) {
             // Trigger autosave
             bool autosave_queued = false;
             if (g_editor) {
                 std::string project_id = ui.getCurrentProjectId();
                 if (!project_id.empty()) {
                     EditorSnapshot snap = g_editor->createSnapshot(project_id);
-                    StorageRequest* req = new StorageRequest{
-                        snap,
-                        false
-                    };
+                    StorageRequest* req = new StorageRequest{};
+                    req->type = StorageRequestType::Save;
+                    req->snapshot = snap;
+                    req->manual = false;
                     if (xQueueSend(g_storage_queue, &req, 0) != pdTRUE) {
                         delete req;
                         ESP_LOGW(TAG, "Autosave queue full; will retry on next idle window");
@@ -770,11 +926,79 @@ static void storage_task(void* arg) {
     ProjectLibrary& library = ProjectLibrary::getInstance();
     SessionState& session = SessionState::getInstance();
     StorageManager& storage = StorageManager::getInstance();
+    Strings& strings = Strings::getInstance();
+
+    auto send_format_status = [&](bool done, bool success, const std::string& status, const std::string& detail) {
+        StorageFormatStatus* payload = new StorageFormatStatus{
+            .done = done,
+            .success = success,
+            .status = status,
+            .detail = detail
+        };
+        Event ev;
+        ev.type = EventType::STORAGE_FORMAT_STATUS;
+        ev.data = payload;
+        if (xQueueSend(g_event_queue, &ev, portMAX_DELAY) != pdTRUE) {
+            delete payload;
+            ESP_LOGW(TAG, "Failed to queue storage format status event");
+        }
+    };
 
     while (true) {
         StorageRequest* req = nullptr;
         if (xQueueReceive(g_storage_queue, &req, portMAX_DELAY) == pdTRUE) {
             if (!req) {
+                continue;
+            }
+            if (storage.isSuspended()) {
+                if (req->type == StorageRequestType::Format) {
+                    send_format_status(true, false,
+                                       strings.get("storage.format_failed"),
+                                       "Storage suspended");
+                } else {
+                    Event ev;
+                    ev.type = EventType::STORAGE_SAVE_DONE;
+                    ev.int_param = 0;
+                    ev.u64_param = req->snapshot.revision;
+                    if (xQueueSend(g_event_queue, &ev, portMAX_DELAY) != pdTRUE) {
+                        ESP_LOGW(TAG, "Failed to queue storage save event");
+                    }
+                }
+                delete req;
+                continue;
+            }
+            if (req->type == StorageRequestType::Format) {
+                send_format_status(false, false,
+                                   strings.get("storage.formatting"),
+                                   strings.get("storage.formatting_detail"));
+
+                esp_err_t ret = storage.formatCard();
+                if (ret != ESP_OK) {
+                    std::string detail = std::string("Format failed: ") + esp_err_to_name(ret);
+                    send_format_status(true, false, strings.get("storage.format_failed"), detail);
+                    delete req;
+                    continue;
+                }
+
+                send_format_status(false, false,
+                                   strings.get("storage.verify"),
+                                   strings.get("storage.verify_detail"));
+
+                std::string detail;
+                ret = storage.verifyCard(&detail);
+                if (ret != ESP_OK) {
+                    if (detail.empty()) {
+                        detail = std::string("Verify failed: ") + esp_err_to_name(ret);
+                    }
+                    send_format_status(true, false, strings.get("storage.format_failed"), detail);
+                    delete req;
+                    continue;
+                }
+
+                send_format_status(true, true,
+                                   strings.get("storage.status_ready"),
+                                   strings.get("storage.format_ready_detail"));
+                delete req;
                 continue;
             }
             if (!storage.isMounted()) {

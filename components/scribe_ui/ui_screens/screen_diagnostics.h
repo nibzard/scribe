@@ -22,7 +22,9 @@ public:
 
 private:
     lv_obj_t* screen_ = nullptr;
+    lv_obj_t* title_label_ = nullptr;
     lv_obj_t* info_list_ = nullptr;
+    lv_obj_t* instruction_label_ = nullptr;
     lv_obj_t* log_label_ = nullptr;
 
     CloseCallback close_cb_;

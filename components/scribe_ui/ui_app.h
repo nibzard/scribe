@@ -10,6 +10,7 @@
 #include "key_event.h"
 #include "settings_store.h"
 #include "editor_core.h"
+#include "../scribe_services/wifi_manager.h"
 
 // Forward declarations
 class EditorCore;
@@ -25,10 +26,13 @@ class ScreenFind;
 class ScreenFirstRun;
 class ScreenDiagnostics;
 class ScreenAdvanced;
+class ScreenStorage;
 class ScreenWiFi;
 class ScreenBackup;
 class ScreenAI;
+class ScreenAIPrompt;
 class ScreenMagicBar;
+class ScreenUsbStorage;
 class DialogPowerOff;
 
 // Main UI application class
@@ -94,6 +98,17 @@ public:
     // Show advanced settings
     void showAdvanced();
 
+    // Show storage settings
+    void showStorage();
+    void showStoragePrompt();
+    void setStorageFormatRequestCallback(std::function<bool()> cb) { storage_format_request_cb_ = cb; }
+    void handleStorageFormatUpdate(bool done, bool success, const std::string& status, const std::string& detail);
+
+    // Show USB storage screen
+    void showUsbStorage();
+    void setUsbStorageConnected(bool connected);
+    void setUsbStorageRequestCallback(std::function<void(bool)> cb) { usb_storage_request_cb_ = cb; }
+
     // Show WiFi settings
     void showWiFi();
 
@@ -103,7 +118,7 @@ public:
     // Show AI settings
     void showAI();
 
-    // Show Magic Bar (AI assistant)
+    // Show AI prompt
     void showMagicBar();
     void hideMagicBar();
 
@@ -146,8 +161,10 @@ private:
               help_screen_(nullptr), recovery_screen_(nullptr),
               first_run_screen_(nullptr), find_bar_(nullptr),
               diagnostics_screen_(nullptr), advanced_screen_(nullptr),
+              storage_screen_(nullptr),
+              usb_storage_screen_(nullptr),
               wifi_screen_(nullptr), backup_screen_(nullptr), ai_screen_(nullptr),
-              magic_bar_(nullptr), power_off_dialog_(nullptr) {}
+              ai_prompt_(nullptr), magic_bar_(nullptr), power_off_dialog_(nullptr) {}
     ~UIApp() = default;
 
     bool running_;
@@ -157,6 +174,7 @@ private:
     bool export_in_progress_ = false;
     bool recovery_select_restore_ = true;
     bool saving_ = false;
+    bool storage_format_in_progress_ = false;
     size_t session_start_words_ = 0;
     size_t find_index_ = 0;
     std::string recovered_content_;
@@ -169,6 +187,8 @@ private:
     AppSettings settings_;
     int current_orientation_ = -1;
     std::function<void(const std::string& id)> project_open_request_cb_;
+    std::function<bool()> storage_format_request_cb_;
+    std::function<void(bool)> usb_storage_request_cb_;
 
     enum class ScreenType {
         Editor,
@@ -183,9 +203,12 @@ private:
         Find,
         Diagnostics,
         Advanced,
+        Storage,
+        UsbStorage,
         WiFi,
         Backup,
         AI,
+        AIPrompt,
         PowerOff
     };
     ScreenType current_screen_ = ScreenType::Editor;
@@ -204,9 +227,12 @@ private:
     ScreenFind* find_bar_;
     ScreenDiagnostics* diagnostics_screen_;
     ScreenAdvanced* advanced_screen_;
+    ScreenStorage* storage_screen_;
+    ScreenUsbStorage* usb_storage_screen_;
     ScreenWiFi* wifi_screen_;
     ScreenBackup* backup_screen_;
     ScreenAI* ai_screen_;
+    ScreenAIPrompt* ai_prompt_;
     ScreenMagicBar* magic_bar_;
     DialogPowerOff* power_off_dialog_;
     lv_obj_t* toast_ = nullptr;
@@ -225,6 +251,10 @@ private:
 
     QueueHandle_t ai_event_queue_ = nullptr;
 
+    struct WiFiEvent;
+
+    QueueHandle_t wifi_event_queue_ = nullptr;
+
     // Helper methods
     void createProject(const std::string& name);
     void ensureProjectOpen();
@@ -232,13 +262,19 @@ private:
     void handleExport(const std::string& type);
     void startSendToComputer();
     void handleRecovery(bool restore);
+    void showAIPrompt();
+    void hideAIPrompt();
+    void submitAIPrompt();
+    void startAIPromptRequest(const std::string& prompt);
     void enqueueAIEvent(AIEvent* event);
     void clearAIEventQueue();
+    void enqueueWiFiEvent(WiFiEvent* event);
     void handlePowerOffConfirm();
     void handlePowerOffCancel();
     void updateHUD();
     void updateFindMatches();
     void jumpToFindMatch(int direction);
+    void adjustBrightness(int delta);
     void showToastInternal(const char* message, uint32_t duration_ms);
     void applySettings();
     void applyDisplayOrientation();

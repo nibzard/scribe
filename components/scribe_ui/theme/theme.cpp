@@ -3,7 +3,6 @@
 #include <lvgl.h>
 #include "themes/default/lv_theme_default.h"
 #include <cstring>
-#include <cstdlib>
 
 static const char* TAG = "SCRIBE_THEME";
 
@@ -253,17 +252,22 @@ void applyTheme(const char* theme_id) {
         ESP_LOGW(TAG, "No default display found for theme application");
     } else {
 #if LV_USE_THEME_DEFAULT
+        const lv_font_t* ui_font = getUIFont(UiFontRole::Body);
         lv_theme_t* lv_theme = lv_theme_default_init(disp, theme->primary, theme->secondary, theme->dark,
-                                                     LV_FONT_DEFAULT);
+                                                     ui_font ? ui_font : LV_FONT_DEFAULT);
         lv_display_set_theme(disp, lv_theme);
 #endif
     }
 
     lv_obj_t* scr = lv_screen_active();
     if (scr) {
+        const lv_font_t* ui_font = getUIFont(UiFontRole::Body);
         lv_obj_set_style_bg_color(scr, theme->colors.bg, 0);
         lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
         lv_obj_set_style_text_color(scr, theme->colors.text, 0);
+        if (ui_font) {
+            lv_obj_set_style_text_font(scr, ui_font, 0);
+        }
         ESP_LOGI(TAG, "Applied theme: %s", theme->id);
     }
 }
@@ -284,65 +288,6 @@ const Colors& getColors() {
 
 bool isDark() {
     return getThemeByIndex(current_theme_index).dark;
-}
-
-// Get font based on size setting
-const lv_font_t* getFont(int size_setting) {
-    int size_px = size_setting;
-    if (size_px <= 0) {
-        size_px = FONT_SIZE_DEFAULT;
-    }
-
-    struct FontEntry {
-        int size;
-        const lv_font_t* font;
-    };
-
-    static const FontEntry kFontTable[] = {
-#if LV_FONT_MONTSERRAT_12
-        {12, &lv_font_montserrat_12},
-#endif
-#if LV_FONT_MONTSERRAT_14
-        {14, &lv_font_montserrat_14},
-#endif
-#if LV_FONT_MONTSERRAT_16
-        {16, &lv_font_montserrat_16},
-#endif
-#if LV_FONT_MONTSERRAT_18
-        {18, &lv_font_montserrat_18},
-#endif
-#if LV_FONT_MONTSERRAT_20
-        {20, &lv_font_montserrat_20},
-#endif
-#if LV_FONT_MONTSERRAT_22
-        {22, &lv_font_montserrat_22},
-#endif
-#if LV_FONT_MONTSERRAT_24
-        {24, &lv_font_montserrat_24},
-#endif
-#if LV_FONT_MONTSERRAT_26
-        {26, &lv_font_montserrat_26},
-#endif
-#if LV_FONT_MONTSERRAT_28
-        {28, &lv_font_montserrat_28},
-#endif
-    };
-
-    if (sizeof(kFontTable) == 0) {
-        return LV_FONT_DEFAULT;
-    }
-
-    const FontEntry* best = &kFontTable[0];
-    int best_diff = std::abs(kFontTable[0].size - size_px);
-    for (size_t i = 1; i < sizeof(kFontTable) / sizeof(kFontTable[0]); ++i) {
-        int diff = std::abs(kFontTable[i].size - size_px);
-        if (diff < best_diff) {
-            best = &kFontTable[i];
-            best_diff = diff;
-        }
-    }
-
-    return best->font ? best->font : LV_FONT_DEFAULT;
 }
 
 } // namespace Theme

@@ -34,14 +34,24 @@ struct ThemeDefinition {
     lv_color_t secondary;
 };
 
-// Font sizes (pixels)
-constexpr int FONT_SIZE_MIN = 12;
-constexpr int FONT_SIZE_MAX = 28;
+// Editor font sizes (pixels)
+constexpr int FONT_SIZE_MIN = 14;
+constexpr int FONT_SIZE_MAX = 240;
 constexpr int FONT_SIZE_STEP = 2;
-constexpr int FONT_SIZE_SMALL = 12;
-constexpr int FONT_SIZE_MEDIUM = 16;
-constexpr int FONT_SIZE_LARGE = 22;
 constexpr int FONT_SIZE_DEFAULT = 16;
+
+// UI scale (percent). Current UI is calibrated at 50%.
+constexpr int UI_SCALE_MIN = 50;
+constexpr int UI_SCALE_MAX = 150;
+constexpr int UI_SCALE_DEFAULT = 50;
+constexpr int UI_SCALE_BASE = 50;
+
+enum class UiFontRole {
+    Small,
+    Body,
+    Title,
+    Display
+};
 
 // Theme registry
 size_t getThemeCount();
@@ -66,7 +76,22 @@ const Colors& getColors();
 // Check if dark theme is active
 bool isDark();
 
-// Get font based on size setting (pixel size)
-const lv_font_t* getFont(int size_setting);
+// UI scale helpers
+void setUiScalePercent(int percent);
+int getUiScalePercent();
+int scalePx(int base_px);
+int fitWidth(int base_px, int margin_px);
+int fitHeight(int base_px, int margin_px);
+
+// Font helpers
+const char* getDefaultEditorFontId();
+const char* getEditorFontLabelKey(const char* id);
+const char* getNextEditorFontId(const char* current_id, int delta);
+size_t getEditorFontCount();
+const char* getEditorFontIdByIndex(size_t index);
+int getEditorFontIndex(const char* id);
+const lv_font_t* getEditorFont(const char* font_id, int size_px);
+const lv_font_t* getUIFont(UiFontRole role);
+int clampEditorFontSize(int size_px);
 
 } // namespace Theme

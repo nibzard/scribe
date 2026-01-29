@@ -8,6 +8,7 @@ idf_component_register(SRCS
     "audio_feedback.cpp"
     "audio_manager.cpp"
     "imu_manager.cpp"
+    "env_importer.cpp"
     INCLUDE_DIRS "."
     REQUIRES
         esp_driver_gpio

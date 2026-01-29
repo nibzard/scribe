@@ -28,18 +28,19 @@ void ScreenAdvanced::createWidgets() {
     // Title
     title_label_ = lv_label_create(screen_);
     lv_label_set_text(title_label_, Strings::getInstance().get("settings.advanced"));
-    lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 30);
-    lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_18, 0);
+    lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(30));
+    lv_obj_set_style_text_font(title_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
 
     // Settings list
     settings_list_ = lv_list_create(screen_);
-    lv_obj_set_size(settings_list_, 350, 350);
-    lv_obj_align(settings_list_, LV_ALIGN_TOP_MID, 0, 70);
+    lv_obj_set_size(settings_list_, Theme::fitWidth(350, 40), Theme::fitHeight(350, 180));
+    lv_obj_align(settings_list_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(70));
     const Theme::Colors& colors = Theme::getColors();
     lv_obj_set_style_bg_color(settings_list_, colors.fg, 0);
     lv_obj_set_style_bg_opa(settings_list_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(settings_list_, colors.border, 0);
     lv_obj_set_style_border_width(settings_list_, 1, 0);
+    lv_obj_set_style_text_font(settings_list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     buttons_.clear();
     item_keys_.clear();
@@ -56,6 +57,8 @@ void ScreenAdvanced::createWidgets() {
 
     Strings& strings = Strings::getInstance();
     addItem(strings.get("settings.wifi"), "wifi", LV_SYMBOL_WIFI);
+    addItem(strings.get("settings.storage"), "storage", LV_SYMBOL_SD_CARD);
+    addItem(strings.get("settings.usb_storage"), "usb_storage", LV_SYMBOL_USB);
     addItem(strings.get("settings.backup"), "backup", LV_SYMBOL_UPLOAD);
     addItem(strings.get("settings.ai"), "ai", LV_SYMBOL_SHUFFLE);
     addItem(strings.get("settings.diagnostics"), "diagnostics", LV_SYMBOL_SETTINGS);
@@ -69,11 +72,20 @@ void ScreenAdvanced::show() {
     if (screen_) {
         Theme::applyScreenStyle(screen_);
         const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_style_text_font(screen_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        if (title_label_) {
+            lv_obj_set_style_text_color(title_label_, colors.text, 0);
+            lv_obj_set_style_text_font(title_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
+            lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(30));
+        }
         if (settings_list_) {
+            lv_obj_set_size(settings_list_, Theme::fitWidth(350, 40), Theme::fitHeight(350, 180));
+            lv_obj_align(settings_list_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(70));
             lv_obj_set_style_bg_color(settings_list_, colors.fg, 0);
             lv_obj_set_style_bg_opa(settings_list_, LV_OPA_COVER, 0);
             lv_obj_set_style_border_color(settings_list_, colors.border, 0);
             lv_obj_set_style_border_width(settings_list_, 1, 0);
+            lv_obj_set_style_text_font(settings_list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
         }
         for (auto* btn : buttons_) {
             if (!btn) continue;

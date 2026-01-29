@@ -7,9 +7,15 @@
 
 static const char* TAG = "SCRIBE_SETTINGS_STORE";
 namespace {
-constexpr int kFontSizeMin = 12;
-constexpr int kFontSizeMax = 28;
+constexpr int kFontSizeMin = 14;
+constexpr int kFontSizeMax = 240;
 constexpr int kLegacyFontSizes[] = {14, 16, 20};
+constexpr int kUiScaleMin = 50;
+constexpr int kUiScaleMax = 150;
+constexpr int kMarginMin = 0;
+constexpr int kMarginMax = 2;
+constexpr int kBrightnessMin = 0;
+constexpr int kBrightnessMax = 100;
 }  // namespace
 
 SettingsStore& SettingsStore::getInstance() {
@@ -68,6 +74,14 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
         settings.theme_id = "dracula";
     }
 
+    cJSON* editor_font = cJSON_GetObjectItem(root, "editor_font");
+    if (cJSON_IsString(editor_font) && editor_font->valuestring) {
+        settings.editor_font_id = editor_font->valuestring;
+    }
+    if (settings.editor_font_id.empty()) {
+        settings.editor_font_id = "montserrat";
+    }
+
     cJSON* font = cJSON_GetObjectItem(root, "font_size");
     if (cJSON_IsNumber(font)) {
         settings.font_size = font->valueint;
@@ -82,6 +96,24 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
         settings.font_size = kFontSizeMin;
     } else if (settings.font_size > kFontSizeMax) {
         settings.font_size = kFontSizeMax;
+    }
+
+    cJSON* margin = cJSON_GetObjectItem(root, "editor_margin");
+    if (cJSON_IsNumber(margin)) {
+        settings.editor_margin = margin->valueint;
+    }
+    if (settings.editor_margin < kMarginMin || settings.editor_margin > kMarginMax) {
+        settings.editor_margin = 1;
+    }
+
+    cJSON* ui_scale = cJSON_GetObjectItem(root, "ui_scale");
+    if (cJSON_IsNumber(ui_scale)) {
+        settings.ui_scale = ui_scale->valueint;
+    }
+    if (settings.ui_scale < kUiScaleMin) {
+        settings.ui_scale = kUiScaleMin;
+    } else if (settings.ui_scale > kUiScaleMax) {
+        settings.ui_scale = kUiScaleMax;
     }
 
     cJSON* layout = cJSON_GetObjectItem(root, "keyboard_layout");
@@ -118,15 +150,26 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
         settings.wifi_enabled = cJSON_IsTrue(wifi);
     }
 
+    cJSON* brightness = cJSON_GetObjectItem(root, "brightness");
+    if (cJSON_IsNumber(brightness)) {
+        settings.brightness = brightness->valueint;
+    }
+    if (settings.brightness < kBrightnessMin) {
+        settings.brightness = kBrightnessMin;
+    } else if (settings.brightness > kBrightnessMax) {
+        settings.brightness = kBrightnessMax;
+    }
+
     cJSON* backup = cJSON_GetObjectItem(root, "backup_enabled");
     if (cJSON_IsBool(backup)) {
         settings.backup_enabled = cJSON_IsTrue(backup);
     }
 
     cJSON_Delete(root);
-    ESP_LOGI(TAG, "Settings loaded: theme=%s, font=%d, sleep=%d",
+    ESP_LOGI(TAG, "Settings loaded: theme=%s, font=%d, ui_scale=%d, sleep=%d",
              settings.theme_id.c_str(),
              settings.font_size,
+             settings.ui_scale,
              settings.auto_sleep);
 
     return ESP_OK;
@@ -136,14 +179,19 @@ esp_err_t SettingsStore::save(const AppSettings& settings) {
     StorageManager::getInstance().ensureDirectories();
 
     cJSON* root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "version", 4);
+    cJSON_AddNumberToObject(root, "version", 6);
     const char* theme_id = settings.theme_id.empty() ? "dracula" : settings.theme_id.c_str();
     cJSON_AddStringToObject(root, "theme_id", theme_id);
+    const char* editor_font = settings.editor_font_id.empty() ? "montserrat" : settings.editor_font_id.c_str();
+    cJSON_AddStringToObject(root, "editor_font", editor_font);
     cJSON_AddNumberToObject(root, "font_size", settings.font_size);
+    cJSON_AddNumberToObject(root, "editor_margin", settings.editor_margin);
+    cJSON_AddNumberToObject(root, "ui_scale", settings.ui_scale);
     cJSON_AddNumberToObject(root, "keyboard_layout", settings.keyboard_layout);
     cJSON_AddNumberToObject(root, "auto_sleep", settings.auto_sleep);
     cJSON_AddNumberToObject(root, "display_orientation", settings.display_orientation);
     cJSON_AddBoolToObject(root, "wifi_enabled", settings.wifi_enabled);
+    cJSON_AddNumberToObject(root, "brightness", settings.brightness);
     cJSON_AddBoolToObject(root, "backup_enabled", settings.backup_enabled);
 
     char* json_str = cJSON_Print(root);
