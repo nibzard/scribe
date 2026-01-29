@@ -1,4 +1,4 @@
-﻿# Lessons Learned (Scribe on M5Stack Tab5)
+# Lessons Learned (Scribe on M5Stack Tab5)
 
 ## Hardware + BSP
 - Target board is M5Stack Tab5 (ESP32-P4 + ESP32-C6 module). Core resources: 16 MB Flash, 32 MB PSRAM.
