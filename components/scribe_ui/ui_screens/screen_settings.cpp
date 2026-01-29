@@ -40,6 +40,12 @@ static const char* marginLabel(int value) {
     }
 }
 
+static const char* typewriterModeLabel(bool enabled) {
+    Strings& strings = Strings::getInstance();
+    return enabled ? strings.get("settings.typewriter_centered")
+                   : strings.get("settings.typewriter_normal");
+}
+
 static std::string brightnessLabel(int value) {
     char buf[16];
     snprintf(buf, sizeof(buf), "%d%%", value);
@@ -180,6 +186,8 @@ void ScreenSettings::rebuildList() {
     addItem(strings.get("settings.editor_font"), editorFontLabel(settings_.editor_font_id),
             "editor_font", LV_SYMBOL_EDIT);
     addItem(strings.get("settings.margin"), marginLabel(settings_.editor_margin), "editor_margin", LV_SYMBOL_LIST);
+    addItem(strings.get("settings.typewriter_mode"), typewriterModeLabel(settings_.typewriter_mode),
+            "typewriter_mode", LV_SYMBOL_EDIT);
     addItem(strings.get("settings.keyboard_layout"), keyboardLayoutLabel(settings_.keyboard_layout), "keyboard_layout", LV_SYMBOL_KEYBOARD);
     addItem(strings.get("settings.auto_sleep"), autoSleepLabel(settings_.auto_sleep), "auto_sleep", LV_SYMBOL_GPS);
     std::string brightness_label = brightnessLabel(settings_.brightness);

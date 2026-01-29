@@ -442,6 +442,12 @@ esp_err_t UIApp::init() {
             } else {
                 settings_.editor_margin = std::max(0, std::min(2, settings_.editor_margin + value));
             }
+        } else if (setting == "typewriter_mode") {
+            if (absolute) {
+                settings_.typewriter_mode = (value != 0);
+            } else {
+                settings_.typewriter_mode = !settings_.typewriter_mode;
+            }
         } else if (setting == "ui_scale") {
             if (absolute) {
                 settings_.ui_scale = value;
@@ -1861,6 +1867,7 @@ void UIApp::applySettings() {
         }
         editor_screen_->setEditorFont(Theme::getEditorFont(settings_.editor_font_id.c_str(), settings_.font_size));
         editor_screen_->setEditorMargin(Theme::scalePx(base_margin));
+        editor_screen_->setTypewriterMode(settings_.typewriter_mode);
     }
     MIPIDSI::setBacklight(settings_.brightness);
     setKeyboardLayout(intToLayout(settings_.keyboard_layout));

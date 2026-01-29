@@ -310,7 +310,20 @@ void TextView::scrollToCursor() {
         max_scroll = 0;
     }
 
-    int target = cursor_y + (line_height_ / 2) - (viewport_height_ / 2);
+    int target = scroll_y_;
+    if (typewriter_mode_) {
+        target = cursor_y + (line_height_ / 2) - (viewport_height_ / 2);
+    } else {
+        int cursor_bottom = cursor_y + line_height_;
+        int view_top = scroll_y_;
+        int view_bottom = scroll_y_ + viewport_height_;
+        if (cursor_y < view_top) {
+            target = cursor_y;
+        } else if (cursor_bottom > view_bottom) {
+            target = cursor_bottom - viewport_height_;
+        }
+    }
+
     if (target < 0) {
         target = 0;
     } else if (target > max_scroll) {
@@ -325,6 +338,15 @@ void TextView::scrollToLine(size_t line) {
         scroll_y_ = line_cache_[line].y_offset;
         invalidate();
     }
+}
+
+void TextView::setTypewriterMode(bool enabled) {
+    if (typewriter_mode_ == enabled) {
+        return;
+    }
+    typewriter_mode_ = enabled;
+    scrollToCursor();
+    invalidate();
 }
 
 void TextView::setFont(const lv_font_t* font) {
