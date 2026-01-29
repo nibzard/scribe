@@ -39,7 +39,7 @@ This section collects end-user flows and UI behaviors.
 
 ### 2.1 Editor Basics
 - The editor screen is the default writing surface with a TextView-backed document.
-- The active line stays vertically centered while typing; scrolling clamps near the start/end.
+- In Typewriter/Centered mode the active line stays vertically centered; the view can scroll past the end to keep it centered, while Normal mode clamps to content bounds.
 - Cursor movement, selection, undo/redo, and find are handled through keybindings.
 - The editor viewport resizes to the current display resolution when the device rotation changes.
 - The Magic Bar can insert AI results into the document (preview only).
