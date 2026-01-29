@@ -152,6 +152,7 @@ public:
     void setRecoveredContent(const std::string& project_id, const std::string& content);
     void setSaving(bool saving) { saving_ = saving; }
     bool isSaving() const { return saving_; }
+    int getAutosaveIntervalMinutes() const { return settings_.autosave_interval; }
 
 private:
     UIApp() : running_(false), hud_visible_(false),

@@ -3,6 +3,11 @@
 #include <esp_err.h>
 #include <string>
 
+namespace SettingsDefaults {
+inline constexpr int kAutosaveIntervalDefault = 1;
+inline constexpr int kAutosaveIntervalOptions[] = {1, 2, 3, 5, 10, 15, 30, 60};
+}  // namespace SettingsDefaults
+
 // Application settings persistence
 // Stores user preferences in /Scribe/settings.json per SPECS.md section 5
 
@@ -43,6 +48,9 @@ struct AppSettings {
 
     // Cloud backup enabled
     bool backup_enabled = false;
+
+    // Autosave interval in minutes
+    int autosave_interval = SettingsDefaults::kAutosaveIntervalDefault;
 };
 
 class SettingsStore {

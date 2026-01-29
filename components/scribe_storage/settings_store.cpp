@@ -16,6 +16,18 @@ constexpr int kMarginMin = 0;
 constexpr int kMarginMax = 2;
 constexpr int kBrightnessMin = 0;
 constexpr int kBrightnessMax = 100;
+
+int normalizeAutosaveInterval(int value) {
+    constexpr size_t kIntervalCount =
+        sizeof(SettingsDefaults::kAutosaveIntervalOptions) /
+        sizeof(SettingsDefaults::kAutosaveIntervalOptions[0]);
+    for (size_t i = 0; i < kIntervalCount; ++i) {
+        if (SettingsDefaults::kAutosaveIntervalOptions[i] == value) {
+            return value;
+        }
+    }
+    return SettingsDefaults::kAutosaveIntervalDefault;
+}
 }  // namespace
 
 SettingsStore& SettingsStore::getInstance() {
@@ -170,6 +182,12 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
         settings.backup_enabled = cJSON_IsTrue(backup);
     }
 
+    cJSON* autosave_interval = cJSON_GetObjectItem(root, "autosave_interval");
+    if (cJSON_IsNumber(autosave_interval)) {
+        settings.autosave_interval = autosave_interval->valueint;
+    }
+    settings.autosave_interval = normalizeAutosaveInterval(settings.autosave_interval);
+
     cJSON_Delete(root);
     ESP_LOGI(TAG, "Settings loaded: theme=%s, font=%d, ui_scale=%d, sleep=%d",
              settings.theme_id.c_str(),
@@ -184,7 +202,7 @@ esp_err_t SettingsStore::save(const AppSettings& settings) {
     StorageManager::getInstance().ensureDirectories();
 
     cJSON* root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "version", 7);
+    cJSON_AddNumberToObject(root, "version", 8);
     const char* theme_id = settings.theme_id.empty() ? "dracula" : settings.theme_id.c_str();
     cJSON_AddStringToObject(root, "theme_id", theme_id);
     const char* editor_font = settings.editor_font_id.empty() ? "montserrat" : settings.editor_font_id.c_str();
@@ -199,6 +217,7 @@ esp_err_t SettingsStore::save(const AppSettings& settings) {
     cJSON_AddBoolToObject(root, "wifi_enabled", settings.wifi_enabled);
     cJSON_AddNumberToObject(root, "brightness", settings.brightness);
     cJSON_AddBoolToObject(root, "backup_enabled", settings.backup_enabled);
+    cJSON_AddNumberToObject(root, "autosave_interval", settings.autosave_interval);
 
     char* json_str = cJSON_Print(root);
     cJSON_Delete(root);
