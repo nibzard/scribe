@@ -95,3 +95,4 @@ idf.py -p COM5 build flash
 - Some builds reject designated initializers for heap-allocated structs with non-trivial members; use default construction + assignments for `StorageRequest` to avoid type conversion errors.
 - Settings picker lists (font size/font family/etc.) can render as a 1px line on first open if the roller size is computed from a zero-width overlay; size the roller from computed overlay dims and update layout after unhide (see `screen_settings.cpp`).
 - If picker overlays still show a vertical line on first open, move the overlay to foreground and invalidate/update layout for both overlay and roller right after unhide to force a redraw.
+- Settings list rebuilds (e.g., after auto-sleep change) can reset scroll; call `lv_obj_scroll_to_view_recursive` for the selected row after updating selection to keep items visible in landscape.

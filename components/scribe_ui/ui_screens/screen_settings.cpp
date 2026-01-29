@@ -308,6 +308,7 @@ void ScreenSettings::updateSelection() {
             lv_obj_clear_state(buttons_[i], LV_STATE_CHECKED);
         }
     }
+    ensureSelectionVisible();
     lv_obj_invalidate(settings_list_);
 }
 
@@ -435,6 +436,21 @@ void ScreenSettings::movePickerSelection(int delta) {
     }
     picker_index_ = picker_index_ % count;
     lv_roller_set_selected(picker_roller_, picker_index_, LV_ANIM_OFF);
+}
+
+void ScreenSettings::ensureSelectionVisible() {
+    if (!settings_list_) {
+        return;
+    }
+    if (selected_index_ < 0 || selected_index_ >= static_cast<int>(buttons_.size())) {
+        return;
+    }
+    lv_obj_t* btn = buttons_[selected_index_];
+    if (!btn) {
+        return;
+    }
+    lv_obj_update_layout(settings_list_);
+    lv_obj_scroll_to_view_recursive(btn, LV_ANIM_OFF);
 }
 
 void ScreenSettings::applyTheme() {
