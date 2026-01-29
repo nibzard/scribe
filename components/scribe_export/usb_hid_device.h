@@ -5,6 +5,9 @@
 // Initialize TinyUSB HID keyboard device stack (Tab5 USB-C OTG).
 esp_err_t initUsbHidDevice();
 
+// Deinitialize TinyUSB HID device stack (allows re-init with different descriptors).
+esp_err_t deinitUsbHidDevice();
+
 // Send keyboard report via USB HID.
 // modifier: bitfield (CTRL=1, SHIFT=2, ALT=4, GUI=8)
 // keycode: up to 6 simultaneous keycodes (0 for none)

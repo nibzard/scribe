@@ -247,6 +247,7 @@ void KeyboardHost::parseHIDReport(const uint8_t* report, size_t len) {
                 event.shift = (modifiers & 0x22) != 0;  // Left or Right Shift
                 event.ctrl = (modifiers & 0x11) != 0;   // Left or Right Ctrl
                 event.alt = (modifiers & 0x44) != 0;    // Left or Right Alt
+                event.meta = (modifiers & 0x88) != 0;   // Left or Right GUI
                 event.char_code = 0;
 
                 if (callback_) {
@@ -275,6 +276,7 @@ void KeyboardHost::parseHIDReport(const uint8_t* report, size_t len) {
             event.shift = (modifiers & 0x22) != 0;  // Left or Right Shift
             event.ctrl = (modifiers & 0x11) != 0;   // Left or Right Ctrl
             event.alt = (modifiers & 0x44) != 0;    // Left or Right Alt
+            event.meta = (modifiers & 0x88) != 0;   // Left or Right GUI
             event.char_code = mapKeyToChar(event.key, event.shift);
 
             if (callback_) {

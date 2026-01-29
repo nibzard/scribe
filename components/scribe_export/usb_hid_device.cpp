@@ -6,6 +6,7 @@
 #include "tinyusb.h"
 #include "tinyusb_default_config.h"
 #include "class/hid/hid_device.h"
+#include <tusb.h>
 
 static const char* TAG = "SCRIBE_USB_HID";
 
@@ -17,6 +18,27 @@ static const char kLangId[] = {0x09, 0x04};
 
 static const uint8_t kHidReportDescriptor[] = {
     TUD_HID_REPORT_DESC_KEYBOARD()
+};
+
+static const tusb_desc_device_t kHidDeviceDescriptor = {
+    .bLength = sizeof(tusb_desc_device_t),
+    .bDescriptorType = TUSB_DESC_DEVICE,
+    .bcdUSB = 0x0200,
+    .bDeviceClass = 0x00,
+    .bDeviceSubClass = 0x00,
+    .bDeviceProtocol = 0x00,
+    .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
+#if CONFIG_TINYUSB_DESC_USE_ESPRESSIF_VID
+    .idVendor = TINYUSB_ESPRESSIF_VID,
+#else
+    .idVendor = CONFIG_TINYUSB_DESC_CUSTOM_VID,
+#endif
+    .idProduct = 0x4004,
+    .bcdDevice = CONFIG_TINYUSB_DESC_BCD_DEVICE,
+    .iManufacturer = 0x01,
+    .iProduct = 0x02,
+    .iSerialNumber = 0x03,
+    .bNumConfigurations = 0x01
 };
 
 static const char* kHidStringDescriptor[] = {
@@ -68,7 +90,7 @@ esp_err_t initUsbHidDevice() {
     }
 
     tinyusb_config_t tusb_cfg = TINYUSB_DEFAULT_CONFIG();
-    tusb_cfg.descriptor.device = NULL;
+    tusb_cfg.descriptor.device = &kHidDeviceDescriptor;
     tusb_cfg.descriptor.full_speed_config = kHidConfigurationDescriptor;
     tusb_cfg.descriptor.string = kHidStringDescriptor;
     tusb_cfg.descriptor.string_count = sizeof(kHidStringDescriptor) / sizeof(kHidStringDescriptor[0]);
@@ -84,6 +106,18 @@ esp_err_t initUsbHidDevice() {
 
     s_initialized = true;
     return ESP_OK;
+}
+
+esp_err_t deinitUsbHidDevice() {
+    if (!s_initialized) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    esp_err_t ret = tinyusb_driver_uninstall();
+    if (ret == ESP_OK || ret == ESP_ERR_NOT_SUPPORTED) {
+        s_initialized = false;
+        return ESP_OK;
+    }
+    return ret;
 }
 
 esp_err_t usbHidSendReport(uint8_t modifier, const uint8_t keycode[6]) {
@@ -110,6 +144,10 @@ esp_err_t usbHidSendReport(uint8_t modifier, const uint8_t keycode[6]) {
 
 #else
 esp_err_t initUsbHidDevice() {
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
+esp_err_t deinitUsbHidDevice() {
     return ESP_ERR_NOT_SUPPORTED;
 }
 

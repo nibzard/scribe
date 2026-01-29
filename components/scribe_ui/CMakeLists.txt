@@ -1,3 +1,5 @@
+file(GLOB GENERATED_FONTS "${CMAKE_CURRENT_LIST_DIR}/theme/generated/*.c")
+
 idf_component_register(SRCS
     "ui_app.cpp"
     "display_driver.cpp"
@@ -21,12 +23,21 @@ idf_component_register(SRCS
     "ui_screens/screen_first_run.cpp"
     "ui_screens/screen_diagnostics.cpp"
     "ui_screens/screen_advanced.cpp"
+    "ui_screens/screen_storage.cpp"
+    "ui_screens/screen_usb_storage.cpp"
     "ui_screens/screen_wifi.cpp"
     "ui_screens/screen_backup.cpp"
     "ui_screens/screen_ai.cpp"
+    "ui_screens/screen_ai_prompt.cpp"
     "ui_screens/screen_magic_bar.cpp"
     "ui_screens/dialog_power_off.cpp"
+    "theme/fonts.cpp"
+    ${GENERATED_FONTS}
     INCLUDE_DIRS "."
+    EMBED_FILES
+        "${CMAKE_CURRENT_LIST_DIR}/../../assets/fonts/montserrat.ttf"
+        "${CMAKE_CURRENT_LIST_DIR}/../../assets/fonts/dejavu.ttf"
+        "${CMAKE_CURRENT_LIST_DIR}/../../assets/fonts/ubuntu.ttf"
     REQUIRES
         lvgl
         esp_driver_gpio

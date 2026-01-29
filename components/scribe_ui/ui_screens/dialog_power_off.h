@@ -21,6 +21,9 @@ public:
 
 private:
     lv_obj_t* dialog_ = nullptr;
+    lv_obj_t* question_label_ = nullptr;
+    lv_obj_t* btn_yes_ = nullptr;
+    lv_obj_t* btn_no_ = nullptr;
 
     ConfirmCallback confirm_cb_;
     CancelCallback cancel_cb_;

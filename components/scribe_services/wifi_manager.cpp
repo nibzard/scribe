@@ -368,10 +368,10 @@ void WiFiManager::handleWiFiEvent(int32_t event_id, void* event_data) {
             wifi_event_sta_disconnected_t* event = (wifi_event_sta_disconnected_t*)event_data;
             ESP_LOGW(TAG, "Disconnected from %s, reason: %d", event->ssid, event->reason);
 
-            bool was_connected = connected_.exchange(false);
+            connected_.store(false);
             current_ssid_.clear();
 
-            if (was_connected && status_callback_) {
+            if (status_callback_) {
                 status_callback_(false, "");
             }
 

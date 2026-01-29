@@ -62,20 +62,21 @@ void ScreenDiagnostics::init() {
 
 void ScreenDiagnostics::createWidgets() {
     // Title
-    lv_obj_t* title = lv_label_create(screen_);
-    lv_label_set_text(title, Strings::getInstance().get("diagnostics.title"));
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
+    title_label_ = lv_label_create(screen_);
+    lv_label_set_text(title_label_, Strings::getInstance().get("diagnostics.title"));
+    lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(20));
+    lv_obj_set_style_text_font(title_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
 
     // System info list
     info_list_ = lv_list_create(screen_);
-    lv_obj_set_size(info_list_, 380, 350);
-    lv_obj_align(info_list_, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_set_size(info_list_, Theme::fitWidth(380, 40), Theme::fitHeight(350, 200));
+    lv_obj_align(info_list_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(60));
     const Theme::Colors& colors = Theme::getColors();
     lv_obj_set_style_bg_color(info_list_, colors.fg, 0);
     lv_obj_set_style_bg_opa(info_list_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(info_list_, colors.border, 0);
     lv_obj_set_style_border_width(info_list_, 1, 0);
+    lv_obj_set_style_text_font(info_list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Add system info items
     char buf[128];
@@ -142,20 +143,35 @@ void ScreenDiagnostics::createWidgets() {
     lv_list_add_button(info_list_, LV_SYMBOL_LEFT, Strings::getInstance().get("common.back"));
 
     // Instructions
-    lv_obj_t* label = lv_label_create(screen_);
-    lv_label_set_text(label, Strings::getInstance().get("diagnostics.instruction"));
-    lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -10);
+    instruction_label_ = lv_label_create(screen_);
+    lv_label_set_text(instruction_label_, Strings::getInstance().get("diagnostics.instruction"));
+    lv_obj_align(instruction_label_, LV_ALIGN_BOTTOM_MID, 0, -Theme::scalePx(10));
+    lv_obj_set_style_text_font(instruction_label_, Theme::getUIFont(Theme::UiFontRole::Small), 0);
 }
 
 void ScreenDiagnostics::show() {
     if (screen_) {
         Theme::applyScreenStyle(screen_);
         const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_style_text_font(screen_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        if (title_label_) {
+            lv_obj_set_style_text_color(title_label_, colors.text, 0);
+            lv_obj_set_style_text_font(title_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
+            lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(20));
+        }
         if (info_list_) {
+            lv_obj_set_size(info_list_, Theme::fitWidth(380, 40), Theme::fitHeight(350, 200));
+            lv_obj_align(info_list_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(60));
             lv_obj_set_style_bg_color(info_list_, colors.fg, 0);
             lv_obj_set_style_bg_opa(info_list_, LV_OPA_COVER, 0);
             lv_obj_set_style_border_color(info_list_, colors.border, 0);
             lv_obj_set_style_border_width(info_list_, 1, 0);
+            lv_obj_set_style_text_font(info_list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        }
+        if (instruction_label_) {
+            lv_obj_set_style_text_color(instruction_label_, colors.text_secondary, 0);
+            lv_obj_set_style_text_font(instruction_label_, Theme::getUIFont(Theme::UiFontRole::Small), 0);
+            lv_obj_align(instruction_label_, LV_ALIGN_BOTTOM_MID, 0, -Theme::scalePx(10));
         }
         lv_screen_load(screen_);
         refreshData();
@@ -178,9 +194,24 @@ void ScreenDiagnostics::updateSystemInfo() {
 
     char buf[128];
 
-    // Free RAM (updated live)
-    size_t free_ram = heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024;
-    snprintf(buf, sizeof(buf), "Free RAM: %zu KB", free_ram);
+    // Internal RAM (updated live)
+    size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024;
+    size_t internal_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL) / 1024;
+    size_t internal_largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024;
+    snprintf(buf, sizeof(buf), "Internal RAM: %zu/%zu KB (largest %zu)",
+             internal_free, internal_total, internal_largest);
+    lv_list_add_button(info_list_, LV_SYMBOL_BATTERY_FULL, buf);
+
+    // PSRAM (if available)
+    size_t psram_total = heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024;
+    if (psram_total > 0) {
+        size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024;
+        size_t psram_largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024;
+        snprintf(buf, sizeof(buf), "PSRAM: %zu/%zu KB (largest %zu)",
+                 psram_free, psram_total, psram_largest);
+    } else {
+        snprintf(buf, sizeof(buf), "PSRAM: not available");
+    }
     lv_list_add_button(info_list_, LV_SYMBOL_BATTERY_FULL, buf);
 
     // Battery (updated live)
@@ -274,7 +305,24 @@ bool ScreenDiagnostics::exportLogs() {
     fprintf(f, "Chip: %s (%d cores)\n", chip_name, chip_info.cores);
     fprintf(f, "CPU: %d MHz\n", esp_clk_cpu_freq() / 1000000);
     fprintf(f, "Flash: %lu MB\n", static_cast<unsigned long>(flash_size / (1024U * 1024U)));
-    fprintf(f, "Free RAM: %zu KB\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024);
+    {
+        size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024;
+        size_t internal_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL) / 1024;
+        size_t internal_largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024;
+        fprintf(f, "Internal RAM: %zu/%zu KB (largest %zu)\n",
+                internal_free, internal_total, internal_largest);
+    }
+    {
+        size_t psram_total = heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024;
+        if (psram_total > 0) {
+            size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024;
+            size_t psram_largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024;
+            fprintf(f, "PSRAM: %zu/%zu KB (largest %zu)\n",
+                    psram_free, psram_total, psram_largest);
+        } else {
+            fprintf(f, "PSRAM: not available\n");
+        }
+    }
     fprintf(f, "Uptime: %llu s\n", esp_timer_get_time() / 1000000);
     fprintf(f, "ESP-IDF: %s\n\n", esp_get_idf_version());
 

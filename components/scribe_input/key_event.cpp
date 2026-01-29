@@ -3,6 +3,7 @@
 
 std::string KeyEvent::toString() const {
     std::stringstream ss;
+    if (meta) ss << "Meta+";
     if (ctrl) ss << "Ctrl+";
     if (shift) ss << "Shift+";
     if (alt) ss << "Alt+";

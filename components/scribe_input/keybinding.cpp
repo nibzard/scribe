@@ -193,8 +193,8 @@ bool KeybindingDispatcher::handleEditorShortcut(const KeyEvent& event) {
         return true;
     }
 
-    // Ctrl+K - AI Magic Bar
-    if (event.ctrl && event.key == KeyEvent::Key::K) {
+    // Meta+P - AI prompt
+    if (event.meta && event.key == KeyEvent::Key::P) {
         if (ai_magic_cb_) ai_magic_cb_();
         return true;
     }

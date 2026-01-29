@@ -26,14 +26,14 @@ void ScreenMenu::init() {
 
 void ScreenMenu::createWidgets() {
     // Title
-    lv_obj_t* title = lv_label_create(screen_);
-    lv_label_set_text(title, Strings::getInstance().get("menu.title"));
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 40);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
+    title_ = lv_label_create(screen_);
+    lv_label_set_text(title_, Strings::getInstance().get("menu.title"));
+    lv_obj_align(title_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(40));
+    lv_obj_set_style_text_font(title_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
 
     // Menu list
     list_ = lv_list_create(screen_);
-    lv_obj_set_size(list_, 300, 400);
+    lv_obj_set_size(list_, Theme::fitWidth(300, 40), Theme::fitHeight(400, 160));
     lv_obj_center(list_);
     const Theme::Colors& colors = Theme::getColors();
     lv_obj_set_style_bg_color(list_, colors.fg, 0);
@@ -79,17 +79,27 @@ void ScreenMenu::setItems(const MenuItem* items, size_t count) {
 
     selected_index_ = 0;
     updateSelection();
+    sizeListToContent();
 }
 
 void ScreenMenu::show() {
     if (screen_) {
         Theme::applyScreenStyle(screen_);
         const Theme::Colors& colors = Theme::getColors();
+        if (title_) {
+            lv_obj_set_style_text_color(title_, colors.text, 0);
+            lv_obj_set_style_text_font(title_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
+            lv_obj_align(title_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(40));
+        }
         if (list_) {
+            lv_obj_set_size(list_, Theme::fitWidth(300, 40), Theme::fitHeight(400, 160));
+            lv_obj_center(list_);
             lv_obj_set_style_bg_color(list_, colors.fg, 0);
             lv_obj_set_style_bg_opa(list_, LV_OPA_COVER, 0);
             lv_obj_set_style_border_color(list_, colors.border, 0);
             lv_obj_set_style_border_width(list_, 1, 0);
+            lv_obj_set_style_text_font(list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+            sizeListToContent();
         }
         for (auto* btn : buttons_) {
             if (!btn) continue;
@@ -139,4 +149,39 @@ void ScreenMenu::updateSelection() {
         }
     }
     lv_obj_invalidate(list_);
+}
+
+void ScreenMenu::sizeListToContent() {
+    if (!list_) {
+        return;
+    }
+    lv_obj_update_layout(list_);
+    int count = static_cast<int>(buttons_.size());
+    if (count <= 0) {
+        return;
+    }
+
+    int pad_top = lv_obj_get_style_pad_top(list_, LV_PART_MAIN);
+    int pad_bottom = lv_obj_get_style_pad_bottom(list_, LV_PART_MAIN);
+    int row_pad = lv_obj_get_style_pad_row(list_, LV_PART_MAIN);
+    int total_height = pad_top + pad_bottom;
+
+    for (int i = 0; i < count; ++i) {
+        if (!buttons_[i]) continue;
+        total_height += lv_obj_get_height(buttons_[i]);
+        if (i + 1 < count) {
+            total_height += row_pad;
+        }
+    }
+
+    int max_height = Theme::fitHeight(400, 160);
+    if (total_height > max_height) {
+        total_height = max_height;
+    }
+    if (total_height < Theme::scalePx(120)) {
+        total_height = Theme::scalePx(120);
+    }
+
+    lv_obj_set_height(list_, total_height);
+    lv_obj_center(list_);
 }

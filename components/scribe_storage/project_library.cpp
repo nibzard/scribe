@@ -111,7 +111,11 @@ esp_err_t ProjectLibrary::load() {
 }
 
 esp_err_t ProjectLibrary::save() {
-    StorageManager::getInstance().ensureDirectories();
+    esp_err_t dir_ret = StorageManager::getInstance().ensureDirectories();
+    if (dir_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Storage dirs unavailable: %s", esp_err_to_name(dir_ret));
+        return dir_ret;
+    }
 
     sortProjects();
     cJSON* root = cJSON_CreateObject();

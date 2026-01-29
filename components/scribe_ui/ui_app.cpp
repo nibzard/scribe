@@ -20,9 +20,12 @@
 #include "ui_screens/screen_first_run.h"
 #include "ui_screens/screen_diagnostics.h"
 #include "ui_screens/screen_advanced.h"
+#include "ui_screens/screen_storage.h"
+#include "ui_screens/screen_usb_storage.h"
 #include "ui_screens/screen_wifi.h"
 #include "ui_screens/screen_backup.h"
 #include "ui_screens/screen_ai.h"
+#include "ui_screens/screen_ai_prompt.h"
 #include "ui_screens/screen_magic_bar.h"
 #include "ui_screens/dialog_power_off.h"
 #include "theme/theme.h"
@@ -61,6 +64,28 @@ constexpr float kImuOrientationMinTiltG = 0.35f;
 constexpr float kImuOrientationMinDeltaG = 0.15f;
 constexpr bool kImuPortraitPositiveIsUpright = true;
 constexpr bool kImuLandscapePositiveIsUpright = false;
+
+std::string getLineAtCursor(const std::string& text, size_t cursor) {
+    if (text.empty()) {
+        return "";
+    }
+    if (cursor > text.size()) {
+        cursor = text.size();
+    }
+    size_t start = 0;
+    if (cursor > 0) {
+        size_t found = text.rfind('\n', cursor - 1);
+        start = (found == std::string::npos) ? 0 : found + 1;
+    }
+    size_t end = text.find('\n', cursor);
+    if (end == std::string::npos) {
+        end = text.size();
+    }
+    if (end < start) {
+        end = start;
+    }
+    return text.substr(start, end - start);
+}
 
 bool getImuOrientation(MIPIDSI::Orientation& orientation) {
     ImuManager& imu = ImuManager::getInstance();
@@ -102,6 +127,17 @@ bool getImuOrientation(MIPIDSI::Orientation& orientation) {
 }
 }  // namespace
 
+struct UIApp::WiFiEvent {
+    enum class Type {
+        ScanResults,
+        Status
+    };
+    Type type;
+    bool connected = false;
+    std::string ssid;
+    std::vector<WiFiNetwork> networks;
+};
+
 // LVGL tick task
 static void lvgl_tick_task(void* arg) {
     while (true) {
@@ -127,6 +163,11 @@ esp_err_t UIApp::init() {
     ai_event_queue_ = xQueueCreate(16, sizeof(AIEvent*));
     if (!ai_event_queue_) {
         ESP_LOGW(TAG, "Failed to create AI event queue; AI streaming will be limited");
+    }
+
+    wifi_event_queue_ = xQueueCreate(8, sizeof(WiFiEvent*));
+    if (!wifi_event_queue_) {
+        ESP_LOGW(TAG, "Failed to create WiFi event queue; WiFi UI updates may be delayed");
     }
 
     // Try to initialize MIPI-DSI display first
@@ -228,12 +269,16 @@ esp_err_t UIApp::init() {
     SettingsStore& settings_store = SettingsStore::getInstance();
     settings_store.init();
     settings_store.load(settings_);
+    PowerManager::getInstance().setWakeCallback([this]() {
+        MIPIDSI::setBacklight(settings_.brightness);
+    });
 
     bool lvgl_locked = false;
     if (lvgl_port_enabled_) {
         lvgl_locked = lvgl_port_lock(0);
     }
     applyDisplayOrientation();
+    Theme::setUiScalePercent(settings_.ui_scale);
     Theme::applyTheme(settings_.theme_id.c_str());
 
     // Apply keyboard layout from settings
@@ -252,7 +297,15 @@ esp_err_t UIApp::init() {
             updateHUD();
         }
     });
-    WiFiManager::getInstance().init();
+    WiFiManager& wifi = WiFiManager::getInstance();
+    wifi.init();
+    wifi.setStatusCallback([this](bool connected, const std::string& ssid) {
+        WiFiEvent* event = new WiFiEvent();
+        event->type = WiFiEvent::Type::Status;
+        event->connected = connected;
+        event->ssid = ssid;
+        enqueueWiFiEvent(event);
+    });
 
     // Initialize screens
     editor_screen_ = new ScreenEditor();
@@ -273,8 +326,7 @@ esp_err_t UIApp::init() {
     settings_screen_ = new ScreenSettings();
     settings_screen_->init();
 
-    help_screen_ = new ScreenHelp();
-    help_screen_->init();
+    // Help screen is heavy; lazy-init on first use to avoid boot stalls.
 
     recovery_screen_ = new ScreenRecovery();
     recovery_screen_->init();
@@ -291,6 +343,12 @@ esp_err_t UIApp::init() {
     advanced_screen_ = new ScreenAdvanced();
     advanced_screen_->init();
 
+    storage_screen_ = new ScreenStorage();
+    storage_screen_->init();
+
+    usb_storage_screen_ = new ScreenUsbStorage();
+    usb_storage_screen_->init();
+
     wifi_screen_ = new ScreenWiFi();
     wifi_screen_->init();
 
@@ -301,11 +359,7 @@ esp_err_t UIApp::init() {
     TokenInputDialog::getInstance().init();
     RepoConfigDialog::getInstance().init();
 
-    ai_screen_ = new ScreenAI();
-    ai_screen_->init();
-
-    magic_bar_ = new ScreenMagicBar();
-    magic_bar_->init();
+    // AI screens are lazy-initialized to avoid heavy UI setup on boot.
 
     power_off_dialog_ = new DialogPowerOff();
     power_off_dialog_->init();
@@ -361,20 +415,55 @@ esp_err_t UIApp::init() {
     });
 
     settings_screen_->setCloseCallback([this]() { showEditor(); });
-    settings_screen_->setSettingChangeCallback([this](const std::string& setting, int delta) {
+    settings_screen_->setSettingChangeCallback([this](const std::string& setting, int value, bool absolute,
+                                                      const std::string& value_str) {
         if (setting == "theme") {
-            settings_.theme_id = Theme::getNextThemeId(settings_.theme_id.c_str(), delta);
+            if (absolute && !value_str.empty()) {
+                settings_.theme_id = value_str;
+            } else {
+                settings_.theme_id = Theme::getNextThemeId(settings_.theme_id.c_str(), value);
+            }
         } else if (setting == "font_size") {
-            int next = settings_.font_size + (delta * Theme::FONT_SIZE_STEP);
-            if (next < Theme::FONT_SIZE_MIN) next = Theme::FONT_SIZE_MIN;
-            if (next > Theme::FONT_SIZE_MAX) next = Theme::FONT_SIZE_MAX;
-            settings_.font_size = next;
+            if (absolute) {
+                settings_.font_size = Theme::clampEditorFontSize(value);
+            } else {
+                int next = settings_.font_size + (value * Theme::FONT_SIZE_STEP);
+                settings_.font_size = Theme::clampEditorFontSize(next);
+            }
+        } else if (setting == "editor_font") {
+            if (absolute && !value_str.empty()) {
+                settings_.editor_font_id = value_str;
+            } else {
+                settings_.editor_font_id = Theme::getNextEditorFontId(settings_.editor_font_id.c_str(), value);
+            }
+        } else if (setting == "editor_margin") {
+            if (absolute) {
+                settings_.editor_margin = std::max(0, std::min(2, value));
+            } else {
+                settings_.editor_margin = std::max(0, std::min(2, settings_.editor_margin + value));
+            }
+        } else if (setting == "ui_scale") {
+            if (absolute) {
+                settings_.ui_scale = value;
+            } else {
+                int next = settings_.ui_scale + (value * 50);
+                if (next < Theme::UI_SCALE_MIN) next = Theme::UI_SCALE_MIN;
+                if (next > Theme::UI_SCALE_MAX) next = Theme::UI_SCALE_MAX;
+                settings_.ui_scale = next;
+            }
+        } else if (setting == "brightness") {
+            if (absolute) {
+                settings_.brightness = std::max(0, std::min(100, value));
+            } else {
+                int next = settings_.brightness + (value * 10);
+                settings_.brightness = std::max(0, std::min(100, next));
+            }
         } else if (setting == "keyboard_layout") {
-            settings_.keyboard_layout = (settings_.keyboard_layout + delta + 4) % 4;
+            settings_.keyboard_layout = (settings_.keyboard_layout + value + 5) % 5;
         } else if (setting == "auto_sleep") {
-            settings_.auto_sleep = std::max(0, std::min(3, settings_.auto_sleep + delta));
+            settings_.auto_sleep = std::max(0, std::min(3, settings_.auto_sleep + value));
         } else if (setting == "display_orientation") {
-            settings_.display_orientation = (settings_.display_orientation + delta + 5) % 5;
+            settings_.display_orientation = (settings_.display_orientation + value + 5) % 5;
         }
         SettingsStore::getInstance().save(settings_);
         applySettings();
@@ -385,7 +474,7 @@ esp_err_t UIApp::init() {
         }
     });
 
-    help_screen_->setCloseCallback([this]() { showEditor(); });
+    // Help screen callback is set on first show (lazy init).
 
     recovery_screen_->setRecoveryCallback([this](bool restore) {
         handleRecovery(restore);
@@ -404,12 +493,49 @@ esp_err_t UIApp::init() {
         if (!destination) return;
         if (strcmp(destination, "wifi") == 0) {
             showWiFi();
+        } else if (strcmp(destination, "storage") == 0) {
+            showStorage();
+        } else if (strcmp(destination, "usb_storage") == 0) {
+            if (usb_storage_request_cb_) {
+                usb_storage_request_cb_(true);
+            }
         } else if (strcmp(destination, "backup") == 0) {
             showBackup();
         } else if (strcmp(destination, "diagnostics") == 0) {
             showDiagnostics();
         } else if (strcmp(destination, "ai") == 0) {
             showAI();
+        }
+    });
+
+    storage_screen_->setBackCallback([this]() { showAdvanced(); });
+    if (usb_storage_screen_) {
+        usb_storage_screen_->setBackCallback([this]() {
+            if (usb_storage_request_cb_) {
+                usb_storage_request_cb_(false);
+            }
+        });
+    }
+    storage_screen_->setFormatCallback([this]() {
+        if (storage_format_in_progress_) {
+            return;
+        }
+        storage_format_in_progress_ = true;
+        Strings& strings = Strings::getInstance();
+        if (storage_screen_) {
+            storage_screen_->setBusy(true,
+                                     strings.get("storage.formatting"),
+                                     strings.get("storage.formatting_detail"));
+        }
+        bool queued = storage_format_request_cb_ ? storage_format_request_cb_() : false;
+        if (!queued) {
+            storage_format_in_progress_ = false;
+            if (storage_screen_) {
+                storage_screen_->setBusy(false);
+                storage_screen_->setStatusText(strings.get("storage.format_failed"),
+                                               strings.get("storage.format_start_failed"));
+            }
+            showToast(strings.get("storage.format_failed"));
         }
     });
 
@@ -422,6 +548,28 @@ esp_err_t UIApp::init() {
         std::string ssid = wifi.getSSID();
         wifi_screen_->updateStatus(settings_.wifi_enabled, wifi.isConnected(),
                                    ssid.empty() ? nullptr : ssid.c_str());
+    });
+    wifi_screen_->setScanCallback([this]() {
+        WiFiManager& wifi = WiFiManager::getInstance();
+        esp_err_t err = wifi.startScan([this](const std::vector<WiFiNetwork>& networks) {
+            WiFiEvent* event = new WiFiEvent();
+            event->type = WiFiEvent::Type::ScanResults;
+            event->networks = networks;
+            enqueueWiFiEvent(event);
+        });
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "WiFi scan start failed: %s", esp_err_to_name(err));
+            if (wifi_screen_) {
+                wifi_screen_->setScanning(false);
+            }
+        }
+    });
+    wifi_screen_->setConnectCallback([this](const std::string& ssid, const std::string& password) {
+        WiFiManager& wifi = WiFiManager::getInstance();
+        esp_err_t err = wifi.connect(ssid, password);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "WiFi connect failed: %s", esp_err_to_name(err));
+        }
     });
     backup_screen_->setBackCallback([this]() { showAdvanced(); });
 
@@ -448,7 +596,7 @@ esp_err_t UIApp::init() {
         }
     });
 
-    ai_screen_->setBackCallback([this]() { showAdvanced(); });
+    // AI screen callback is set on first show (lazy init).
     diagnostics_screen_->setCloseCallback([this]() { showAdvanced(); });
 
     power_off_dialog_->setConfirmCallback([this]() {
@@ -456,61 +604,6 @@ esp_err_t UIApp::init() {
     });
     power_off_dialog_->setCancelCallback([this]() {
         handlePowerOffCancel();
-    });
-
-    // Set up Magic Bar callbacks
-    magic_bar_->setInsertCallback([this](const std::string& text) {
-        if (editor_) {
-            editor_->insert(text);
-            updateEditor();
-            hideMagicBar();
-        }
-    });
-    magic_bar_->setCancelCallback([this]() {
-        hideMagicBar();
-    });
-    magic_bar_->setStyleCallback([this](AIStyle style) {
-        if (magic_bar_) {
-            magic_bar_->setStyle(style);
-            // Restart AI request with new style
-            AIAssist& ai = AIAssist::getInstance();
-            if (!ai.isEnabled()) {
-                showToast(Strings::getInstance().get("hud.ai_off"));
-                return;
-            }
-            if (editor_) {
-                ai.cancel();
-                clearAIEventQueue();
-
-                std::string context = editor_->getSelectedText();
-                if (context.empty()) {
-                    // Get text around cursor
-                    size_t cursor = editor_->getCursor().pos;
-                    size_t start = (cursor > 500) ? (cursor - 500) : 0;
-                    context = editor_->getText().substr(start, 1000);
-                }
-                magic_bar_->setContextText(context);
-                magic_bar_->startGenerating();
-                ai.requestSuggestion(style, context,
-                    [this](const char* delta) {
-                        AIEvent* event = new AIEvent{
-                            AIEvent::Type::Delta,
-                            delta ? delta : "",
-                            false
-                        };
-                        enqueueAIEvent(event);
-                    },
-                    [this](bool success, const std::string& error) {
-                        AIEvent* event = new AIEvent{
-                            AIEvent::Type::Complete,
-                            error,
-                            success
-                        };
-                        enqueueAIEvent(event);
-                    }
-                );
-            }
-        }
     });
 
     applySettings();
@@ -619,9 +712,12 @@ void UIApp::showSettings() {
 }
 
 void UIApp::showHelp() {
-    if (help_screen_) {
-        help_screen_->show();
+    if (!help_screen_) {
+        help_screen_ = new ScreenHelp();
+        help_screen_->init();
+        help_screen_->setCloseCallback([this]() { showEditor(); });
     }
+    help_screen_->show();
     current_screen_ = ScreenType::Help;
 }
 
@@ -652,6 +748,64 @@ void UIApp::showAdvanced() {
         advanced_screen_->show();
     }
     current_screen_ = ScreenType::Advanced;
+}
+
+void UIApp::showStorage() {
+    if (storage_screen_) {
+        storage_screen_->show();
+    }
+    current_screen_ = ScreenType::Storage;
+}
+
+void UIApp::showUsbStorage() {
+    if (usb_storage_screen_) {
+        usb_storage_screen_->show();
+    }
+    current_screen_ = ScreenType::UsbStorage;
+}
+
+void UIApp::setUsbStorageConnected(bool connected) {
+    if (usb_storage_screen_) {
+        usb_storage_screen_->setConnected(connected);
+    }
+}
+
+void UIApp::showStoragePrompt() {
+    if (storage_screen_) {
+        storage_screen_->requestFormatPrompt();
+        storage_screen_->show();
+    }
+    current_screen_ = ScreenType::Storage;
+}
+
+void UIApp::handleStorageFormatUpdate(bool done, bool success, const std::string& status, const std::string& detail) {
+    if (!storage_screen_) {
+        storage_format_in_progress_ = false;
+        return;
+    }
+
+    if (!done) {
+        storage_screen_->setBusy(true,
+                                 status.empty() ? nullptr : status.c_str(),
+                                 detail.empty() ? nullptr : detail.c_str());
+        return;
+    }
+
+    storage_format_in_progress_ = false;
+    storage_screen_->setBusy(false);
+
+    if (success) {
+        storage_screen_->refreshStatus();
+        if (!status.empty() || !detail.empty()) {
+            storage_screen_->setStatusText(status.empty() ? nullptr : status.c_str(),
+                                           detail.empty() ? nullptr : detail.c_str());
+        }
+        showToast(Strings::getInstance().get("storage.format_done"));
+    } else {
+        storage_screen_->setStatusText(status.empty() ? nullptr : status.c_str(),
+                                       detail.empty() ? nullptr : detail.c_str());
+        showToast(Strings::getInstance().get("storage.format_failed"));
+    }
 }
 
 void UIApp::showWiFi() {
@@ -686,58 +840,17 @@ void UIApp::showBackup() {
 }
 
 void UIApp::showAI() {
-    if (ai_screen_) {
-        ai_screen_->show();
+    if (!ai_screen_) {
+        ai_screen_ = new ScreenAI();
+        ai_screen_->init();
+        ai_screen_->setBackCallback([this]() { showAdvanced(); });
     }
+    ai_screen_->show();
     current_screen_ = ScreenType::AI;
 }
 
 void UIApp::showMagicBar() {
-    if (!magic_bar_) {
-        return;
-    }
-
-    AIAssist& ai = AIAssist::getInstance();
-    if (!ai.isEnabled()) {
-        showToast(Strings::getInstance().get("hud.ai_off"));
-        return;
-    }
-
-    if (editor_) {
-        ai.cancel();
-        clearAIEventQueue();
-
-        std::string context = editor_->getSelectedText();
-        if (context.empty()) {
-            // Get text around cursor
-            size_t cursor = editor_->getCursor().pos;
-            size_t start = (cursor > 500) ? (cursor - 500) : 0;
-            context = editor_->getText().substr(start, 1000);
-        }
-        magic_bar_->setContextText(context);
-        magic_bar_->show();
-        magic_bar_->startGenerating();
-
-        // Start AI request
-        ai.requestSuggestion(magic_bar_->getStyle(), context,
-            [this](const char* delta) {
-                AIEvent* event = new AIEvent{
-                    AIEvent::Type::Delta,
-                    delta ? delta : "",
-                    false
-                };
-                enqueueAIEvent(event);
-            },
-            [this](bool success, const std::string& error) {
-                AIEvent* event = new AIEvent{
-                    AIEvent::Type::Complete,
-                    error,
-                    success
-                };
-                enqueueAIEvent(event);
-            }
-        );
-    }
+    showAIPrompt();
 }
 
 void UIApp::hideMagicBar() {
@@ -749,26 +862,154 @@ void UIApp::hideMagicBar() {
     current_screen_ = ScreenType::Editor;
 }
 
-void UIApp::processAsyncEvents() {
-    if (!ai_event_queue_) {
+void UIApp::showAIPrompt() {
+    if (current_screen_ != ScreenType::Editor) {
         return;
     }
 
-    AIEvent* event = nullptr;
-    while (xQueueReceive(ai_event_queue_, &event, 0) == pdTRUE) {
-        if (!event) {
-            continue;
-        }
+    if (!ai_prompt_) {
+        ai_prompt_ = new ScreenAIPrompt();
+        ai_prompt_->init();
+    }
 
-        if (magic_bar_ && magic_bar_->isVisible()) {
-            if (event->type == AIEvent::Type::Delta) {
-                magic_bar_->onStreamDelta(event->text.c_str());
-            } else if (event->type == AIEvent::Type::Complete) {
-                magic_bar_->onComplete(event->success, event->text);
+    if (!magic_bar_) {
+        magic_bar_ = new ScreenMagicBar();
+        magic_bar_->init();
+        magic_bar_->setInsertCallback([this](const std::string& text) {
+            if (editor_) {
+                editor_->insert(text);
+                updateEditor();
+                hideMagicBar();
             }
-        }
+        });
+        magic_bar_->setCancelCallback([this]() {
+            hideMagicBar();
+        });
+    }
 
-        delete event;
+    AIAssist& ai = AIAssist::getInstance();
+    if (!ai.isEnabled()) {
+        showToast(Strings::getInstance().get("hud.ai_off"));
+        return;
+    }
+
+    if (magic_bar_ && magic_bar_->isVisible()) {
+        hideMagicBar();
+    }
+
+    ai_prompt_->show();
+    current_screen_ = ScreenType::AIPrompt;
+}
+
+void UIApp::hideAIPrompt() {
+    if (ai_prompt_) {
+        ai_prompt_->hide();
+    }
+    current_screen_ = ScreenType::Editor;
+}
+
+void UIApp::submitAIPrompt() {
+    if (!ai_prompt_) {
+        return;
+    }
+
+    std::string prompt = ai_prompt_->getPrompt();
+    if (prompt.empty()) {
+        showToast(Strings::getInstance().get("ai.prompt_empty"));
+        return;
+    }
+
+    hideAIPrompt();
+    startAIPromptRequest(prompt);
+}
+
+void UIApp::startAIPromptRequest(const std::string& prompt) {
+    if (!magic_bar_ || !editor_) {
+        return;
+    }
+
+    AIAssist& ai = AIAssist::getInstance();
+    if (!ai.isEnabled()) {
+        showToast(Strings::getInstance().get("hud.ai_off"));
+        return;
+    }
+
+    ai.cancel();
+    clearAIEventQueue();
+
+    std::string full_text = editor_->getText();
+    std::string selected = editor_->getSelectedText();
+    if (selected.empty()) {
+        selected = getLineAtCursor(full_text, editor_->getCursor().pos);
+    }
+
+    std::string input = prompt;
+    input.append("\n# SELECTED LINE OF TEXT\n");
+    input.append(selected);
+    input.append("\n# FULL PAGE FOR CONTEXT\n");
+    input.append(full_text);
+
+    magic_bar_->show();
+    magic_bar_->startGenerating();
+
+    ai.requestSuggestion(AIStyle::CUSTOM, input,
+        [this](const char* delta) {
+            AIEvent* event = new AIEvent{
+                AIEvent::Type::Delta,
+                delta ? delta : "",
+                false
+            };
+            enqueueAIEvent(event);
+        },
+        [this](bool success, const std::string& error) {
+            AIEvent* event = new AIEvent{
+                AIEvent::Type::Complete,
+                error,
+                success
+            };
+            enqueueAIEvent(event);
+        }
+    );
+}
+
+void UIApp::processAsyncEvents() {
+    if (ai_event_queue_) {
+        AIEvent* event = nullptr;
+        while (xQueueReceive(ai_event_queue_, &event, 0) == pdTRUE) {
+            if (!event) {
+                continue;
+            }
+
+            if (magic_bar_ && magic_bar_->isVisible()) {
+                if (event->type == AIEvent::Type::Delta) {
+                    magic_bar_->onStreamDelta(event->text.c_str());
+                } else if (event->type == AIEvent::Type::Complete) {
+                    magic_bar_->onComplete(event->success, event->text);
+                }
+            }
+
+            delete event;
+        }
+    }
+
+    if (wifi_event_queue_) {
+        WiFiEvent* event = nullptr;
+        while (xQueueReceive(wifi_event_queue_, &event, 0) == pdTRUE) {
+            if (!event) {
+                continue;
+            }
+
+            if (wifi_screen_) {
+                if (event->type == WiFiEvent::Type::ScanResults) {
+                    wifi_screen_->setNetworks(event->networks);
+                } else if (event->type == WiFiEvent::Type::Status) {
+                    const char* ssid = event->ssid.empty() ? nullptr : event->ssid.c_str();
+                    wifi_screen_->updateStatus(settings_.wifi_enabled, event->connected, ssid);
+                }
+            }
+
+            delete event;
+        }
     }
 }
 
@@ -789,6 +1030,16 @@ void UIApp::clearAIEventQueue() {
 
     AIEvent* event = nullptr;
     while (xQueueReceive(ai_event_queue_, &event, 0) == pdTRUE) {
+        delete event;
+    }
+}
+
+void UIApp::enqueueWiFiEvent(WiFiEvent* event) {
+    if (!event) {
+        return;
+    }
+
+    if (!wifi_event_queue_ || xQueueSend(wifi_event_queue_, &event, 0) != pdTRUE) {
         delete event;
     }
 }
@@ -1080,6 +1331,26 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
 
     PowerManager::getInstance().resetActivityTimer();
 
+    if (current_screen_ == ScreenType::AIPrompt && ai_prompt_) {
+        if (event.key == KeyEvent::Key::ESC) {
+            hideAIPrompt();
+            return true;
+        }
+        if (event.key == KeyEvent::Key::ENTER) {
+            submitAIPrompt();
+            return true;
+        }
+        if (event.key == KeyEvent::Key::BACKSPACE) {
+            ai_prompt_->backspacePrompt();
+            return true;
+        }
+        if (event.isPrintable() && !event.ctrl && !event.alt && !event.meta) {
+            ai_prompt_->appendPromptChar(event.char_code);
+            return true;
+        }
+        return true;
+    }
+
     if (magic_bar_ && magic_bar_->isVisible()) {
         if (event.key == KeyEvent::Key::ESC) {
             magic_bar_->discardSuggestion();
@@ -1101,6 +1372,14 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
     }
 
     if (allow_global) {
+        if (event.ctrl && event.shift && event.key == KeyEvent::Key::UP) {
+            adjustBrightness(10);
+            return true;
+        }
+        if (event.ctrl && event.shift && event.key == KeyEvent::Key::DOWN) {
+            adjustBrightness(-10);
+            return true;
+        }
         if (event.ctrl && event.key == KeyEvent::Key::N) {
             showNewProject();
             return true;
@@ -1125,12 +1404,8 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
             toggleHUD();
             return true;
         }
-        if (event.ctrl && event.key == KeyEvent::Key::K) {
-            if (magic_bar_ && magic_bar_->isVisible()) {
-                hideMagicBar();
-            } else {
-                showMagicBar();
-            }
+        if (event.meta && event.key == KeyEvent::Key::P) {
+            showAIPrompt();
             return true;
         }
     }
@@ -1169,6 +1444,10 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
             }
             if (event.ctrl && event.key == KeyEvent::Key::N) {
                 showNewProject();
+                return true;
+            }
+            if ((event.meta || event.ctrl) && event.key == KeyEvent::Key::D) {
+                projects_screen_->archiveCurrent();
                 return true;
             }
             if (event.key == KeyEvent::Key::UP || (event.key == KeyEvent::Key::TAB && event.shift)) {
@@ -1277,6 +1556,9 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
             return true;
         case ScreenType::Settings:
             if (event.key == KeyEvent::Key::ESC) {
+                if (settings_screen_ && settings_screen_->handleBack()) {
+                    return true;
+                }
                 showEditor();
                 return true;
             }
@@ -1357,7 +1639,38 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
                 return true;
             }
             return true;
-        case ScreenType::WiFi:
+        case ScreenType::Storage:
+            if (event.key == KeyEvent::Key::ESC) {
+                if (storage_screen_ && storage_screen_->isConfirmVisible()) {
+                    storage_screen_->cancelConfirm();
+                } else {
+                    showAdvanced();
+                }
+                return true;
+            }
+            if (event.key == KeyEvent::Key::UP || (event.key == KeyEvent::Key::TAB && event.shift)) {
+                storage_screen_->moveSelection(-1);
+                return true;
+            }
+            if (event.key == KeyEvent::Key::DOWN || (event.key == KeyEvent::Key::TAB && !event.shift)) {
+                storage_screen_->moveSelection(1);
+                return true;
+            }
+            if (event.key == KeyEvent::Key::ENTER) {
+                storage_screen_->selectCurrent();
+                return true;
+            }
+            return true;
+        case ScreenType::UsbStorage:
+            if (event.key == KeyEvent::Key::ESC) {
+                if (usb_storage_request_cb_) {
+                    usb_storage_request_cb_(false);
+                } else {
+                    showAdvanced();
+                }
+                return true;
+            }
+            return true;
         case ScreenType::Backup:
         case ScreenType::AI:
         case ScreenType::Diagnostics:
@@ -1365,21 +1678,20 @@ bool UIApp::handleKeyEvent(const KeyEvent& event) {
                 showAdvanced();
                 return true;
             }
-            if (current_screen_ == ScreenType::WiFi && event.key == KeyEvent::Key::ENTER) {
-                settings_.wifi_enabled = !settings_.wifi_enabled;
-                SettingsStore::getInstance().save(settings_);
-                applySettings();
-                WiFiManager& wifi = WiFiManager::getInstance();
-                std::string ssid = wifi.getSSID();
-                wifi_screen_->updateStatus(settings_.wifi_enabled, wifi.isConnected(),
-                                           ssid.empty() ? nullptr : ssid.c_str());
-                return true;
-            }
             if (current_screen_ == ScreenType::Diagnostics && event.key == KeyEvent::Key::ENTER) {
                 bool ok = diagnostics_screen_->exportLogs();
                 showToast(Strings::getInstance().get(ok
                     ? "diagnostics.export_done"
                     : "diagnostics.export_failed"));
+                return true;
+            }
+            return true;
+        case ScreenType::WiFi:
+            if (wifi_screen_ && wifi_screen_->handleKeyEvent(event)) {
+                return true;
+            }
+            if (event.key == KeyEvent::Key::ESC) {
+                showAdvanced();
                 return true;
             }
             return true;
@@ -1496,10 +1808,13 @@ void UIApp::jumpToFindMatch(int direction) {
 
 void UIApp::showToastInternal(const char* message, uint32_t duration_ms) {
     const Theme::Colors& colors = Theme::getColors();
+    int toast_width = LV_HOR_RES - Theme::scalePx(60);
+    int toast_height = Theme::scalePx(50);
+    int toast_offset = -Theme::scalePx(20);
     if (!toast_) {
         toast_ = lv_obj_create(lv_layer_top());
-        lv_obj_set_size(toast_, LV_HOR_RES - 60, 50);
-        lv_obj_align(toast_, LV_ALIGN_BOTTOM_MID, 0, -20);
+        lv_obj_set_size(toast_, toast_width, toast_height);
+        lv_obj_align(toast_, LV_ALIGN_BOTTOM_MID, 0, toast_offset);
         lv_obj_set_style_bg_opa(toast_, LV_OPA_80, 0);
         lv_obj_set_style_border_width(toast_, 0, 0);
         lv_obj_add_flag(toast_, LV_OBJ_FLAG_HIDDEN);
@@ -1508,8 +1823,11 @@ void UIApp::showToastInternal(const char* message, uint32_t duration_ms) {
         lv_obj_center(toast_label_);
     }
 
+    lv_obj_set_size(toast_, toast_width, toast_height);
+    lv_obj_align(toast_, LV_ALIGN_BOTTOM_MID, 0, toast_offset);
     lv_obj_set_style_bg_color(toast_, colors.fg, 0);
     lv_obj_set_style_text_color(toast_label_, colors.text, 0);
+    lv_obj_set_style_text_font(toast_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
     lv_label_set_text(toast_label_, message);
     lv_obj_clear_flag(toast_, LV_OBJ_FLAG_HIDDEN);
 
@@ -1532,10 +1850,19 @@ void UIApp::applySettings() {
         applyDisplayOrientation();
     }
 
+    Theme::setUiScalePercent(settings_.ui_scale);
     Theme::applyTheme(settings_.theme_id.c_str());
     if (editor_screen_) {
-        editor_screen_->setEditorFont(Theme::getFont(settings_.font_size));
+        int base_margin = 20;
+        if (settings_.editor_margin == 0) {
+            base_margin = 10;
+        } else if (settings_.editor_margin == 2) {
+            base_margin = 30;
+        }
+        editor_screen_->setEditorFont(Theme::getEditorFont(settings_.editor_font_id.c_str(), settings_.font_size));
+        editor_screen_->setEditorMargin(Theme::scalePx(base_margin));
     }
+    MIPIDSI::setBacklight(settings_.brightness);
     setKeyboardLayout(intToLayout(settings_.keyboard_layout));
     WiFiManager::getInstance().setEnabled(settings_.wifi_enabled);
 
@@ -1563,6 +1890,21 @@ void UIApp::applySettings() {
         power.startActivityMonitoring();
     }
 
+    if (settings_screen_) {
+        settings_screen_->setSettings(settings_);
+    }
+}
+
+void UIApp::adjustBrightness(int delta) {
+    int next = settings_.brightness + delta;
+    if (next < 0) next = 0;
+    if (next > 100) next = 100;
+    if (next == settings_.brightness) {
+        return;
+    }
+    settings_.brightness = next;
+    SettingsStore::getInstance().save(settings_);
+    MIPIDSI::setBacklight(settings_.brightness);
     if (settings_screen_) {
         settings_screen_->setSettings(settings_);
     }
@@ -1630,4 +1972,3 @@ void UIApp::handlePowerOffCancel() {
     }
     showEditor();
 }
-

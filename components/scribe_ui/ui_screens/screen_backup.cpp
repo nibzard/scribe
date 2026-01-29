@@ -36,36 +36,39 @@ void ScreenBackup::createWidgets() {
     // Title
     title_label_ = lv_label_create(screen_);
     lv_label_set_text(title_label_, Strings::getInstance().get("backup.title"));
-    lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 30);
-    lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_20, 0);
+    lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(30));
+    lv_obj_set_style_text_font(title_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
     lv_obj_set_style_text_color(title_label_, colors.text, 0);
 
     // Description
     description_label_ = lv_label_create(screen_);
     lv_label_set_long_mode(description_label_, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_width(description_label_, 350);
+    lv_obj_set_width(description_label_, Theme::fitWidth(350, 40));
     lv_label_set_text(description_label_, Strings::getInstance().get("backup.off_desc"));
-    lv_obj_align(description_label_, LV_ALIGN_TOP_MID, 0, 70);
+    lv_obj_align(description_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(70));
     lv_obj_set_style_text_align(description_label_, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(description_label_, colors.text, 0);
+    lv_obj_set_style_text_font(description_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Status label
     status_label_ = lv_label_create(screen_);
     lv_label_set_long_mode(status_label_, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_width(status_label_, 350);
+    lv_obj_set_width(status_label_, Theme::fitWidth(350, 40));
     lv_label_set_text(status_label_, Strings::getInstance().get("backup.choose_provider"));
-    lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, 130);
+    lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(130));
     lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(status_label_, colors.text, 0);
+    lv_obj_set_style_text_font(status_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Provider list
     provider_list_ = lv_list_create(screen_);
-    lv_obj_set_size(provider_list_, 350, 250);
-    lv_obj_align(provider_list_, LV_ALIGN_TOP_MID, 0, 170);
+    lv_obj_set_size(provider_list_, Theme::fitWidth(350, 40), Theme::fitHeight(250, 240));
+    lv_obj_align(provider_list_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(170));
     lv_obj_set_style_bg_color(provider_list_, colors.fg, 0);
     lv_obj_set_style_bg_opa(provider_list_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(provider_list_, colors.border, 0);
     lv_obj_set_style_border_width(provider_list_, 1, 0);
+    lv_obj_set_style_text_font(provider_list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // GitHub repository option
     lv_obj_t* btn = lv_list_add_button(provider_list_, LV_SYMBOL_UPLOAD,
@@ -101,8 +104,9 @@ void ScreenBackup::createWidgets() {
 
     // Back button
     back_btn_ = lv_button_create(screen_);
-    lv_obj_set_size(back_btn_, 120, 50);
-    lv_obj_align(back_btn_, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_obj_set_size(back_btn_, Theme::scalePx(120), Theme::scalePx(50));
+    lv_obj_align(back_btn_, LV_ALIGN_BOTTOM_MID, 0, -Theme::scalePx(20));
+    lv_obj_set_style_text_font(back_btn_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     lv_obj_t* label = lv_label_create(back_btn_);
     lv_label_set_text(label, Strings::getInstance().get("common.back"));
@@ -122,14 +126,32 @@ void ScreenBackup::show() {
     if (screen_) {
         Theme::applyScreenStyle(screen_);
         const Theme::Colors& colors = Theme::getColors();
-        if (title_label_) lv_obj_set_style_text_color(title_label_, colors.text, 0);
-        if (description_label_) lv_obj_set_style_text_color(description_label_, colors.text, 0);
-        if (status_label_) lv_obj_set_style_text_color(status_label_, colors.text, 0);
+        lv_obj_set_style_text_font(screen_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        if (title_label_) {
+            lv_obj_set_style_text_color(title_label_, colors.text, 0);
+            lv_obj_set_style_text_font(title_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
+            lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(30));
+        }
+        if (description_label_) {
+            lv_obj_set_style_text_color(description_label_, colors.text, 0);
+            lv_obj_set_style_text_font(description_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+            lv_obj_set_width(description_label_, Theme::fitWidth(350, 40));
+            lv_obj_align(description_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(70));
+        }
+        if (status_label_) {
+            lv_obj_set_style_text_color(status_label_, colors.text, 0);
+            lv_obj_set_style_text_font(status_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+            lv_obj_set_width(status_label_, Theme::fitWidth(350, 40));
+            lv_obj_align(status_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(130));
+        }
         if (provider_list_) {
+            lv_obj_set_size(provider_list_, Theme::fitWidth(350, 40), Theme::fitHeight(250, 240));
+            lv_obj_align(provider_list_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(170));
             lv_obj_set_style_bg_color(provider_list_, colors.fg, 0);
             lv_obj_set_style_bg_opa(provider_list_, LV_OPA_COVER, 0);
             lv_obj_set_style_border_color(provider_list_, colors.border, 0);
             lv_obj_set_style_border_width(provider_list_, 1, 0);
+            lv_obj_set_style_text_font(provider_list_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
             uint32_t child_count = lv_obj_get_child_cnt(provider_list_);
             for (uint32_t i = 0; i < child_count; ++i) {
                 lv_obj_t* btn = lv_obj_get_child(provider_list_, i);
@@ -139,6 +161,11 @@ void ScreenBackup::show() {
                 lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN | LV_STATE_CHECKED);
                 lv_obj_set_style_text_color(btn, colors.text, LV_PART_MAIN);
             }
+        }
+        if (back_btn_) {
+            lv_obj_set_size(back_btn_, Theme::scalePx(120), Theme::scalePx(50));
+            lv_obj_align(back_btn_, LV_ALIGN_BOTTOM_MID, 0, -Theme::scalePx(20));
+            lv_obj_set_style_text_font(back_btn_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
         }
         lv_screen_load(screen_);
         updateUI();
@@ -197,37 +224,44 @@ void TokenInputDialog::createDialog() {
 
     // Create modal dialog
     dialog_ = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(dialog_, LV_HOR_RES - 60, 280);
+    int dialog_w = LV_HOR_RES - Theme::scalePx(60);
+    int dialog_h = Theme::fitHeight(280, 160);
+    if (dialog_w < 1) dialog_w = 1;
+    lv_obj_set_size(dialog_, dialog_w, dialog_h);
     lv_obj_center(dialog_);
     const Theme::Colors& colors = Theme::getColors();
     lv_obj_set_style_bg_opa(dialog_, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(dialog_, colors.fg, 0);
     lv_obj_set_style_border_width(dialog_, 2, 0);
     lv_obj_set_style_border_color(dialog_, colors.border, 0);
+    lv_obj_set_style_text_font(dialog_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Title
     lv_obj_t* title = lv_label_create(dialog_);
     lv_label_set_text(title, Strings::getInstance().get("backup.title"));
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, Theme::scalePx(15));
+    lv_obj_set_style_text_font(title, Theme::getUIFont(Theme::UiFontRole::Title), 0);
     lv_obj_set_style_text_color(title, colors.text, 0);
 
     // Instructions
     lv_obj_t* info = lv_label_create(dialog_);
     lv_label_set_long_mode(info, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_width(info, LV_HOR_RES - 100);
+    int content_w = dialog_w - Theme::scalePx(40);
+    if (content_w < 1) content_w = 1;
+    lv_obj_set_width(info, content_w);
     Strings& strings = Strings::getInstance();
     std::string info_text = std::string(strings.get("backup.token_prompt")) + "\n" +
                             strings.get("backup.token_hint");
     lv_label_set_text(info, info_text.c_str());
-    lv_obj_align(info, LV_ALIGN_TOP_MID, 0, 50);
+    lv_obj_align(info, LV_ALIGN_TOP_MID, 0, Theme::scalePx(50));
     lv_obj_set_style_text_align(info, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(info, colors.text, 0);
+    lv_obj_set_style_text_font(info, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Token input
     textarea_ = lv_textarea_create(dialog_);
-    lv_obj_set_size(textarea_, LV_HOR_RES - 100, 60);
-    lv_obj_align(textarea_, LV_ALIGN_TOP_MID, 0, 110);
+    lv_obj_set_size(textarea_, content_w, Theme::scalePx(60));
+    lv_obj_align(textarea_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(110));
     lv_textarea_set_placeholder_text(textarea_, Strings::getInstance().get("backup.token_placeholder"));
     lv_textarea_set_password_mode(textarea_, true);
     lv_textarea_set_one_line(textarea_, true);
@@ -238,18 +272,22 @@ void TokenInputDialog::createDialog() {
     lv_obj_set_style_border_width(textarea_, 1, 0);
     lv_obj_set_style_text_color(textarea_, colors.text, 0);
     lv_obj_set_style_text_color(textarea_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_text_font(textarea_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Buttons container
     lv_obj_t* btn_cont = lv_obj_create(dialog_);
-    lv_obj_set_size(btn_cont, 250, 50);
-    lv_obj_align(btn_cont, LV_ALIGN_BOTTOM_MID, 0, -15);
+    int btn_w = Theme::scalePx(250);
+    if (btn_w > content_w) btn_w = content_w;
+    lv_obj_set_size(btn_cont, btn_w, Theme::scalePx(50));
+    lv_obj_align(btn_cont, LV_ALIGN_BOTTOM_MID, 0, -Theme::scalePx(15));
     lv_obj_set_style_bg_opa(btn_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_cont, 0, 0);
 
     // Cancel button
     cancel_btn_ = lv_button_create(btn_cont);
-    lv_obj_set_size(cancel_btn_, 100, 40);
+    lv_obj_set_size(cancel_btn_, Theme::scalePx(100), Theme::scalePx(40));
     lv_obj_align(cancel_btn_, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_set_style_text_font(cancel_btn_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     lv_obj_t* label = lv_label_create(cancel_btn_);
     lv_label_set_text(label, Strings::getInstance().get("common.cancel"));
@@ -269,8 +307,9 @@ void TokenInputDialog::createDialog() {
 
     // Save button
     save_btn_ = lv_button_create(btn_cont);
-    lv_obj_set_size(save_btn_, 100, 40);
+    lv_obj_set_size(save_btn_, Theme::scalePx(100), Theme::scalePx(40));
     lv_obj_align(save_btn_, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_set_style_text_font(save_btn_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     label = lv_label_create(save_btn_);
     lv_label_set_text(label, Strings::getInstance().get("common.save"));
@@ -351,30 +390,38 @@ void RepoConfigDialog::createDialog() {
 
     // Create modal dialog
     dialog_ = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(dialog_, LV_HOR_RES - 60, 300);
+    int dialog_w = LV_HOR_RES - Theme::scalePx(60);
+    int dialog_h = Theme::fitHeight(300, 160);
+    if (dialog_w < 1) dialog_w = 1;
+    lv_obj_set_size(dialog_, dialog_w, dialog_h);
     lv_obj_center(dialog_);
     const Theme::Colors& colors = Theme::getColors();
     lv_obj_set_style_bg_opa(dialog_, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(dialog_, colors.fg, 0);
     lv_obj_set_style_border_width(dialog_, 2, 0);
     lv_obj_set_style_border_color(dialog_, colors.border, 0);
+    lv_obj_set_style_text_font(dialog_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Title
     lv_obj_t* title = lv_label_create(dialog_);
     lv_label_set_text(title, Strings::getInstance().get("backup.repo_title"));
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, Theme::scalePx(15));
+    lv_obj_set_style_text_font(title, Theme::getUIFont(Theme::UiFontRole::Title), 0);
     lv_obj_set_style_text_color(title, colors.text, 0);
 
     // Owner input
     lv_obj_t* label = lv_label_create(dialog_);
     lv_label_set_text(label, Strings::getInstance().get("backup.repo_owner"));
-    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 60);
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, Theme::scalePx(30), Theme::scalePx(60));
     lv_obj_set_style_text_color(label, colors.text, 0);
+    lv_obj_set_style_text_font(label, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     owner_input_ = lv_textarea_create(dialog_);
-    lv_obj_set_size(owner_input_, 200, 40);
-    lv_obj_align(owner_input_, LV_ALIGN_TOP_LEFT, 30, 80);
+    int input_w = dialog_w - Theme::scalePx(60);
+    if (input_w < Theme::scalePx(160)) input_w = dialog_w - Theme::scalePx(40);
+    if (input_w < 1) input_w = 1;
+    lv_obj_set_size(owner_input_, input_w, Theme::scalePx(40));
+    lv_obj_align(owner_input_, LV_ALIGN_TOP_LEFT, Theme::scalePx(30), Theme::scalePx(80));
     lv_textarea_set_placeholder_text(owner_input_, Strings::getInstance().get("backup.repo_owner_placeholder"));
     lv_textarea_set_one_line(owner_input_, true);
     lv_obj_set_style_bg_color(owner_input_, colors.fg, 0);
@@ -383,16 +430,18 @@ void RepoConfigDialog::createDialog() {
     lv_obj_set_style_border_width(owner_input_, 1, 0);
     lv_obj_set_style_text_color(owner_input_, colors.text, 0);
     lv_obj_set_style_text_color(owner_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_text_font(owner_input_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Repo input
     label = lv_label_create(dialog_);
     lv_label_set_text(label, Strings::getInstance().get("backup.repo_name"));
-    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 130);
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, Theme::scalePx(30), Theme::scalePx(130));
     lv_obj_set_style_text_color(label, colors.text, 0);
+    lv_obj_set_style_text_font(label, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     repo_input_ = lv_textarea_create(dialog_);
-    lv_obj_set_size(repo_input_, 200, 40);
-    lv_obj_align(repo_input_, LV_ALIGN_TOP_LEFT, 30, 150);
+    lv_obj_set_size(repo_input_, input_w, Theme::scalePx(40));
+    lv_obj_align(repo_input_, LV_ALIGN_TOP_LEFT, Theme::scalePx(30), Theme::scalePx(150));
     lv_textarea_set_placeholder_text(repo_input_, Strings::getInstance().get("backup.repo_name_placeholder"));
     lv_textarea_set_one_line(repo_input_, true);
     lv_obj_set_style_bg_color(repo_input_, colors.fg, 0);
@@ -401,16 +450,18 @@ void RepoConfigDialog::createDialog() {
     lv_obj_set_style_border_width(repo_input_, 1, 0);
     lv_obj_set_style_text_color(repo_input_, colors.text, 0);
     lv_obj_set_style_text_color(repo_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_text_font(repo_input_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Branch input
     label = lv_label_create(dialog_);
     lv_label_set_text(label, Strings::getInstance().get("backup.repo_branch"));
-    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 30, 200);
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, Theme::scalePx(30), Theme::scalePx(200));
     lv_obj_set_style_text_color(label, colors.text, 0);
+    lv_obj_set_style_text_font(label, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     branch_input_ = lv_textarea_create(dialog_);
-    lv_obj_set_size(branch_input_, 200, 40);
-    lv_obj_align(branch_input_, LV_ALIGN_TOP_LEFT, 30, 220);
+    lv_obj_set_size(branch_input_, input_w, Theme::scalePx(40));
+    lv_obj_align(branch_input_, LV_ALIGN_TOP_LEFT, Theme::scalePx(30), Theme::scalePx(220));
     lv_textarea_set_placeholder_text(branch_input_, Strings::getInstance().get("backup.repo_branch_placeholder"));
     lv_textarea_set_one_line(branch_input_, true);
     lv_textarea_set_text(branch_input_, "main");
@@ -420,18 +471,22 @@ void RepoConfigDialog::createDialog() {
     lv_obj_set_style_border_width(branch_input_, 1, 0);
     lv_obj_set_style_text_color(branch_input_, colors.text, 0);
     lv_obj_set_style_text_color(branch_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_text_font(branch_input_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Buttons container
     lv_obj_t* btn_cont = lv_obj_create(dialog_);
-    lv_obj_set_size(btn_cont, 250, 50);
-    lv_obj_align(btn_cont, LV_ALIGN_BOTTOM_MID, 0, -15);
+    int btn_w = Theme::scalePx(250);
+    if (btn_w > input_w) btn_w = input_w;
+    lv_obj_set_size(btn_cont, btn_w, Theme::scalePx(50));
+    lv_obj_align(btn_cont, LV_ALIGN_BOTTOM_MID, 0, -Theme::scalePx(15));
     lv_obj_set_style_bg_opa(btn_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_cont, 0, 0);
 
     // Cancel button
     lv_obj_t* cancel_btn = lv_button_create(btn_cont);
-    lv_obj_set_size(cancel_btn, 100, 40);
+    lv_obj_set_size(cancel_btn, Theme::scalePx(100), Theme::scalePx(40));
     lv_obj_align(cancel_btn, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_set_style_text_font(cancel_btn, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     lv_obj_t* btn_label = lv_label_create(cancel_btn);
     lv_label_set_text(btn_label, Strings::getInstance().get("common.cancel"));
@@ -451,8 +506,9 @@ void RepoConfigDialog::createDialog() {
 
     // Save button
     lv_obj_t* save_btn = lv_button_create(btn_cont);
-    lv_obj_set_size(save_btn, 100, 40);
+    lv_obj_set_size(save_btn, Theme::scalePx(100), Theme::scalePx(40));
     lv_obj_align(save_btn, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_set_style_text_font(save_btn, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     btn_label = lv_label_create(save_btn);
     lv_label_set_text(btn_label, Strings::getInstance().get("backup.repo_save"));

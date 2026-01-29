@@ -2,6 +2,8 @@
 #include "storage_manager.h"
 #include <esp_log.h>
 #include <sys/stat.h>
+#include <errno.h>
+#include <cstring>
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
@@ -41,6 +43,13 @@ esp_err_t AutosaveManager::saveNow(const DocSnapshot& snapshot) {
 
 esp_err_t AutosaveManager::performSave(const DocSnapshot& snapshot) {
     saving_ = true;
+    StorageManager& storage = StorageManager::getInstance();
+    esp_err_t dir_ret = storage.ensureDirectories();
+    if (dir_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Storage dirs unavailable: %s", esp_err_to_name(dir_ret));
+        saving_ = false;
+        return dir_ret;
+    }
     std::string project_path = std::string(SCRIBE_PROJECTS_DIR) + "/" + snapshot.project_id;
 
     esp_err_t ret = atomicSave(project_path, snapshot.table);
@@ -52,31 +61,39 @@ esp_err_t AutosaveManager::performSave(const DocSnapshot& snapshot) {
 esp_err_t AutosaveManager::atomicSave(const std::string& project_path, const PieceTableSnapshot& table) {
     struct stat st;
     if (stat(project_path.c_str(), &st) != 0) {
-        mkdir(project_path.c_str(), 0755);
+        if (mkdir(project_path.c_str(), 0755) != 0 && errno != EEXIST) {
+            ESP_LOGE(TAG, "Failed to create project dir %s: errno %d (%s)",
+                     project_path.c_str(), errno, strerror(errno));
+            return ESP_FAIL;
+        }
     }
 
     // Write to temporary file
     std::string tmp_path = project_path + "/autosave.tmp";
     FILE* f = fopen(tmp_path.c_str(), "w");
     if (!f) {
-        ESP_LOGE(TAG, "Failed to create autosave.tmp");
+        ESP_LOGE(TAG, "Failed to open %s: errno %d (%s)", tmp_path.c_str(), errno, strerror(errno));
         return ESP_FAIL;
     }
 
     esp_err_t write_ret = writeSnapshot(f, table);
     fflush(f);
-    fsync(fileno(f));
+    if (fsync(fileno(f)) != 0) {
+        ESP_LOGW(TAG, "fsync failed for %s: errno %d (%s)", tmp_path.c_str(), errno, strerror(errno));
+    }
     fclose(f);
 
     if (write_ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to write snapshot to autosave.tmp");
+        ESP_LOGE(TAG, "Failed to write snapshot to %s: %s", tmp_path.c_str(), esp_err_to_name(write_ret));
         return write_ret;
     }
 
     // Atomic rename
     std::string final_path = project_path + "/manuscript.md";
     if (rename(tmp_path.c_str(), final_path.c_str()) != 0) {
-        ESP_LOGE(TAG, "Failed to rename autosave.tmp to manuscript.md");
+        ESP_LOGE(TAG, "Failed to rename %s -> %s: errno %d (%s)",
+                 tmp_path.c_str(), final_path.c_str(), errno, strerror(errno));
+        unlink(tmp_path.c_str());
         return ESP_FAIL;
     }
 
@@ -102,7 +119,8 @@ esp_err_t AutosaveManager::writeSnapshot(FILE* f, const PieceTableSnapshot& tabl
         if (piece.length > 0) {
             size_t written = fwrite(buffer.data() + piece.start, 1, piece.length, f);
             if (written != piece.length) {
-                ESP_LOGE(TAG, "Failed to write snapshot data");
+                ESP_LOGE(TAG, "Failed to write snapshot data: wrote %zu/%zu errno %d (%s)",
+                         written, piece.length, errno, strerror(errno));
                 return ESP_FAIL;
             }
         }
@@ -115,7 +133,11 @@ esp_err_t AutosaveManager::createSnapshot(const std::string& project_path) {
     std::string snapshot_dir = project_path + "/snapshots";
     struct stat st;
     if (stat(snapshot_dir.c_str(), &st) != 0) {
-        mkdir(snapshot_dir.c_str(), 0755);
+        if (mkdir(snapshot_dir.c_str(), 0755) != 0 && errno != EEXIST) {
+            ESP_LOGE(TAG, "Failed to create snapshot dir %s: errno %d (%s)",
+                     snapshot_dir.c_str(), errno, strerror(errno));
+            return ESP_FAIL;
+        }
     }
 
     // Rotate snapshots: ~3 -> delete, ~2 -> ~3, ~1 -> ~2, current -> ~1
@@ -139,7 +161,8 @@ esp_err_t AutosaveManager::createSnapshot(const std::string& project_path) {
     }
     std::ofstream dst(snap1, std::ios::binary);
     if (!dst.is_open()) {
-        ESP_LOGE(TAG, "Failed to write snapshot");
+        ESP_LOGE(TAG, "Failed to write snapshot %s: errno %d (%s)",
+                 snap1.c_str(), errno, strerror(errno));
         return ESP_FAIL;
     }
     dst << src.rdbuf();

@@ -28,18 +28,19 @@ void ScreenNewProject::createWidgets() {
     // Title
     title_label_ = lv_label_create(screen_);
     lv_label_set_text(title_label_, Strings::getInstance().get("new_project.title"));
-    lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 60);
-    lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_20, 0);
+    lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(60));
+    lv_obj_set_style_text_font(title_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
 
     // Prompt
     prompt_label_ = lv_label_create(screen_);
     lv_label_set_text(prompt_label_, Strings::getInstance().get("new_project.prompt"));
-    lv_obj_align(prompt_label_, LV_ALIGN_TOP_MID, 0, 100);
+    lv_obj_align(prompt_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(100));
+    lv_obj_set_style_text_font(prompt_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Name input
     name_input_ = lv_textarea_create(screen_);
-    lv_obj_set_size(name_input_, 300, 50);
-    lv_obj_align(name_input_, LV_ALIGN_TOP_MID, 0, 130);
+    lv_obj_set_size(name_input_, Theme::fitWidth(300, 40), Theme::scalePx(50));
+    lv_obj_align(name_input_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(130));
     lv_textarea_set_placeholder_text(name_input_, Strings::getInstance().get("new_project.placeholder"));
     lv_textarea_set_one_line(name_input_, true);
     lv_textarea_set_max_length(name_input_, 64);
@@ -51,18 +52,21 @@ void ScreenNewProject::createWidgets() {
     lv_obj_set_style_border_width(name_input_, 1, 0);
     lv_obj_set_style_text_color(name_input_, colors.text, 0);
     lv_obj_set_style_text_color(name_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_text_font(name_input_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     // Error label (hidden initially)
     error_label_ = lv_label_create(screen_);
     lv_label_set_text(error_label_, "");
-    lv_obj_align(error_label_, LV_ALIGN_TOP_MID, 0, 190);
+    lv_obj_align(error_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(190));
     lv_obj_set_style_text_color(error_label_, colors.error, 0);
+    lv_obj_set_style_text_font(error_label_, Theme::getUIFont(Theme::UiFontRole::Small), 0);
     lv_obj_add_flag(error_label_, LV_OBJ_FLAG_HIDDEN);
 
     // Create button
     create_btn_ = lv_button_create(screen_);
-    lv_obj_set_size(create_btn_, 140, 50);
-    lv_obj_align(create_btn_, LV_ALIGN_CENTER, -80, 50);
+    lv_obj_set_size(create_btn_, Theme::scalePx(140), Theme::scalePx(50));
+    lv_obj_align(create_btn_, LV_ALIGN_CENTER, -Theme::scalePx(80), Theme::scalePx(50));
+    lv_obj_set_style_text_font(create_btn_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     lv_obj_t* label = lv_label_create(create_btn_);
     lv_label_set_text(label, Strings::getInstance().get("new_project.create"));
@@ -70,8 +74,9 @@ void ScreenNewProject::createWidgets() {
 
     // Cancel button
     cancel_btn_ = lv_button_create(screen_);
-    lv_obj_set_size(cancel_btn_, 140, 50);
-    lv_obj_align(cancel_btn_, LV_ALIGN_CENTER, 80, 50);
+    lv_obj_set_size(cancel_btn_, Theme::scalePx(140), Theme::scalePx(50));
+    lv_obj_align(cancel_btn_, LV_ALIGN_CENTER, Theme::scalePx(80), Theme::scalePx(50));
+    lv_obj_set_style_text_font(cancel_btn_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
 
     label = lv_label_create(cancel_btn_);
     lv_label_set_text(label, Strings::getInstance().get("new_project.cancel"));
@@ -83,16 +88,42 @@ void ScreenNewProject::show() {
     if (screen_) {
         Theme::applyScreenStyle(screen_);
         const Theme::Colors& colors = Theme::getColors();
+        lv_obj_set_style_text_font(screen_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        if (title_label_) {
+            lv_obj_set_style_text_color(title_label_, colors.text, 0);
+            lv_obj_set_style_text_font(title_label_, Theme::getUIFont(Theme::UiFontRole::Title), 0);
+            lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(60));
+        }
+        if (prompt_label_) {
+            lv_obj_set_style_text_color(prompt_label_, colors.text, 0);
+            lv_obj_set_style_text_font(prompt_label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+            lv_obj_align(prompt_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(100));
+        }
         if (name_input_) {
+            lv_obj_set_size(name_input_, Theme::fitWidth(300, 40), Theme::scalePx(50));
+            lv_obj_align(name_input_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(130));
             lv_obj_set_style_bg_color(name_input_, colors.fg, 0);
             lv_obj_set_style_bg_opa(name_input_, LV_OPA_COVER, 0);
             lv_obj_set_style_border_color(name_input_, colors.border, 0);
             lv_obj_set_style_border_width(name_input_, 1, 0);
             lv_obj_set_style_text_color(name_input_, colors.text, 0);
             lv_obj_set_style_text_color(name_input_, colors.text_secondary, LV_PART_TEXTAREA_PLACEHOLDER);
+            lv_obj_set_style_text_font(name_input_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
         }
         if (error_label_) {
             lv_obj_set_style_text_color(error_label_, colors.error, 0);
+            lv_obj_set_style_text_font(error_label_, Theme::getUIFont(Theme::UiFontRole::Small), 0);
+            lv_obj_align(error_label_, LV_ALIGN_TOP_MID, 0, Theme::scalePx(190));
+        }
+        if (create_btn_) {
+            lv_obj_set_size(create_btn_, Theme::scalePx(140), Theme::scalePx(50));
+            lv_obj_align(create_btn_, LV_ALIGN_CENTER, -Theme::scalePx(80), Theme::scalePx(50));
+            lv_obj_set_style_text_font(create_btn_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+        }
+        if (cancel_btn_) {
+            lv_obj_set_size(cancel_btn_, Theme::scalePx(140), Theme::scalePx(50));
+            lv_obj_align(cancel_btn_, LV_ALIGN_CENTER, Theme::scalePx(80), Theme::scalePx(50));
+            lv_obj_set_style_text_font(cancel_btn_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
         }
         lv_screen_load(screen_);
         // Clear any previous input

@@ -343,7 +343,7 @@ Implementation recommendation: store as `assets/strings/en.json` keyed by ID.
 | **Ctrl+F** | Find |
 | **Ctrl+S** | “Save now” reassurance (forces snapshot + HUD flash “Saved ✓”) |
 | **Ctrl+M** | Toggle Draft / Revise |
-| **Ctrl+K** | AI Magic Bar (only if AI enabled; otherwise shows “AI is off” toast) |
+| **Cmd+P / Win+P** | AI prompt (only if AI enabled; otherwise shows “AI is off” toast) |
 
 ### 4.3 Editor — Revise Mode
 Everything in Draft Mode, plus:
@@ -727,7 +727,7 @@ scribe-firmware/
 - [x] Esc menu (Resume, Switch, New, Find, Export, Settings, Help, Sleep, Power off)
 - [x] Screen instantiation and navigation (all screens wired in UIApp)
 - [x] AI settings screen navigation and integration
-- [x] Magic Bar UI integration with Ctrl+K keybinding
+- [x] Magic Bar UI integration with Cmd+P / Win+P keybinding
 - [x] Backup dialogs integration with GitHubBackup service
 - [x] Project switcher screen
 - [x] Find bar + next/prev

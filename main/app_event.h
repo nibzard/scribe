@@ -3,6 +3,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <cstdint>
+#include <string>
 #include "key_event.h"
 
 // Event types for inter-task communication
@@ -25,7 +26,18 @@ enum class EventType : uint8_t {
     POWER_OFF,          // Power off
     STORAGE_SAVE_DONE,  // Autosave complete
     STORAGE_ERROR,      // Storage failure
+    STORAGE_MOUNT_FAILED, // SD mount failed (offer format)
+    STORAGE_FORMAT_STATUS, // SD format progress/completion update
+    USB_STORAGE_REQUEST, // Enter/exit USB storage mode
+    USB_STORAGE_STATUS,  // USB attach/detach status (int_param: 1=connected)
     BATTERY_LOW,        // Low battery warning
+};
+
+struct StorageFormatStatus {
+    bool done = false;
+    bool success = false;
+    std::string status;
+    std::string detail;
 };
 
 struct Event {

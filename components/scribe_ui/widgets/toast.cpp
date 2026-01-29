@@ -18,10 +18,10 @@ Toast::Toast(lv_obj_t* parent) {
     lv_obj_set_style_bg_color(container_, Theme::getColors().fg, 0);
     lv_obj_set_style_bg_opa(container_, LV_OPA_90, 0);
     lv_obj_set_style_border_width(container_, 0, 0);
-    lv_obj_set_style_radius(container_, 8, 0);
-    lv_obj_set_style_pad_all(container_, 12, 0);
-    lv_obj_set_style_pad_hor(container_, 20, 0);
-    lv_obj_set_style_pad_ver(container_, 10, 0);
+    lv_obj_set_style_radius(container_, Theme::scalePx(8), 0);
+    lv_obj_set_style_pad_all(container_, Theme::scalePx(12), 0);
+    lv_obj_set_style_pad_hor(container_, Theme::scalePx(20), 0);
+    lv_obj_set_style_pad_ver(container_, Theme::scalePx(10), 0);
 
     // Initially hidden
     lv_obj_add_flag(container_, LV_OBJ_FLAG_HIDDEN);
@@ -29,7 +29,7 @@ Toast::Toast(lv_obj_t* parent) {
 
     // Create label
     label_ = lv_label_create(container_);
-    lv_obj_set_style_text_font(label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
     lv_obj_set_style_text_color(label_, Theme::getColors().text, 0);
     lv_label_set_long_mode(label_, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(label_, LV_PCT(80));  // Max width 80% of screen
@@ -79,6 +79,11 @@ void Toast::applyTheme() {
     lv_obj_set_style_border_color(container_, colors.border, 0);
     lv_obj_set_style_border_width(container_, 1, 0);
     lv_obj_set_style_text_color(label_, colors.text, 0);
+    lv_obj_set_style_text_font(label_, Theme::getUIFont(Theme::UiFontRole::Body), 0);
+    lv_obj_set_style_radius(container_, Theme::scalePx(8), 0);
+    lv_obj_set_style_pad_all(container_, Theme::scalePx(12), 0);
+    lv_obj_set_style_pad_hor(container_, Theme::scalePx(20), 0);
+    lv_obj_set_style_pad_ver(container_, Theme::scalePx(10), 0);
 }
 
 void Toast::show(const std::string& message, uint32_t duration_ms) {

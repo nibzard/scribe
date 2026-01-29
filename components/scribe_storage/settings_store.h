@@ -10,8 +10,17 @@ struct AppSettings {
     // Theme settings
     std::string theme_id = "dracula";
 
-    // Font size in pixels
+    // Editor font family id
+    std::string editor_font_id = "montserrat";
+
+    // Editor font size in pixels
     int font_size = 16;
+
+    // Editor margins: 0=small, 1=medium, 2=large
+    int editor_margin = 1;
+
+    // UI scale in percent (50 = current baseline)
+    int ui_scale = 50;
 
     // Keyboard layout (future expansion)
     int keyboard_layout = 0;  // 0=US
@@ -25,6 +34,9 @@ struct AppSettings {
 
     // WiFi enabled
     bool wifi_enabled = false;
+
+    // Screen brightness (0-100)
+    int brightness = 50;
 
     // Cloud backup enabled
     bool backup_enabled = false;

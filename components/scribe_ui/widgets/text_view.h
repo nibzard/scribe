@@ -44,6 +44,7 @@ public:
     void setFont(const lv_font_t* font);
     void setLineHeight(int height);
     void setViewportSize(int width, int height);
+    void setContentInsets(int left, int top, int right, int bottom);
     void applyTheme();
 
     // Get line info
@@ -62,6 +63,7 @@ protected:
     lv_obj_t* obj_;
     std::string text_;
     PieceTableSnapshot snapshot_;
+    std::string snapshot_text_cache_;
     bool use_snapshot_ = false;
     size_t total_length_ = 0;
     size_t cursor_pos_ = 0;
@@ -69,11 +71,15 @@ protected:
     size_t selection_end_ = 0;
 
     // Rendering configuration
-    const lv_font_t* font_ = &lv_font_montserrat_16;
+    const lv_font_t* font_ = LV_FONT_DEFAULT;
     int line_height_ = 20;
     int viewport_width_ = 0;
     int viewport_height_ = 0;
     int char_width_ = 10;  // Approximate monospace width
+    int inset_left_ = 0;
+    int inset_top_ = 0;
+    int inset_right_ = 0;
+    int inset_bottom_ = 0;
 
     // Viewport state
     int scroll_y_ = 0;

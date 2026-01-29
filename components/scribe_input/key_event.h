@@ -38,6 +38,7 @@ struct KeyEvent {
     bool shift = false;
     bool ctrl = false;
     bool alt = false;
+    bool meta = false;
 
     // For printable characters, the resulting character
     char char_code = 0;
