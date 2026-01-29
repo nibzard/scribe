@@ -19,6 +19,9 @@ struct AppSettings {
     // Editor margins: 0=small, 1=medium, 2=large
     int editor_margin = 1;
 
+    // Typewriter mode: true=centered line, false=normal scroll
+    bool typewriter_mode = true;
+
     // UI scale in percent (50 = current baseline)
     int ui_scale = 50;
 

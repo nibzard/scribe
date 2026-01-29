@@ -234,6 +234,12 @@ void ScreenEditor::setEditorMargin(int margin_px) {
     updateTextViewLayout();
 }
 
+void ScreenEditor::setTypewriterMode(bool enabled) {
+    if (text_view_) {
+        text_view_->setTypewriterMode(enabled);
+    }
+}
+
 void ScreenEditor::handleDisplayResize() {
     if (!screen_) {
         return;
