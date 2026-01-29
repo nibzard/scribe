@@ -35,11 +35,7 @@ void ScreenEditor::createWidgets() {
     if (text_view_) {
         lv_obj_set_size(text_view_->obj(), LV_HOR_RES, LV_VER_RES);
         lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
-        lv_obj_update_layout(text_view_->obj());
-        lv_area_t coords;
-        lv_obj_get_coords(text_view_->obj(), &coords);
-        text_view_->setViewportSize(lv_area_get_width(&coords) - 20,
-                                    lv_area_get_height(&coords) - 20);
+        updateTextViewLayout();
     }
 
     // HUD panel (hidden by default)
@@ -227,6 +223,17 @@ void ScreenEditor::setEditorFont(const lv_font_t* font) {
     }
 }
 
+void ScreenEditor::handleDisplayResize() {
+    if (!screen_) {
+        return;
+    }
+    lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
+    if (text_view_) {
+        lv_obj_set_size(text_view_->obj(), LV_HOR_RES, LV_VER_RES);
+        lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
+    }
+    updateTextViewLayout();
+}
 void ScreenEditor::applyTheme() {
     Theme::applyScreenStyle(screen_);
     if (text_view_) {
@@ -240,3 +247,18 @@ void ScreenEditor::applyTheme() {
         lv_obj_set_style_border_width(hud_panel_, 1, 0);
     }
 }
+
+void ScreenEditor::updateTextViewLayout() {
+    if (!text_view_) {
+        return;
+    }
+    lv_obj_update_layout(text_view_->obj());
+    lv_area_t coords;
+    lv_obj_get_coords(text_view_->obj(), &coords);
+    int width = lv_area_get_width(&coords) - 20;
+    int height = lv_area_get_height(&coords) - 20;
+    if (width < 1) width = 1;
+    if (height < 1) height = 1;
+    text_view_->setViewportSize(width, height);
+}
+

@@ -66,6 +66,7 @@ idf.py -p COM5 build flash
 - Never revert auto-rotation to `abs_x > abs_y => LANDSCAPE`. That mapping is wrong on this unit; keep the swapped mapping.
 - UI strings: embed `assets/strings/en.json` via CMake `EMBED_TXTFILES` as a fallback so the UI has strings even if SD is missing.
 - SD card: FATFS long file names must be enabled (LFN heap + max 255) or writes like `library.json` fail with `EINVAL`.
+- SD card formatting: exFAT cards will not mount (ESP-IDF FATFS expects FAT12/16/32). A 32GB card should be formatted as FAT32 for saves to work.
 - Storage: call a shared `ensureDirectories()` before saving; log `errno` + `strerror` for `mkdir`/`fopen` to pinpoint failures quickly.
 - Port lock: COM5 is frequently locked by lingering `idf.py monitor`; close it or kill the process before flashing.
 - Boot log capture: when `idf.py monitor` is stuck, a minimal pyserial reader that toggles RTS once can capture the boot log reliably.
@@ -75,5 +76,22 @@ idf.py -p COM5 build flash
 - Menu navigation: HID arrow keys require mapping usages 0x4F-0x52 (right/left/down/up) plus home/end/page/insert; without this, ESC works but arrows don't. Menu list items also need LVGL click handlers on list buttons; otherwise touch taps on menu items do nothing.
 - UI ghosting lines: avoid semi-transparent screen backgrounds (for menu/new-project/dialog screens). Use `LV_OPA_COVER` unless LVGL screen transparency is explicitly enabled; otherwise faint horizontal banding can appear on Tab5.
 - Theme settings now use `theme_id` with a registry of named themes (Scribe, Dracula, Catppuccin, Solarized); settings load migrates legacy `dark_theme` to the closest match.
-- Default theme is Dracula, backlight defaults to 50%, and font sizing now uses pixel sizes (12-28 in 2px steps).
+- Default theme is Dracula, backlight defaults to 50%, and editor font sizing uses pixel sizes (14-240 in 2px steps).
+- Fonts/UI scale: editor fonts now use embedded TTFs via LVGL TinyTTF (Montserrat/DejaVu/Ubuntu) with sizes 14-240px; UI scale is user-configurable (50-150%) and most UI layout uses `Theme::scalePx` for consistent scaling.
+- If TinyTTF is disabled (`CONFIG_LV_USE_TINY_TTF` off), font sizes beyond the built-in Montserrat range collapse and checkmark glyphs render as tofu; enable TinyTTF to restore large sizes and glyph coverage.
+- TextView is a custom draw widget and does not honor LVGL padding automatically; margins must be applied as explicit content insets.
+- Storage UX: after SD format, the UI must show explicit progress + completion and then verify mount + do a quick write/read test; showing “SD card ready” without validation can still leave saves failing.
+- SD format flow should be modal (disable inputs) and must allow ESC/Back once finished or failed; otherwise users can get stuck in the storage screen.
+- exFAT cards still fail to save after format unless formatted as FAT32; mount success alone is not enough — use a write test to confirm FATFS is actually usable.
 
+- USB MSC mode: suspend storage writes, unmount /sdcard, then start TinyUSB MSC with the SD card handle; on USB detach, stop MSC, remount, and restart the keyboard host. Import .env from /sdcard/Scribe/.env after remount without modifying the file.
+- LVGL TinyTTF: on ESP32-P4 we hit a repeatable Store access fault in `lv_tlsf_free` during font cache eviction (backtrace via `TextView::setFont` -> `lv_text_get_next_line` -> `lv_cache`). Temporary workaround: disable TinyTTF usage in `components/scribe_ui/theme/fonts.cpp` (`kEnableTinyTtf=false`) to fall back to built-in fonts and avoid the cache path. Long-term: investigate TinyTTF/LVGL cache corruption on P4 and re-enable once stable.
+- Long-term font path: precompile editor fonts with `tools/generate_editor_fonts.ps1` (defaults: sizes 14,16,18,20,22,24,28,32,36,40,44,48,56,64,72; ASCII range 0x20-0x7F) which outputs to `components/scribe_ui/theme/generated` and is picked up by `components/scribe_ui/CMakeLists.txt`. Editor font selection now snaps to nearest precompiled size; UI continues using built-in LVGL Montserrat.
+- Text rendering: LVGL draw tasks outlive the draw callback. When TextView uses snapshot mode, don't pass temporary `std::string` buffers to `lv_draw_label`; text must stay valid until the draw task runs. Fix was to cache full snapshot text in `TextView::snapshot_text_cache_` and draw using stable pointers into it (avoids invisible text when typing).
+- Font compression: `lv_font_conv` outputs compressed bitmaps by default (`bitmap_format=LV_FONT_FMT_TXT_COMPRESSED`), but LVGL only renders those if `CONFIG_LV_USE_FONT_COMPRESSED=y`. If text is invisible with precompiled fonts, either enable that config or regenerate fonts with `--no-compress` (current generator uses `--no-compress`).
+
+## Session Notes (2026-01-29)
+- LVGL spinner API in current lvgl uses `lv_spinner_create(parent)` then `lv_spinner_set_anim_params()`; the older 3-arg create call fails to compile.
+- Some builds reject designated initializers for heap-allocated structs with non-trivial members; use default construction + assignments for `StorageRequest` to avoid type conversion errors.
+- Settings picker lists (font size/font family/etc.) can render as a 1px line on first open if the roller size is computed from a zero-width overlay; size the roller from computed overlay dims and update layout after unhide (see `screen_settings.cpp`).
+- If picker overlays still show a vertical line on first open, move the overlay to foreground and invalidate/update layout for both overlay and roller right after unhide to force a redraw.
