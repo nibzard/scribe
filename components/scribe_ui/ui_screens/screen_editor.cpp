@@ -5,6 +5,28 @@
 
 static const char* TAG = "SCRIBE_SCREEN_EDITOR";
 
+namespace {
+void getDisplaySize(int& width, int& height) {
+#if LVGL_VERSION_MAJOR >= 9
+    lv_display_t* display = lv_display_get_default();
+    if (display) {
+        width = lv_display_get_horizontal_resolution(display);
+        height = lv_display_get_vertical_resolution(display);
+        return;
+    }
+#else
+    lv_disp_t* display = lv_disp_get_default();
+    if (display) {
+        width = lv_disp_get_hor_res(display);
+        height = lv_disp_get_ver_res(display);
+        return;
+    }
+#endif
+    width = LV_HOR_RES;
+    height = LV_VER_RES;
+}
+}  // namespace
+
 ScreenEditor::ScreenEditor() : screen_(nullptr), text_view_(nullptr), hud_panel_(nullptr) {
     text_margin_px_ = Theme::scalePx(20);
 }
@@ -24,7 +46,10 @@ void ScreenEditor::init() {
 
     // Create new screen
     screen_ = lv_obj_create(nullptr);
-    lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
+    int width = LV_HOR_RES;
+    int height = LV_VER_RES;
+    getDisplaySize(width, height);
+    lv_obj_set_size(screen_, width, height);
     Theme::applyScreenStyle(screen_);
 
     createWidgets();
@@ -34,7 +59,10 @@ void ScreenEditor::createWidgets() {
     // Main text view
     text_view_ = new TextView(screen_);
     if (text_view_) {
-        lv_obj_set_size(text_view_->obj(), LV_HOR_RES, LV_VER_RES);
+        int width = LV_HOR_RES;
+        int height = LV_VER_RES;
+        getDisplaySize(width, height);
+        lv_obj_set_size(text_view_->obj(), width, height);
         lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
         updateTextViewLayout();
     }
@@ -248,11 +276,14 @@ void ScreenEditor::handleDisplayResize() {
 }
 
 void ScreenEditor::applyTheme() {
+    int width = LV_HOR_RES;
+    int height = LV_VER_RES;
+    getDisplaySize(width, height);
     if (screen_) {
-        lv_obj_set_size(screen_, LV_HOR_RES, LV_VER_RES);
+        lv_obj_set_size(screen_, width, height);
     }
     if (text_view_) {
-        lv_obj_set_size(text_view_->obj(), LV_HOR_RES, LV_VER_RES);
+        lv_obj_set_size(text_view_->obj(), width, height);
         lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
     }
     Theme::applyScreenStyle(screen_);
