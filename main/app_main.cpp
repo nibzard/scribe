@@ -462,7 +462,15 @@ static void ui_task(void* arg) {
 
     // Autosave timer tracking
     TickType_t last_keypress_time = xTaskGetTickCount();
-    const TickType_t autosave_delay = pdMS_TO_TICKS(5000);  // 5 seconds idle
+    auto autosaveDelayFromMinutes = [](int minutes) -> TickType_t {
+        if (minutes <= 0) {
+            minutes = 1;
+        }
+        uint32_t ms = static_cast<uint32_t>(minutes) * 60U * 1000U;
+        return pdMS_TO_TICKS(ms);
+    };
+    int autosave_interval_minutes = ui.getAutosaveIntervalMinutes();
+    TickType_t autosave_delay = autosaveDelayFromMinutes(autosave_interval_minutes);
     const TickType_t ui_tick = pdMS_TO_TICKS(5);
     uint64_t last_saved_revision = 0;
     uint64_t last_seen_revision = 0;
@@ -827,7 +835,13 @@ static void ui_task(void* arg) {
             }
         }
 
-        // Check for autosave trigger (every 5 seconds of idle time)
+        int next_interval_minutes = ui.getAutosaveIntervalMinutes();
+        if (next_interval_minutes != autosave_interval_minutes) {
+            autosave_interval_minutes = next_interval_minutes;
+            autosave_delay = autosaveDelayFromMinutes(autosave_interval_minutes);
+        }
+
+        // Check for autosave trigger (idle interval)
         TickType_t current_time = xTaskGetTickCount();
         bool dirty = last_seen_revision > last_saved_revision;
         if (dirty && inflight_saves == 0 && !storage.isSuspended() &&

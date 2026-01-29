@@ -79,6 +79,7 @@ Key files:
 - Settings screen controls editor preferences, keyboard layout, and device options.
 - Margin size, font size, and brightness are applied immediately to the editor.
 - Typewriter mode toggles centered-line scrolling vs normal scrolling and applies immediately.
+- Autosave interval controls the idle time before background autosave (1/2/3/5/10/15/30/60 minutes).
 - The settings list auto-scrolls to keep the focused item visible when navigating with keys or touch (landscape included).
 
 Key files:

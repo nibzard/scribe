@@ -52,6 +52,12 @@ static std::string brightnessLabel(int value) {
     return std::string(buf);
 }
 
+static std::string autosaveIntervalLabel(int minutes) {
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d min", minutes);
+    return std::string(buf);
+}
+
 static const char* autoSleepLabel(int value) {
     Strings& strings = Strings::getInstance();
     switch (value) {
@@ -188,6 +194,8 @@ void ScreenSettings::rebuildList() {
     addItem(strings.get("settings.margin"), marginLabel(settings_.editor_margin), "editor_margin", LV_SYMBOL_LIST);
     addItem(strings.get("settings.typewriter_mode"), typewriterModeLabel(settings_.typewriter_mode),
             "typewriter_mode", LV_SYMBOL_EDIT);
+    std::string autosave_label = autosaveIntervalLabel(settings_.autosave_interval);
+    addItem(strings.get("settings.autosave_interval"), autosave_label.c_str(), "autosave_interval", LV_SYMBOL_SAVE);
     addItem(strings.get("settings.keyboard_layout"), keyboardLayoutLabel(settings_.keyboard_layout), "keyboard_layout", LV_SYMBOL_KEYBOARD);
     addItem(strings.get("settings.auto_sleep"), autoSleepLabel(settings_.auto_sleep), "auto_sleep", LV_SYMBOL_GPS);
     std::string brightness_label = brightnessLabel(settings_.brightness);
@@ -282,7 +290,7 @@ void ScreenSettings::selectCurrent() {
         return;
     }
     if (key == "font_size" || key == "ui_scale" || key == "editor_font" ||
-        key == "editor_margin" || key == "brightness") {
+        key == "editor_margin" || key == "brightness" || key == "autosave_interval") {
         showPicker(key);
         return;
     }
@@ -394,6 +402,14 @@ void ScreenSettings::showPicker(const std::string& key) {
             }
         }
         lv_label_set_text(picker_title_, strings.get("settings.brightness"));
+    } else if (picker_key_ == "autosave_interval") {
+        for (int value : SettingsDefaults::kAutosaveIntervalOptions) {
+            picker_options_.push_back({autosaveIntervalLabel(value), value, ""});
+            if (settings_.autosave_interval == value) {
+                picker_index_ = static_cast<int>(picker_options_.size() - 1);
+            }
+        }
+        lv_label_set_text(picker_title_, strings.get("settings.autosave_interval"));
     } else {
         return;
     }

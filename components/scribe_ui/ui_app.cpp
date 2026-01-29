@@ -125,6 +125,40 @@ bool getImuOrientation(MIPIDSI::Orientation& orientation) {
     }
     return true;
 }
+
+int normalizeAutosaveIntervalSetting(int value) {
+    constexpr size_t kIntervalCount =
+        sizeof(SettingsDefaults::kAutosaveIntervalOptions) /
+        sizeof(SettingsDefaults::kAutosaveIntervalOptions[0]);
+    for (size_t i = 0; i < kIntervalCount; ++i) {
+        if (SettingsDefaults::kAutosaveIntervalOptions[i] == value) {
+            return value;
+        }
+    }
+    return SettingsDefaults::kAutosaveIntervalDefault;
+}
+
+int stepAutosaveIntervalSetting(int current, int delta) {
+    constexpr size_t kIntervalCount =
+        sizeof(SettingsDefaults::kAutosaveIntervalOptions) /
+        sizeof(SettingsDefaults::kAutosaveIntervalOptions[0]);
+    if (kIntervalCount == 0) {
+        return SettingsDefaults::kAutosaveIntervalDefault;
+    }
+    int index = 0;
+    for (size_t i = 0; i < kIntervalCount; ++i) {
+        if (SettingsDefaults::kAutosaveIntervalOptions[i] == current) {
+            index = static_cast<int>(i);
+            break;
+        }
+    }
+    int next = index + delta;
+    while (next < 0) {
+        next += static_cast<int>(kIntervalCount);
+    }
+    next = next % static_cast<int>(kIntervalCount);
+    return SettingsDefaults::kAutosaveIntervalOptions[next];
+}
 }  // namespace
 
 struct UIApp::WiFiEvent {
@@ -463,6 +497,12 @@ esp_err_t UIApp::init() {
             } else {
                 int next = settings_.brightness + (value * 10);
                 settings_.brightness = std::max(0, std::min(100, next));
+            }
+        } else if (setting == "autosave_interval") {
+            if (absolute) {
+                settings_.autosave_interval = normalizeAutosaveIntervalSetting(value);
+            } else {
+                settings_.autosave_interval = stepAutosaveIntervalSetting(settings_.autosave_interval, value);
             }
         } else if (setting == "keyboard_layout") {
             settings_.keyboard_layout = (settings_.keyboard_layout + value + 5) % 5;

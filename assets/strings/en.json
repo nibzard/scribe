@@ -124,6 +124,7 @@
     "font_large": "Large",
     "keyboard_layout": "Keyboard layout",
     "auto_sleep": "Auto-sleep",
+    "autosave_interval": "Autosave interval",
     "brightness": "Brightness",
     "auto_sleep_off": "Off",
     "auto_sleep_5": "5 minutes",
