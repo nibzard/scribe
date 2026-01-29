@@ -357,6 +357,7 @@ responsibilities and the core files to start with.
 - UI strings live in `assets/strings/en.json`.
 - The string table is loaded at runtime and accessed by UI screens.
 - Update string keys in the JSON and the referring screen code together.
+- While TinyTTF is disabled, prefer ASCII punctuation in UI strings to avoid missing-glyph boxes.
 
 Key files:
 - String table: `assets/strings/en.json`

@@ -17,5 +17,5 @@ Version is defined in `CMakeLists.txt` as `PROJECT_VER`. To create a release:
 - Add a short entry to `LESSONS_LEARNED.md` after each debugging session so handoff is painless.
 - If storage/SD issues recur, capture the root cause and mitigation steps in `LESSONS_LEARNED.md` before closing the task.
 - Task lists live as GitHub Issues for this repo; create/access them with `gh issue create` and `gh issue list` (or the GitHub Issues page).
-- Keep `DOCS.md` updated via the `todo-maintainer` skill when refactoring, fixing, or adding features.
+- Keep `DOCS.MD` updated via the `doc-maintainer` skill when refactoring, fixing, or adding features.
 - When starting a todo item, use the `feature-workflow` skill to branch, implement, and open a PR with `gh`.
