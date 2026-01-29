@@ -77,6 +77,7 @@ Key files:
 ### 2.3 Settings
 - Settings screen controls editor preferences, keyboard layout, and device options.
 - Margin size, font size, and brightness are applied immediately to the editor.
+- The settings list auto-scrolls to keep the focused item visible when navigating with keys or touch (landscape included).
 
 Key files:
 - Settings screen: `components/scribe_ui/ui_screens/screen_settings.cpp`
@@ -210,6 +211,7 @@ User-facing updates and the related code touched in this pass:
 - Wi-Fi UI now supports scan, list, password prompt, and connect status updates.
 - Settings picker lists (font size/font family/etc.) now render immediately on first open; picker overlays force a layout refresh + invalidate after unhide to avoid the 1px line state.
 - Editor viewport reflows on orientation change; the editor layout is resized after display rotation updates.
+- Settings list keeps the selected row in view after list rebuilds (auto-sleep changes), so bottom items remain reachable in landscape.
 
 Key files:
 - TextView + cursor metrics: `components/scribe_ui/widgets/text_view.cpp`

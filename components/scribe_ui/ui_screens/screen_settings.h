@@ -71,4 +71,5 @@ private:
     void showPicker(const std::string& key);
     void hidePicker();
     void movePickerSelection(int delta);
+    void ensureSelectionVisible();
 };
