@@ -40,6 +40,7 @@ public:
     void setHUDAIState(const std::string& status);
     void setEditorFont(const lv_font_t* font);
     void setEditorMargin(int margin_px);
+    void setTypewriterMode(bool enabled);
     void handleDisplayResize();
 
 private:

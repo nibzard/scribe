@@ -6,13 +6,22 @@
 static const char* TAG = "SCRIBE_SCREEN_EDITOR";
 
 namespace {
-void getDisplayResolution(int& width, int& height) {
+void getDisplaySize(int& width, int& height) {
+#if LVGL_VERSION_MAJOR >= 9
     lv_display_t* display = lv_display_get_default();
     if (display) {
         width = lv_display_get_horizontal_resolution(display);
         height = lv_display_get_vertical_resolution(display);
         return;
     }
+#else
+    lv_disp_t* display = lv_disp_get_default();
+    if (display) {
+        width = lv_disp_get_hor_res(display);
+        height = lv_disp_get_ver_res(display);
+        return;
+    }
+#endif
     width = LV_HOR_RES;
     height = LV_VER_RES;
 }
@@ -37,10 +46,10 @@ void ScreenEditor::init() {
 
     // Create new screen
     screen_ = lv_obj_create(nullptr);
-    int display_width = LV_HOR_RES;
-    int display_height = LV_VER_RES;
-    getDisplayResolution(display_width, display_height);
-    lv_obj_set_size(screen_, display_width, display_height);
+    int width = LV_HOR_RES;
+    int height = LV_VER_RES;
+    getDisplaySize(width, height);
+    lv_obj_set_size(screen_, width, height);
     Theme::applyScreenStyle(screen_);
 
     createWidgets();
@@ -50,10 +59,10 @@ void ScreenEditor::createWidgets() {
     // Main text view
     text_view_ = new TextView(screen_);
     if (text_view_) {
-        int display_width = LV_HOR_RES;
-        int display_height = LV_VER_RES;
-        getDisplayResolution(display_width, display_height);
-        lv_obj_set_size(text_view_->obj(), display_width, display_height);
+        int width = LV_HOR_RES;
+        int height = LV_VER_RES;
+        getDisplaySize(width, height);
+        lv_obj_set_size(text_view_->obj(), width, height);
         lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
         updateTextViewLayout();
     }
@@ -253,6 +262,12 @@ void ScreenEditor::setEditorMargin(int margin_px) {
     updateTextViewLayout();
 }
 
+void ScreenEditor::setTypewriterMode(bool enabled) {
+    if (text_view_) {
+        text_view_->setTypewriterMode(enabled);
+    }
+}
+
 void ScreenEditor::handleDisplayResize() {
     if (!screen_) {
         return;
@@ -261,14 +276,14 @@ void ScreenEditor::handleDisplayResize() {
 }
 
 void ScreenEditor::applyTheme() {
-    int display_width = LV_HOR_RES;
-    int display_height = LV_VER_RES;
-    getDisplayResolution(display_width, display_height);
+    int width = LV_HOR_RES;
+    int height = LV_VER_RES;
+    getDisplaySize(width, height);
     if (screen_) {
-        lv_obj_set_size(screen_, display_width, display_height);
+        lv_obj_set_size(screen_, width, height);
     }
     if (text_view_) {
-        lv_obj_set_size(text_view_->obj(), display_width, display_height);
+        lv_obj_set_size(text_view_->obj(), width, height);
         lv_obj_align(text_view_->obj(), LV_ALIGN_TOP_LEFT, 0, 0);
     }
     Theme::applyScreenStyle(screen_);

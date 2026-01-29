@@ -106,6 +106,11 @@ esp_err_t SettingsStore::load(AppSettings& settings) {
         settings.editor_margin = 1;
     }
 
+    cJSON* typewriter = cJSON_GetObjectItem(root, "typewriter_mode");
+    if (cJSON_IsBool(typewriter)) {
+        settings.typewriter_mode = cJSON_IsTrue(typewriter);
+    }
+
     cJSON* ui_scale = cJSON_GetObjectItem(root, "ui_scale");
     if (cJSON_IsNumber(ui_scale)) {
         settings.ui_scale = ui_scale->valueint;
@@ -179,13 +184,14 @@ esp_err_t SettingsStore::save(const AppSettings& settings) {
     StorageManager::getInstance().ensureDirectories();
 
     cJSON* root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "version", 6);
+    cJSON_AddNumberToObject(root, "version", 7);
     const char* theme_id = settings.theme_id.empty() ? "dracula" : settings.theme_id.c_str();
     cJSON_AddStringToObject(root, "theme_id", theme_id);
     const char* editor_font = settings.editor_font_id.empty() ? "montserrat" : settings.editor_font_id.c_str();
     cJSON_AddStringToObject(root, "editor_font", editor_font);
     cJSON_AddNumberToObject(root, "font_size", settings.font_size);
     cJSON_AddNumberToObject(root, "editor_margin", settings.editor_margin);
+    cJSON_AddBoolToObject(root, "typewriter_mode", settings.typewriter_mode);
     cJSON_AddNumberToObject(root, "ui_scale", settings.ui_scale);
     cJSON_AddNumberToObject(root, "keyboard_layout", settings.keyboard_layout);
     cJSON_AddNumberToObject(root, "auto_sleep", settings.auto_sleep);

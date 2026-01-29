@@ -41,6 +41,8 @@ public:
     void scrollToLine(size_t line);
 
     // Configuration
+    void setTypewriterMode(bool enabled);
+    bool isTypewriterMode() const { return typewriter_mode_; }
     void setFont(const lv_font_t* font);
     void setLineHeight(int height);
     void setViewportSize(int width, int height);
@@ -84,6 +86,7 @@ protected:
     // Viewport state
     int scroll_y_ = 0;
     int visible_lines_ = 20;
+    bool typewriter_mode_ = true;
 
     // Line wrap cache
     std::vector<LineInfo> line_cache_;
