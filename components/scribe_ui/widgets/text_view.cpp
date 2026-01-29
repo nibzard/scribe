@@ -306,8 +306,17 @@ void TextView::scrollToCursor() {
     int cursor_y = line_cache_[line].y_offset;
     int content_height = line_cache_.back().y_offset + line_height_;
     int max_scroll = content_height - viewport_height_;
-    if (max_scroll < 0) {
-        max_scroll = 0;
+    int min_scroll = 0;
+    if (typewriter_mode_) {
+        int padding = (viewport_height_ - line_height_) / 2;
+        if (padding < 0) {
+            padding = 0;
+        }
+        max_scroll += padding;
+        min_scroll = -padding;
+    }
+    if (max_scroll < min_scroll) {
+        max_scroll = min_scroll;
     }
 
     int target = scroll_y_;
@@ -324,8 +333,8 @@ void TextView::scrollToCursor() {
         }
     }
 
-    if (target < 0) {
-        target = 0;
+    if (target < min_scroll) {
+        target = min_scroll;
     } else if (target > max_scroll) {
         target = max_scroll;
     }
