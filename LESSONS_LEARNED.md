@@ -1,4 +1,4 @@
-# Lessons Learned (Scribe on M5Stack Tab5)
+﻿# Lessons Learned (Scribe on M5Stack Tab5)
 
 ## Hardware + BSP
 - Target board is M5Stack Tab5 (ESP32-P4 + ESP32-C6 module). Core resources: 16 MB Flash, 32 MB PSRAM.
@@ -54,8 +54,8 @@ idf.py -p COM5 build flash
 ## Display Driver + LVGL Port Integration
 - M5 notes that the Tab5 screen driver changed to ST7123 (from ILI9881C) starting Oct 14, 2025. Check the rear label to confirm the panel/driver and match the init sequence accordingly.
 - ST7123 is an integrated display/touch driver over MIPI-DSI on Tab5; keep DSI init aligned with the BSP for this panel.
-- When using `esp_lvgl_port` with DSI: software rotation (`sw_rotate=1`) allocates an extra rotation buffer; if internal RAM is tight, `lvgl_port_add_disp_dsi` can fail with “Not enough memory for LVGL buffer (rotation buffer) allocation!” (this matches current crash logs).
-- DSI underrun errors like “can’t fetch data from external memory fast enough” can happen when LVGL draw buffers live in PSRAM; prefer internal DMA-capable RAM for DSI buffers when possible.
+- When using `esp_lvgl_port` with DSI: software rotation (`sw_rotate=1`) allocates an extra rotation buffer; if internal RAM is tight, `lvgl_port_add_disp_dsi` can fail with "Not enough memory for LVGL buffer (rotation buffer) allocation!" (this matches current crash logs).
+- DSI underrun errors like "can't fetch data from external memory fast enough" can happen when LVGL draw buffers live in PSRAM; prefer internal DMA-capable RAM for DSI buffers when possible.
 - Long-term direction: use `esp_lvgl_port` + BSP DSI handles, but avoid software rotation unless you can afford the extra buffer; rely on hardware rotation in `esp_lcd` instead.
 
 ## Session Notes (2026-01-28)
@@ -80,9 +80,9 @@ idf.py -p COM5 build flash
 - Fonts/UI scale: editor fonts now use embedded TTFs via LVGL TinyTTF (Montserrat/DejaVu/Ubuntu) with sizes 14-240px; UI scale is user-configurable (50-150%) and most UI layout uses `Theme::scalePx` for consistent scaling.
 - If TinyTTF is disabled (`CONFIG_LV_USE_TINY_TTF` off), font sizes beyond the built-in Montserrat range collapse and checkmark glyphs render as tofu; enable TinyTTF to restore large sizes and glyph coverage.
 - TextView is a custom draw widget and does not honor LVGL padding automatically; margins must be applied as explicit content insets.
-- Storage UX: after SD format, the UI must show explicit progress + completion and then verify mount + do a quick write/read test; showing “SD card ready” without validation can still leave saves failing.
+- Storage UX: after SD format, the UI must show explicit progress + completion and then verify mount + do a quick write/read test; showing "SD card ready" without validation can still leave saves failing.
 - SD format flow should be modal (disable inputs) and must allow ESC/Back once finished or failed; otherwise users can get stuck in the storage screen.
-- exFAT cards still fail to save after format unless formatted as FAT32; mount success alone is not enough — use a write test to confirm FATFS is actually usable.
+- exFAT cards still fail to save after format unless formatted as FAT32; mount success alone is not enough - use a write test to confirm FATFS is actually usable.
 
 - USB MSC mode: suspend storage writes, unmount /sdcard, then start TinyUSB MSC with the SD card handle; on USB detach, stop MSC, remount, and restart the keyboard host. Import .env from /sdcard/Scribe/.env after remount without modifying the file.
 - LVGL TinyTTF: on ESP32-P4 we hit a repeatable Store access fault in `lv_tlsf_free` during font cache eviction (backtrace via `TextView::setFont` -> `lv_text_get_next_line` -> `lv_cache`). Temporary workaround: disable TinyTTF usage in `components/scribe_ui/theme/fonts.cpp` (`kEnableTinyTtf=false`) to fall back to built-in fonts and avoid the cache path. Long-term: investigate TinyTTF/LVGL cache corruption on P4 and re-enable once stable.
@@ -96,3 +96,4 @@ idf.py -p COM5 build flash
 - Settings picker lists (font size/font family/etc.) can render as a 1px line on first open if the roller size is computed from a zero-width overlay; size the roller from computed overlay dims and update layout after unhide (see `screen_settings.cpp`).
 - If picker overlays still show a vertical line on first open, move the overlay to foreground and invalidate/update layout for both overlay and roller right after unhide to force a redraw.
 - Settings list rebuilds (e.g., after auto-sleep change) can reset scroll; call `lv_obj_scroll_to_view_recursive` for the selected row after updating selection to keep items visible in landscape.
+
