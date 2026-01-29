@@ -212,7 +212,7 @@ User-facing updates and the related code touched in this pass:
 - HUD "Saved" glyph replaced with plain text to avoid missing-glyph box.
 - Wi-Fi UI now supports scan, list, password prompt, and connect status updates.
 - Settings picker lists (font size/font family/etc.) now render immediately on first open; picker overlays force a layout refresh + invalidate after unhide to avoid the 1px line state.
-- Editor viewport reflows on orientation change; the editor layout is resized after display rotation updates.
+- Editor writing surface and viewport resize to the current display resolution on orientation change (portrait/landscape).
 - Settings list keeps the selected row in view after list rebuilds (auto-sleep changes), so bottom items remain reachable in landscape.
 
 Key files:
