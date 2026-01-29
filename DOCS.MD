@@ -209,6 +209,7 @@ User-facing updates and the related code touched in this pass:
 - HUD "Saved" glyph replaced with plain text to avoid missing-glyph box.
 - Wi-Fi UI now supports scan, list, password prompt, and connect status updates.
 - Settings picker lists (font size/font family/etc.) now render immediately on first open; picker overlays force a layout refresh + invalidate after unhide to avoid the 1px line state.
+- Editor viewport reflows on orientation change; the editor layout is resized after display rotation updates.
 
 Key files:
 - TextView + cursor metrics: `components/scribe_ui/widgets/text_view.cpp`

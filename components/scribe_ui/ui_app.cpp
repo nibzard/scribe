@@ -1588,6 +1588,9 @@ void UIApp::applyDisplayOrientation() {
         }
     }
     MIPIDSI::setOrientation(orientation);
+    if (editor_screen_) {
+        editor_screen_->handleDisplayResize();
+    }
     current_orientation_ = settings_.display_orientation;
 }
 
@@ -1609,6 +1612,9 @@ void UIApp::updateAutoOrientation() {
     }
 
     MIPIDSI::setOrientation(imu_orientation);
+    if (editor_screen_) {
+        editor_screen_->handleDisplayResize();
+    }
 }
 
 void UIApp::handlePowerOffConfirm() {
@@ -1624,3 +1630,4 @@ void UIApp::handlePowerOffCancel() {
     }
     showEditor();
 }
+
