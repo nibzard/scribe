@@ -4,16 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build
 
-ESP-IDF is at `/home/niko/esp/esp-idf`. Source the export script first:
+ESP-IDF is at `~/esp/esp-idf` (same path on all dev machines). Source the export script first:
 
 ```bash
-source /home/niko/esp/esp-idf/export.sh
+source ~/esp/esp-idf/export.sh
 ```
 
-**Build for hardware:**
+**Build for hardware (ESP32-P4 + M5Tab5):**
 ```bash
-idf.py set-target esp32p4  # once per workspace
-idf.py build
+idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.hardware" build
 idf.py flash
 idf.py monitor
 ```
@@ -108,9 +107,11 @@ When display is blank in Wokwi: verify ESP32-P4 pin labels match `diagram.json`.
 
 ### Configuration
 
-- `sdkconfig.defaults`: Base ESP32-P4 config.
-- `sdkconfig.wokwi`: Wokwi display override.
-- `partitions.csv`: 12MB factory, 3MB storage (for projects).
+- `sdkconfig.defaults`: Base ESP32-P4 config (shared).
+- `sdkconfig.hardware`: Hardware-specific overrides (16MB flash, partitions.csv).
+- `sdkconfig.wokwi`: Wokwi simulation overrides (4MB flash, partitions_wokwi.csv).
+- `partitions.csv`: Hardware partition table (12MB factory app, 3MB storage).
+- `partitions_wokwi.csv`: Wokwi partition table (2MB factory app, 1MB storage).
 - `dependencies.lock`: Component manager locks (do NOT hand-edit).
 
 ### Common Patterns
